@@ -3,6 +3,9 @@
 import Link from "next/link";
 import { useState } from "react";
 import { LinkButton } from "./Button";
+import AuthMenu from "@/components/AuthMenu";
+import Avatar from "@/components/Avatar";
+import { useAuth } from "@/components/AuthProvider";
 
 const links = [
   { href: "/", label: "Главная" },
@@ -14,6 +17,7 @@ const links = [
 
 export default function Navbar() {
   const [open, setOpen] = useState(false);
+  const { user, loading } = useAuth();
 
   return (
     <header className="sticky top-0 z-40 border-b border-stone-200 bg-white/90 backdrop-blur">
@@ -35,13 +39,9 @@ export default function Navbar() {
           ))}
         </ul>
 
+        {/* Справа: «Войти/Регистрация» или иконка профиля */}
         <div className="hidden items-center gap-2 md:flex">
-          <LinkButton href="/login" variant="ghost" size="sm">
-            Войти
-          </LinkButton>
-          <LinkButton href="/register" size="sm">
-            Регистрация
-          </LinkButton>
+          <AuthMenu />
         </div>
 
         <button
@@ -76,12 +76,24 @@ export default function Navbar() {
               </li>
             ))}
           </ul>
-          <div className="grid grid-cols-2 gap-2">
-            <LinkButton href="/login" variant="outline">
-              Войти
-            </LinkButton>
-            <LinkButton href="/register">Регистрация</LinkButton>
-          </div>
+
+          {loading ? null : user ? (
+            <Link
+              href="/profile"
+              onClick={() => setOpen(false)}
+              className="flex items-center gap-3 rounded-lg px-3 py-2 hover:bg-stone-100"
+            >
+              <Avatar name={user.name} src={user.avatar} />
+              <span className="font-medium text-stone-900">{user.name}</span>
+            </Link>
+          ) : (
+            <div className="grid grid-cols-2 gap-2">
+              <LinkButton href="/login" variant="outline">
+                Войти
+              </LinkButton>
+              <LinkButton href="/register">Регистрация</LinkButton>
+            </div>
+          )}
         </div>
       )}
     </header>

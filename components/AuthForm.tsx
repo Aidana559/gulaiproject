@@ -3,11 +3,13 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { useAuth } from "@/components/AuthProvider";
 
 type Mode = "login" | "register";
 
 export default function AuthForm({ mode }: { mode: Mode }) {
   const router = useRouter();
+  const { refresh } = useAuth(); // новое
   const isRegister = mode === "register";
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -28,6 +30,7 @@ export default function AuthForm({ mode }: { mode: Mode }) {
         setError(json.error ?? "Қате орын алды");
         return;
       }
+      await refresh(); // новое: шапка сразу узнаёт, что ты вошла
       router.push("/profile");
     } catch {
       setError("Сервермен байланыс жоқ");
