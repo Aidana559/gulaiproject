@@ -47,14 +47,14 @@ export default function AuthForm({ mode }: { mode: Mode }) {
       >
         <div>
           <h1 className="text-2xl font-semibold text-slate-900">
-            {isRegister ? "Тіркелу" : "Кіру"}
+            {isRegister ? "Регистрация" : "Вход"}
           </h1>
-          <p className="mt-1 text-sm text-slate-600">Page2Page — студенттік буккроссинг</p>
+          <p className="mt-1 text-sm text-slate-600">Page2Page — студентческий буккроссинг</p>
         </div>
 
         {isRegister && (
           <label className="block text-sm text-slate-700">
-            Аты-жөні
+            Имя
             <input name="name" required minLength={2} autoComplete="name" className={input} />
           </label>
         )}
@@ -65,7 +65,7 @@ export default function AuthForm({ mode }: { mode: Mode }) {
         </label>
 
         <label className="block text-sm text-slate-700">
-          Құпиясөз
+          Пароль
           <input
             name="password"
             type="password"
@@ -87,13 +87,13 @@ export default function AuthForm({ mode }: { mode: Mode }) {
           disabled={loading}
           className="w-full rounded-md bg-teal-800 px-4 py-2 font-medium text-white hover:bg-teal-900 disabled:opacity-60"
         >
-          {loading ? "Күте тұрыңыз…" : isRegister ? "Тіркелу" : "Кіру"}
+          {loading ? "Подождите…" : isRegister ? "Регистрация" : "Вход"}
         </button>
 
         <p className="text-center text-sm text-slate-600">
-          {isRegister ? "Аккаунт бар ма? " : "Аккаунт жоқ па? "}
+          {isRegister ? "Уже есть аккаунт? " : "Нет аккаунта? "}
           <Link href={isRegister ? "/login" : "/register"} className="font-medium text-teal-800 underline">
-            {isRegister ? "Кіру" : "Тіркелу"}
+            {isRegister ? "Вход" : "Регистрация"}
           </Link>
         </p>
       </form>

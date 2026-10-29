@@ -16,7 +16,7 @@ export async function POST(req: Request) {
 
   const user = await findUserByEmail(email);
   if (!user || !verifyPassword(password, user.passwordHash))
-    return NextResponse.json({ error: "Email немесе құпиясөз қате" }, { status: 401 });
+    return NextResponse.json({ error: "Неверный email или пароль" }, { status: 401 });
 
   (await cookies()).set(SESSION_COOKIE, createSessionToken(user.id), sessionCookieOptions);
   return NextResponse.json({ user: toPublic(user) });
