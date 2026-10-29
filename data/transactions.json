@@ -1,0 +1,18 @@
+[
+  { "id": 1,  "bookId": 1,  "person": "Дамир Т.",   "status": "borrowed", "startDate": "2026-10-15", "dueDate": "2026-11-05" },
+  { "id": 2,  "bookId": 3,  "person": "Мария С.",   "status": "reserved", "startDate": "2026-10-26", "dueDate": "2026-11-09" },
+  { "id": 3,  "bookId": 15, "person": "Арман Б.",   "status": "reserved", "startDate": "2026-10-25", "dueDate": "2026-11-15" },
+  { "id": 4,  "bookId": 9,  "person": "Алина Н.",   "status": "reserved", "startDate": "2026-10-27", "dueDate": "2026-11-10" },
+  { "id": 5,  "bookId": 6,  "person": "Тимур Ж.",   "status": "overdue",  "startDate": "2026-09-20", "dueDate": "2026-10-18" },
+  { "id": 6,  "bookId": 19, "person": "Сабина М.",  "status": "overdue",  "startDate": "2026-09-28", "dueDate": "2026-10-22" },
+  { "id": 7,  "bookId": 27, "person": "Иван П.",    "status": "borrowed", "startDate": "2026-10-10", "dueDate": "2026-11-10" },
+  { "id": 8,  "bookId": 29, "person": "Айдана К.",  "status": "reserved", "startDate": "2026-10-24", "dueDate": "2026-11-07" },
+  { "id": 9,  "bookId": 14, "person": "Дамир Т.",   "status": "borrowed", "startDate": "2026-10-01", "dueDate": "2026-11-01" },
+  { "id": 10, "bookId": 36, "person": "Мария С.",   "status": "reserved", "startDate": "2026-10-23", "dueDate": "2026-11-06" },
+  { "id": 11, "bookId": 22, "person": "Арман Б.",   "status": "borrowed", "startDate": "2026-10-18", "dueDate": "2026-11-18" },
+  { "id": 12, "bookId": 41, "person": "Алина Н.",   "status": "reserved", "startDate": "2026-10-27", "dueDate": "2026-11-03" },
+  { "id": 13, "bookId": 2,  "person": "Тимур Ж.",   "status": "returned", "startDate": "2026-09-01", "dueDate": "2026-09-22" },
+  { "id": 14, "bookId": 12, "person": "Сабина М.",  "status": "returned", "startDate": "2026-09-05", "dueDate": "2026-10-05" },
+  { "id": 15, "bookId": 30, "person": "Иван П.",    "status": "returned", "startDate": "2026-09-12", "dueDate": "2026-09-26" },
+  { "id": 16, "bookId": 18, "person": "Айдана К.",  "status": "borrowed", "startDate": "2026-10-20", "dueDate": "2026-11-20" }
+]
