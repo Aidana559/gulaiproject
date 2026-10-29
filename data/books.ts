@@ -110,13 +110,16 @@ const seeds: Seed[] = [
   { title: "Моя геройская академия. Том 1", author: "Кохэй Хорикоси", category: "manga", genre: "Сёнэн", status: "available", year: 2014, pages: 192, g: "lime", description: "Мальчик без причуды мечтает стать величайшим героем." },
 ];
 
-export const books: Book[] = seeds.map(({ g: grad, ...rest }, i) => ({
+const rawBooks: Book[] = seeds.map(({ g: grad, ...rest }, i) => ({
   ...rest,
   id: i + 1,
   owner: owners[i % owners.length],
   city: cities[i % cities.length],
   gradient: g[grad],
 }));
+
+// все книги считаются доступными, пока их никто не забронировал
+export const books: Book[] = rawBooks.map((b) => ({ ...b, status: "available" as const }));
 
 export const genres: string[] = Array.from(new Set(books.map((b) => b.genre))).sort((a, b) =>
   a.localeCompare(b, "ru"),

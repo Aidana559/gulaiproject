@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   addDays,
   formatDate,
@@ -9,21 +9,110 @@ import {
   txStyles,
   type TxStatus,
 } from "@/data/transactions";
+import { books } from "@/data/books";
 import { removeTransaction, updateTransaction, useTransactions } from "@/lib/txStore";
+import { useAuth } from "@/components/AuthProvider";
 import { Button } from "./Button";
 import { inputClass } from "./FormField";
 
 type SortKey = "due-asc" | "due-desc" | "start-desc" | "title";
+type Action = "issue" | "return" | "extend" | "cancel";
+
+// общий вид строки: и для демо-транзакций, и для броней с сервера
+type Row = {
+  id: string;
+  book: { id: number | string; title: string; author: string; gradient: string };
+  person: string;
+  status: TxStatus;
+  startDate: string;
+  dueDate: string;
+  server?: boolean;
+};
+
+type ApiBooking = {
+  id: string;
+  bookId?: number;
+  bookTitle: string;
+  bookAuthor: string;
+  status: string;
+  startDate: string;
+  dueDate: string;
+};
 
 const statuses = Object.keys(txLabels) as TxStatus[];
 
+function toRow(b: ApiBooking, person: string): Row {
+  const found =
+    (b.bookId != null ? books.find((x) => x.id === b.bookId) : undefined) ??
+    books.find((x) => x.title === b.bookTitle);
+  return {
+    id: b.id,
+    book: {
+      id: found?.id ?? b.bookId ?? 0,
+      title: b.bookTitle,
+      author: b.bookAuthor,
+      gradient: found?.gradient ?? "from-indigo-500 to-purple-600",
+    },
+    person,
+    status: b.status as TxStatus,
+    startDate: b.startDate,
+    dueDate: b.dueDate,
+    server: true,
+  };
+}
+
 export default function TransactionsView() {
-  const items = useTransactions();
+  const storeItems = useTransactions();
+  const { user } = useAuth();
+  const [serverBookings, setServerBookings] = useState<ApiBooking[]>([]);
   const [status, setStatus] = useState<TxStatus | "all" | "active">("active");
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<SortKey>("due-asc");
 
   const update = updateTransaction;
+
+  const loadServer = useCallback(async () => {
+    try {
+      const res = await fetch("/api/bookings", { cache: "no-store" });
+      if (!res.ok) {
+        setServerBookings([]);
+        return;
+      }
+      const json = await res.json();
+      setServerBookings(json.bookings ?? []);
+    } catch {
+      setServerBookings([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadServer();
+  }, [loadServer]);
+
+  // брони с сервера (кроме отменённых) + прежние демо-транзакции
+  const items = useMemo<Row[]>(() => {
+    const person = user?.name ?? "Вы";
+    const mine = serverBookings.filter((b) => b.status !== "cancelled").map((b) => toRow(b, person));
+    return [...mine, ...(storeItems as unknown as Row[])];
+  }, [serverBookings, storeItems, user]);
+
+  async function act(t: Row, action: Action) {
+    if (t.server) {
+      await fetch(`/api/bookings/${t.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action }),
+      });
+      await loadServer();
+      return;
+    }
+    // демо-транзакции работают как раньше
+    const id = t.id as never;
+    if (action === "cancel") return removeTransaction(id);
+    if (action === "issue") return update(id, { status: "borrowed" });
+    if (action === "return") return update(id, { status: "returned" });
+    update(id, { dueDate: addDays(t.dueDate, 7), status: "borrowed" });
+  }
 
   const counts = useMemo(() => {
     const c = { reserved: 0, borrowed: 0, overdue: 0, returned: 0 } as Record<TxStatus, number>;
@@ -164,24 +253,20 @@ export default function TransactionsView() {
               <div className="flex flex-wrap gap-2">
                 {t.status === "reserved" && (
                   <>
-                    <Button size="sm" onClick={() => update(t.id, { status: "borrowed" })}>
+                    <Button size="sm" onClick={() => act(t, "issue")}>
                       Выдать
                     </Button>
-                    <Button size="sm" variant="danger" onClick={() => removeTransaction(t.id)}>
+                    <Button size="sm" variant="danger" onClick={() => act(t, "cancel")}>
                       Отменить бронь
                     </Button>
                   </>
                 )}
                 {(t.status === "borrowed" || t.status === "overdue") && (
                   <>
-                    <Button size="sm" onClick={() => update(t.id, { status: "returned" })}>
+                    <Button size="sm" onClick={() => act(t, "return")}>
                       Принять возврат
                     </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => update(t.id, { dueDate: addDays(t.dueDate, 7), status: "borrowed" })}
-                    >
+                    <Button size="sm" variant="outline" onClick={() => act(t, "extend")}>
                       Продлить на 7 дн.
                     </Button>
                   </>

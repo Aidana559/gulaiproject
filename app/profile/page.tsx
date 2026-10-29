@@ -1,9 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
 import Avatar from "@/components/Avatar";
+import { books } from "@/data/books";
 
 type Profile = {
   id: string;
@@ -13,11 +15,13 @@ type Profile = {
   createdAt: string;
 };
 
+type BookingStatus = "reserved" | "borrowed" | "overdue" | "returned" | "cancelled";
+
 type Booking = {
   id: string;
   bookTitle: string;
   bookAuthor: string;
-  status: "reserved" | "given" | "cancelled";
+  status: BookingStatus;
   createdAt: string;
 };
 
@@ -26,11 +30,20 @@ type FieldErrors = Partial<Record<keyof Draft, string>>;
 
 const ROLES = { admin: "Администратор", moderator: "Модератор", user: "Пользователь" };
 
-const STATUS = {
+const STATUS: Record<BookingStatus, { label: string; cls: string }> = {
   reserved: { label: "Забронирована", cls: "bg-amber-100 text-amber-800" },
-  given: { label: "Отдана", cls: "bg-teal-100 text-teal-800" },
+  borrowed: { label: "На руках", cls: "bg-teal-100 text-teal-800" },
+  overdue: { label: "Просрочена", cls: "bg-red-100 text-red-800" },
+  returned: { label: "Возвращена", cls: "bg-emerald-100 text-emerald-800" },
   cancelled: { label: "Отменена", cls: "bg-slate-200 text-slate-600" },
 };
+
+const FILTERS: { key: BookingStatus; label: string }[] = [
+  { key: "reserved", label: "Бронь" },
+  { key: "borrowed", label: "На руках" },
+  { key: "overdue", label: "Просрочена" },
+  { key: "returned", label: "Возвращена" },
+];
 
 const fmt = (iso: string) => new Date(iso).toLocaleDateString("ru-RU");
 
@@ -68,7 +81,10 @@ export default function ProfilePage() {
   const { user: authUser, updateProfile, refresh } = useAuth();
   const [user, setUser] = useState<Profile | null>(null);
   const [bookings, setBookings] = useState<Booking[]>([]);
-  const [error, setError] = useState("");
+
+  // фильтр броней и поиск книг
+  const [filter, setFilter] = useState<BookingStatus | null>(null);
+  const [query, setQuery] = useState("");
 
   // редактирование профиля
   const [editing, setEditing] = useState(false);
@@ -78,7 +94,7 @@ export default function ProfilePage() {
   const fileRef = useRef<HTMLInputElement>(null);
 
   const loadBookings = useCallback(async () => {
-    const res = await fetch("/api/bookings");
+    const res = await fetch("/api/bookings", { cache: "no-store" });
     if (res.ok) setBookings((await res.json()).bookings);
   }, []);
 
@@ -98,6 +114,15 @@ export default function ProfilePage() {
     return () => clearTimeout(id);
   }, [toast]);
 
+  // результаты поиска по книгам каталога
+  const results = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return [];
+    return books
+      .filter((b) => `${b.title} ${b.author}`.toLowerCase().includes(q))
+      .slice(0, 6);
+  }, [query]);
+
   async function logout() {
     await fetch("/api/auth/logout", { method: "POST" });
     await refresh(); // чтобы шапка снова показала «Войти» и «Регистрация»
@@ -109,29 +134,12 @@ export default function ProfilePage() {
     await loadBookings();
   }
 
-  async function addBooking(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setError("");
-    const form = e.currentTarget;
-    const data = Object.fromEntries(new FormData(form));
-    const res = await fetch("/api/bookings", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
-    });
-    if (!res.ok) {
-      setError((await res.json()).error ?? "Ошибка");
-      return;
-    }
-    form.reset();
-    await loadBookings();
-  }
-
   if (!user) {
     return <main className="flex min-h-screen items-center justify-center text-slate-500">Загрузка…</main>;
   }
 
   const active = bookings.filter((b) => b.status === "reserved").length;
+  const visible = filter ? bookings.filter((b) => b.status === filter) : bookings;
   const input =
     "w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-teal-700 focus:ring-2 focus:ring-teal-700/25";
 
@@ -334,13 +342,37 @@ export default function ProfilePage() {
       <section className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
         <h2 className="text-lg font-semibold text-slate-900">Мои брони</h2>
 
-        {bookings.length === 0 ? (
-          <p className="mt-3 text-sm text-slate-600">
-            Пока нет броней. Забронируйте книгу в каталоге или добавьте бронь ниже.
+        {/* Фильтры (повторный клик снимает фильтр) */}
+        <div className="mt-4 flex flex-wrap gap-2">
+          {FILTERS.map((f) => {
+            const on = filter === f.key;
+            return (
+              <button
+                key={f.key}
+                type="button"
+                onClick={() => setFilter(on ? null : f.key)}
+                aria-pressed={on}
+                className={`rounded-lg px-4 py-2 text-sm font-medium transition ${
+                  on
+                    ? "bg-teal-800 text-white ring-1 ring-teal-800"
+                    : "bg-white text-slate-800 ring-1 ring-slate-300 hover:bg-slate-100"
+                }`}
+              >
+                {f.label}
+              </button>
+            );
+          })}
+        </div>
+
+        {visible.length === 0 ? (
+          <p className="mt-4 text-sm text-slate-600">
+            {bookings.length === 0
+              ? "Пока нет броней. Найдите книгу через поиск ниже или в каталоге."
+              : "Нет броней с таким статусом."}
           </p>
         ) : (
           <ul className="mt-4 divide-y divide-slate-100">
-            {bookings.map((b) => (
+            {visible.map((b) => (
               <li key={b.id} className="flex items-center gap-4 py-3">
                 <div className="flex-1">
                   <p className="font-medium text-slate-900">{b.bookTitle}</p>
@@ -364,17 +396,54 @@ export default function ProfilePage() {
           </ul>
         )}
 
-        <form onSubmit={addBooking} className="mt-6 grid gap-3 border-t border-slate-100 pt-5 sm:grid-cols-[1fr_1fr_auto]">
-          <input name="bookTitle" required placeholder="Название книги" className={input} />
-          <input name="bookAuthor" placeholder="Автор" className={input} />
-          <button
-            type="submit"
-            className="rounded-md bg-teal-800 px-4 py-2 text-sm font-medium text-white hover:bg-teal-900"
-          >
-            Забронировать
-          </button>
-        </form>
-        {error && <p role="alert" className="mt-2 text-sm text-red-700">{error}</p>}
+        {/* Поиск книги */}
+        <div className="mt-6 border-t border-slate-100 pt-5">
+          <label className="block text-sm font-medium text-slate-700" htmlFor="book-search">
+            Найти книгу
+          </label>
+          <div className="relative mt-2">
+            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">🔍</span>
+            <input
+              id="book-search"
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Название или автор"
+              className={`${input} pl-9`}
+            />
+          </div>
+
+          {query.trim() && (
+            <ul className="mt-3 divide-y divide-slate-100 rounded-md border border-slate-200">
+              {results.length === 0 ? (
+                <li className="px-4 py-3 text-sm text-slate-600">Ничего не найдено</li>
+              ) : (
+                results.map((b) => (
+                  <li key={b.id}>
+                    <Link
+                      href={`/book/${b.id}`}
+                      className="flex items-center gap-4 px-4 py-3 hover:bg-slate-50"
+                    >
+                      <div className="flex-1">
+                        <p className="font-medium text-slate-900">{b.title}</p>
+                        <p className="text-sm text-slate-600">{b.author}</p>
+                      </div>
+                      <span
+                        className={`rounded-full px-3 py-1 text-xs font-medium ${
+                          b.status === "available"
+                            ? "bg-teal-100 text-teal-800"
+                            : "bg-slate-200 text-slate-600"
+                        }`}
+                      >
+                        {b.status === "available" ? "Доступна" : "Недоступна"}
+                      </span>
+                    </Link>
+                  </li>
+                ))
+              )}
+            </ul>
+          )}
+        </div>
       </section>
 
       {toast && (
