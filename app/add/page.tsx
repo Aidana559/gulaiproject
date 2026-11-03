@@ -52,7 +52,6 @@ export default function AddPage() {
         owner: user?.name ?? "Вы",
       });
 
-      // если есть API — тоже отправим
       await fetch("/api/books", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -60,7 +59,6 @@ export default function AddPage() {
       }).catch(() => {});
 
       setDone(true);
-      // через секунду — в каталог, чтобы увидеть новую книгу
       setTimeout(() => router.push("/catalog"), 900);
     } catch {
       setError("Не удалось сохранить");

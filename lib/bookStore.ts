@@ -62,7 +62,6 @@ function writeUserBooks(list: Book[]) {
   window.dispatchEvent(new Event("p2p-books-changed"));
 }
 
-/** Все книги: статические + добавленные пользователем − удалённые + правки */
 export function getAllBooks(): Book[] {
   const deleted = new Set(readDeleted());
   const edits = readEdits();
@@ -82,7 +81,6 @@ export function getAllBooks(): Book[] {
       return patch ? { ...b, ...patch } : b;
     });
 
-  // user books first (новые сверху), потом статические
   return [...userFiltered, ...base];
 }
 
@@ -122,7 +120,6 @@ export function removeBook(id: number) {
     deleted.push(id);
     localStorage.setItem(DELETED_KEY, JSON.stringify(deleted));
   }
-  // убрать и из user books
   writeUserBooks(readUserBooks().filter((b) => b.id !== id));
   window.dispatchEvent(new Event("p2p-books-changed"));
 }
@@ -132,7 +129,6 @@ export function updateBook(id: number, patch: Partial<Book>) {
   edits[String(id)] = { ...edits[String(id)], ...patch };
   localStorage.setItem(EDITS_KEY, JSON.stringify(edits));
 
-  // если это user-book — обновить и там
   const list = readUserBooks();
   const idx = list.findIndex((b) => b.id === id);
   if (idx >= 0) {
@@ -143,7 +139,6 @@ export function updateBook(id: number, patch: Partial<Book>) {
   }
 }
 
-/** React-хук: всегда актуальный список книг */
 export function useBooks(): Book[] {
   const [list, setList] = useState<Book[]>(() =>
     typeof window === "undefined" ? staticBooks : getAllBooks(),

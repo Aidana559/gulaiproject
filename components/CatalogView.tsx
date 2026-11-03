@@ -18,7 +18,7 @@ const tabs: { key: Category | "all"; label: string; emoji: string }[] = [
 ];
 
 export default function CatalogView({ initialCategory = "all" }: { initialCategory?: Category | "all" }) {
-  const books = useBooks(); // статические + добавленные из localStorage
+  const books = useBooks(); 
   const txs = useTransactions();
   const server = useServerStates();
   const [query, setQuery] = useState("");
@@ -51,7 +51,7 @@ export default function CatalogView({ initialCategory = "all" }: { initialCatego
 
   return (
     <div>
-      {/* Категории */}
+      {}
       <div className="flex flex-wrap gap-2">
         {tabs.map((t) => (
           <Button
@@ -65,7 +65,7 @@ export default function CatalogView({ initialCategory = "all" }: { initialCatego
         ))}
       </div>
 
-      {/* Фильтры */}
+      {}
       <div className="mt-5 grid gap-3 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-stone-200 sm:grid-cols-2 lg:grid-cols-5">
         <input
           type="search"
