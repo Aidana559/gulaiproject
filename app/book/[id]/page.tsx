@@ -5,28 +5,31 @@ import BookCover from "@/components/BookCover";
 import BookCard from "@/components/BookCard";
 import BookStatusBadge from "@/components/BookStatusBadge";
 import ReserveButton from "@/components/ReserveButton";
-import DemoForm from "@/components/DemoForm";
-import { SelectField, TextArea } from "@/components/FormField";
 import { LinkButton } from "@/components/Button";
+import BookActions from "@/components/BookActions";
+import OwnerRating from "@/components/OwnerRating";
+import ReportButton from "@/components/ReportButton";
+import ReviewsSection from "@/components/ReviewsSection";
+import BookGuard from "@/components/BookGuard";
 
 export function generateStaticParams() {
   return books.map((b) => ({ id: String(b.id) }));
 }
-
-const reviews = [
-  { name: "Алина Н.", rating: 5, text: "Отличное состояние, владелец вежливый. Передали в университете." },
-  { name: "Тимур Ж.", rating: 4, text: "Всё хорошо, небольшие следы от карандаша на полях." },
-];
 
 export default async function BookPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const book = getBook(Number(id));
   if (!book) notFound();
 
+  // Если в data/books.ts есть ownerId — используем его, иначе имя владельца
+  const ownerKey = String((book as any).ownerId ?? book.owner);
+
   const similar = books.filter((b) => b.category === book.category && b.id !== book.id).slice(0, 4);
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+      <BookGuard bookId={book.id} />
+
       <nav className="text-sm text-stone-500">
         <Link href="/catalog" className="hover:text-indigo-600">Каталог</Link> / {categoryLabels[book.category]}
       </nav>
@@ -54,48 +57,25 @@ export default async function BookPage({ params }: { params: Promise<{ id: strin
             <div>
               <p className="font-medium text-stone-900">{book.owner}</p>
               <p className="text-stone-500">{book.city}</p>
+              <div className="mt-1">
+                <OwnerRating userId={ownerKey} />
+              </div>
             </div>
           </div>
 
-          <div className="mt-8 flex flex-wrap gap-3">
+          <div className="mt-8 flex flex-wrap items-center gap-3">
             <ReserveButton book={book} />
             <LinkButton href="/catalog" variant="outline" size="lg">← К каталогу</LinkButton>
+          </div>
+
+          <div className="mt-4 flex flex-wrap items-center gap-4">
+            <BookActions bookId={book.id} ownerId={ownerKey} />
+            <ReportButton bookId={book.id} />
           </div>
         </div>
       </div>
 
-      {/* Отзывы */}
-      <section className="mt-16 grid gap-10 lg:grid-cols-2">
-        <div>
-          <h2 className="text-xl font-bold text-stone-900">Отзывы</h2>
-          <ul className="mt-4 space-y-4">
-            {reviews.map((r) => (
-              <li key={r.name} className="rounded-2xl bg-white p-5 ring-1 ring-stone-200">
-                <div className="flex items-center justify-between">
-                  <p className="font-medium text-stone-900">{r.name}</p>
-                  <p className="text-amber-500" aria-label={`Оценка ${r.rating} из 5`}>
-                    {"★".repeat(r.rating)}{"☆".repeat(5 - r.rating)}
-                  </p>
-                </div>
-                <p className="mt-2 text-sm text-stone-600">{r.text}</p>
-              </li>
-            ))}
-          </ul>
-        </div>
-        <div>
-          <h2 className="text-xl font-bold text-stone-900">Оставить отзыв</h2>
-          <div className="mt-4 rounded-2xl bg-white p-5 ring-1 ring-stone-200">
-            <DemoForm submitLabel="Отправить отзыв" successMessage="Спасибо! Отзыв отправлен на проверку.">
-              <SelectField label="Оценка" id="rating">
-                {[5, 4, 3, 2, 1].map((n) => (
-                  <option key={n} value={n}>{"★".repeat(n)}</option>
-                ))}
-              </SelectField>
-              <TextArea label="Ваш отзыв" id="text" />
-            </DemoForm>
-          </div>
-        </div>
-      </section>
+      <ReviewsSection bookId={book.id} ownerId={ownerKey} />
 
       {similar.length > 0 && (
         <section className="mt-16">
