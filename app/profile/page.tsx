@@ -5,7 +5,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
 import Avatar from "@/components/Avatar";
+import { Button } from "@/components/Button";
 import { books } from "@/data/books";
+import { formatDate, txLabels, txStyles, type TxStatus } from "@/data/transactions";
 
 type Profile = {
   id: string;
@@ -15,28 +17,23 @@ type Profile = {
   createdAt: string;
 };
 
-type BookingStatus = "reserved" | "borrowed" | "overdue" | "returned" | "cancelled";
+type BookingStatus = TxStatus | "cancelled";
 
 type Booking = {
   id: string;
+  bookId?: number;
   bookTitle: string;
   bookAuthor: string;
   status: BookingStatus;
   createdAt: string;
+  startDate: string;
+  dueDate: string;
 };
 
 type Draft = { name: string; email: string; telegram: string; bio: string; avatar: string | null };
 type FieldErrors = Partial<Record<keyof Draft, string>>;
 
 const ROLES = { admin: "Администратор", moderator: "Модератор", user: "Пользователь" };
-
-const STATUS: Record<BookingStatus, { label: string; cls: string }> = {
-  reserved: { label: "Забронирована", cls: "bg-amber-100 text-amber-800" },
-  borrowed: { label: "На руках", cls: "bg-teal-100 text-teal-800" },
-  overdue: { label: "Просрочена", cls: "bg-red-100 text-red-800" },
-  returned: { label: "Возвращена", cls: "bg-emerald-100 text-emerald-800" },
-  cancelled: { label: "Отменена", cls: "bg-slate-200 text-slate-600" },
-};
 
 const FILTERS: { key: BookingStatus; label: string }[] = [
   { key: "reserved", label: "Бронь" },
@@ -46,6 +43,11 @@ const FILTERS: { key: BookingStatus; label: string }[] = [
 ];
 
 const fmt = (iso: string) => new Date(iso).toLocaleDateString("ru-RU");
+
+// метка и цвет статуса: те же, что на странице «Транзакции»
+const badgeLabel = (s: BookingStatus) => (s === "cancelled" ? "Отменена" : txLabels[s]);
+const badgeStyle = (s: BookingStatus) =>
+  s === "cancelled" ? "bg-stone-100 text-stone-600 ring-stone-500/20" : txStyles[s];
 
 // Обрезает фото до квадрата 256x256, чтобы оно не весило много
 function resizeImage(file: File, size = 256): Promise<string> {
@@ -371,28 +373,69 @@ export default function ProfilePage() {
               : "Нет броней с таким статусом."}
           </p>
         ) : (
-          <ul className="mt-4 divide-y divide-slate-100">
-            {visible.map((b) => (
-              <li key={b.id} className="flex items-center gap-4 py-3">
-                <div className="flex-1">
-                  <p className="font-medium text-slate-900">{b.bookTitle}</p>
-                  <p className="text-sm text-slate-600">
-                    {b.bookAuthor || "Автор не указан"} · {fmt(b.createdAt)}
-                  </p>
-                </div>
-                <span className={`rounded-full px-3 py-1 text-xs font-medium ${STATUS[b.status].cls}`}>
-                  {STATUS[b.status].label}
-                </span>
-                {b.status === "reserved" && (
-                  <button
-                    onClick={() => cancel(b.id)}
-                    className="text-sm text-red-700 hover:underline"
+          <ul className="mt-4 space-y-3">
+            {visible.map((b) => {
+              const book =
+                (b.bookId != null ? books.find((x) => x.id === b.bookId) : undefined) ??
+                books.find((x) => x.title === b.bookTitle);
+              const gradient = book?.gradient ?? "from-indigo-500 to-purple-600";
+
+              return (
+                <li
+                  key={b.id}
+                  className="flex flex-wrap items-center justify-between gap-4 rounded-2xl bg-white p-4 ring-1 ring-stone-200"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className={`h-20 w-14 shrink-0 rounded-md bg-gradient-to-br ${gradient} shadow`} />
+                    <div>
+                      {book ? (
+                        <Link href={`/book/${book.id}`} className="font-semibold text-stone-900 hover:text-indigo-600">
+                          {b.bookTitle}
+                        </Link>
+                      ) : (
+                        <p className="font-semibold text-stone-900">{b.bookTitle}</p>
+                      )}
+                      <p className="text-sm text-stone-500">{b.bookAuthor || "Автор не указан"}</p>
+                      <p className="mt-1 text-sm text-stone-700">
+                        {b.status === "reserved" || b.status === "cancelled"
+                          ? "Хочет взять: "
+                          : b.status === "returned"
+                            ? "Брал(а): "
+                            : "На руках у: "}
+                        <b>{shown.name}</b>
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-8 text-sm">
+                    <div>
+                      <p className="text-xs text-stone-400">
+                        {b.status === "reserved" || b.status === "cancelled" ? "Бронь с" : "Выдана"}
+                      </p>
+                      <p className="font-medium">{formatDate(b.startDate)}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-stone-400">Вернуть до</p>
+                      <p className={`font-medium ${b.status === "overdue" ? "text-rose-600" : ""}`}>
+                        {formatDate(b.dueDate)}
+                      </p>
+                    </div>
+                  </div>
+
+                  <span
+                    className={`inline-flex h-fit w-fit items-center rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset ${badgeStyle(b.status)}`}
                   >
-                    Отменить
-                  </button>
-                )}
-              </li>
-            ))}
+                    {badgeLabel(b.status)}
+                  </span>
+
+                  {b.status === "reserved" && (
+                    <Button size="sm" variant="danger" onClick={() => cancel(b.id)}>
+                      Отменить бронь
+                    </Button>
+                  )}
+                </li>
+              );
+            })}
           </ul>
         )}
 
@@ -428,15 +471,6 @@ export default function ProfilePage() {
                         <p className="font-medium text-slate-900">{b.title}</p>
                         <p className="text-sm text-slate-600">{b.author}</p>
                       </div>
-                      <span
-                        className={`rounded-full px-3 py-1 text-xs font-medium ${
-                          b.status === "available"
-                            ? "bg-teal-100 text-teal-800"
-                            : "bg-slate-200 text-slate-600"
-                        }`}
-                      >
-                        {b.status === "available" ? "Доступна" : "Недоступна"}
-                      </span>
                     </Link>
                   </li>
                 ))
