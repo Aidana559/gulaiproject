@@ -5,7 +5,8 @@ import { books, categoryLabels, genres, statusLabels, type Category, type Status
 import BookCard from "./BookCard";
 import { Button } from "./Button";
 import { inputClass } from "./FormField";
-import { bookState, useTransactions } from "@/lib/txStore";
+import { useTransactions } from "@/lib/txStore";
+import { computeStatus, useServerStates } from "./BookStatusBadge";
 
 const tabs: { key: Category | "all"; label: string; emoji: string }[] = [
   { key: "all", label: "Все", emoji: "🗂️" },
@@ -17,6 +18,7 @@ const tabs: { key: Category | "all"; label: string; emoji: string }[] = [
 
 export default function CatalogView({ initialCategory = "all" }: { initialCategory?: Category | "all" }) {
   const txs = useTransactions();
+  const server = useServerStates();
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<Category | "all">(initialCategory);
   const [genre, setGenre] = useState("all");
@@ -28,10 +30,14 @@ export default function CatalogView({ initialCategory = "all" }: { initialCatego
     return books
       .filter((b) => category === "all" || b.category === category)
       .filter((b) => genre === "all" || b.genre === genre)
-      .filter((b) => status === "all" || bookState(b, txs).status === status)
+      .filter((b) => {
+        if (status === "all") return true;
+        if (!server) return true; // пока серверные статусы грузятся, по статусу не фильтруем
+        return computeStatus(b.id, server, txs) === status;
+      })
       .filter((b) => !q || b.title.toLowerCase().includes(q) || b.author.toLowerCase().includes(q))
       .sort((a, b) => (sort === "title" ? a.title.localeCompare(b.title, "ru") : b.year - a.year));
-  }, [query, category, genre, status, sort, txs]);
+  }, [query, category, genre, status, sort, txs, server]);
 
   function reset() {
     setQuery("");

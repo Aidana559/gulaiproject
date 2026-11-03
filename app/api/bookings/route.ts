@@ -1,9 +1,19 @@
 import { NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth";
-import { createBooking, getBookingsByUser, isBookTaken } from "@/lib/bookings";
+import { createBooking, getBookingsByUser, getBookStates, isBookTaken } from "@/lib/bookings";
 import { getBook } from "@/data/books";
 
-export async function GET() {
+export async function GET(req: Request) {
+  const { searchParams } = new URL(req.url);
+
+  // занятые книги для меток в каталоге (вход не нужен)
+  if (searchParams.get("states")) {
+    return NextResponse.json(
+      { states: await getBookStates() },
+      { headers: { "Cache-Control": "no-store" } },
+    );
+  }
+
   const user = await getSessionUser();
   if (!user) return NextResponse.json({ error: "Не авторизован" }, { status: 401 });
   return NextResponse.json({ bookings: await getBookingsByUser(user.id) });

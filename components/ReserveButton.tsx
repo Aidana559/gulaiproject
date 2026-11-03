@@ -4,13 +4,13 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import type { Book } from "@/data/books";
+import { refreshBookStates, useBookStatus } from "@/components/BookStatusBadge";
 
 export default function ReserveButton({ book }: { book: Book }) {
   const router = useRouter();
+  const status = useBookStatus(book.id);
   const [state, setState] = useState<"idle" | "loading" | "done">("idle");
   const [error, setError] = useState("");
-
-  const unavailable = book.status !== "available";
 
   async function reserve() {
     setError("");
@@ -29,6 +29,8 @@ export default function ReserveButton({ book }: { book: Book }) {
       }
 
       const json = await res.json().catch(() => ({}));
+      await refreshBookStates(true); // метки везде обновляются сразу
+
       if (!res.ok) {
         setError(json.error ?? "Не удалось забронировать");
         setState("idle");
@@ -57,15 +59,24 @@ export default function ReserveButton({ book }: { book: Book }) {
     );
   }
 
+  const label =
+    status === "given"
+      ? "Сейчас на руках"
+      : status === "reserved"
+        ? "Уже забронирована"
+        : state === "loading"
+          ? "Подождите…"
+          : "Забронировать";
+
   return (
     <div>
       <button
         type="button"
         onClick={reserve}
-        disabled={unavailable || state === "loading"}
+        disabled={status !== "available" || state === "loading"}
         className="rounded-xl bg-indigo-600 px-6 py-3 text-base font-semibold text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-60"
       >
-        {unavailable ? "Недоступна" : state === "loading" ? "Подождите…" : "Забронировать"}
+        {label}
       </button>
       {error && (
         <p role="alert" className="mt-2 text-sm text-red-600">

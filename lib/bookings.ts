@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { promises as fs } from "node:fs";
 import path from "node:path";
+import { books } from "@/data/books";
 
 export type BookingStatus = "reserved" | "borrowed" | "overdue" | "returned" | "cancelled";
 export type BookingAction = "cancel" | "issue" | "return" | "extend";
@@ -45,6 +46,14 @@ function view(b: Booking): Booking {
   return b.status === "borrowed" && b.dueDate < day() ? { ...b, status: "overdue" } : b;
 }
 
+// id книги: из брони, а у старых броней без bookId ищем по названию
+function resolveBookId(b: Booking): number | undefined {
+  if (b.bookId != null) return b.bookId;
+  return books.find((x) => x.title === b.bookTitle)?.id;
+}
+
+const isActive = (b: Booking) => b.status === "reserved" || b.status === "borrowed";
+
 async function readAll(): Promise<Booking[]> {
   try {
     const items = JSON.parse(await fs.readFile(FILE, "utf8")) as Booking[];
@@ -70,7 +79,21 @@ export async function getBookingsByUser(userId: string) {
 // Книга занята, если на неё есть чья-то активная бронь или выдача
 export async function isBookTaken(bookId: number) {
   const all = await readAll();
-  return all.some((b) => b.bookId === bookId && (b.status === "reserved" || b.status === "borrowed"));
+  return all.some((b) => isActive(b) && resolveBookId(b) === bookId);
+}
+
+// Состояние занятых книг: { "3": "reserved", "7": "given" }
+export async function getBookStates() {
+  const all = await readAll();
+  const states: Record<string, "reserved" | "given"> = {};
+  for (const b of all) {
+    if (!isActive(b)) continue;
+    const id = resolveBookId(b);
+    if (id == null) continue;
+    if (states[String(id)] === "given") continue;
+    states[String(id)] = b.status === "borrowed" ? "given" : "reserved";
+  }
+  return states;
 }
 
 export async function createBooking(
