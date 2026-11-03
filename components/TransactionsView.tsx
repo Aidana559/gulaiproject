@@ -12,6 +12,7 @@ import {
 import { books } from "@/data/books";
 import { removeTransaction, updateTransaction, useTransactions } from "@/lib/txStore";
 import { useAuth } from "@/components/AuthProvider";
+import { displayName } from "@/lib/displayName";
 import { Button } from "./Button";
 import { inputClass } from "./FormField";
 
@@ -37,6 +38,7 @@ type ApiBooking = {
   status: string;
   startDate: string;
   dueDate: string;
+  userName?: string;
 };
 
 const statuses = Object.keys(txLabels) as TxStatus[];
@@ -53,7 +55,7 @@ function toRow(b: ApiBooking, person: string): Row {
       author: b.bookAuthor,
       gradient: found?.gradient ?? "from-indigo-500 to-purple-600",
     },
-    person,
+    person: b.userName ?? person,
     status: b.status as TxStatus,
     startDate: b.startDate,
     dueDate: b.dueDate,
@@ -229,7 +231,7 @@ export default function TransactionsView() {
                   <p className="text-sm text-stone-500">{t.book.author}</p>
                   <p className="mt-1 text-sm text-stone-700">
                     {t.status === "reserved" ? "Хочет взять: " : t.status === "returned" ? "Брал(а): " : "На руках у: "}
-                    <b>{t.person}</b>
+                    <b>{displayName(t.person, user)}</b>
                   </p>
                 </div>
               </div>
