@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { books, categoryLabels, genres, statusLabels, type Category, type Status } from "@/data/books";
+import { categoryLabels, genres, statusLabels, type Category, type Status } from "@/data/books";
+import { useBooks } from "@/lib/bookStore";
 import BookCard from "./BookCard";
 import { Button } from "./Button";
 import { inputClass } from "./FormField";
@@ -17,6 +18,7 @@ const tabs: { key: Category | "all"; label: string; emoji: string }[] = [
 ];
 
 export default function CatalogView({ initialCategory = "all" }: { initialCategory?: Category | "all" }) {
+  const books = useBooks(); // статические + добавленные из localStorage
   const txs = useTransactions();
   const server = useServerStates();
   const [query, setQuery] = useState("");
@@ -32,12 +34,12 @@ export default function CatalogView({ initialCategory = "all" }: { initialCatego
       .filter((b) => genre === "all" || b.genre === genre)
       .filter((b) => {
         if (status === "all") return true;
-        if (!server) return true; // пока серверные статусы грузятся, по статусу не фильтруем
+        if (!server) return true;
         return computeStatus(b.id, server, txs) === status;
       })
       .filter((b) => !q || b.title.toLowerCase().includes(q) || b.author.toLowerCase().includes(q))
       .sort((a, b) => (sort === "title" ? a.title.localeCompare(b.title, "ru") : b.year - a.year));
-  }, [query, category, genre, status, sort, txs, server]);
+  }, [books, query, category, genre, status, sort, txs, server]);
 
   function reset() {
     setQuery("");
@@ -76,7 +78,9 @@ export default function CatalogView({ initialCategory = "all" }: { initialCatego
         <select value={genre} onChange={(e) => setGenre(e.target.value)} aria-label="Жанр" className={inputClass}>
           <option value="all">Все жанры</option>
           {genres.map((g) => (
-            <option key={g} value={g}>{g}</option>
+            <option key={g} value={g}>
+              {g}
+            </option>
           ))}
         </select>
         <select
@@ -87,7 +91,9 @@ export default function CatalogView({ initialCategory = "all" }: { initialCatego
         >
           <option value="all">Любой статус</option>
           {(Object.keys(statusLabels) as Status[]).map((s) => (
-            <option key={s} value={s}>{statusLabels[s]}</option>
+            <option key={s} value={s}>
+              {statusLabels[s]}
+            </option>
           ))}
         </select>
         <select
@@ -102,8 +108,12 @@ export default function CatalogView({ initialCategory = "all" }: { initialCatego
       </div>
 
       <div className="mt-6 flex items-center justify-between">
-        <p className="text-sm text-stone-500">Найдено: <b className="text-stone-800">{filtered.length}</b></p>
-        <Button variant="ghost" size="sm" onClick={reset}>Сбросить фильтры</Button>
+        <p className="text-sm text-stone-500">
+          Найдено: <b className="text-stone-800">{filtered.length}</b>
+        </p>
+        <Button variant="ghost" size="sm" onClick={reset}>
+          Сбросить фильтры
+        </Button>
       </div>
 
       {filtered.length === 0 ? (
