@@ -3,32 +3,36 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
-import { addBook } from "@/lib/bookStore";
 import { Button } from "@/components/Button";
 import { inputClass } from "@/components/FormField";
 import type { Category } from "@/data/books";
 
 export default function AddPage() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [done, setDone] = useState(false);
+  const [createdId, setCreatedId] = useState<number | string | null>(null);
+
+  if (!authLoading && !user) {
+    if (typeof window !== "undefined") router.replace("/login");
+  }
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    if (!user) {
+      router.push("/login");
+      return;
+    }
     setError("");
     setLoading(true);
 
-    const fd = new FormData(e.currentTarget);
+    const form = e.currentTarget;
+    const fd = new FormData(form);
+
     const title = String(fd.get("title") ?? "").trim();
     const author = String(fd.get("author") ?? "").trim();
-    const category = String(fd.get("category") ?? "book") as Category;
-    const genre = String(fd.get("genre") ?? "").trim();
-    const yearRaw = String(fd.get("year") ?? "");
-    const city = String(fd.get("city") ?? "").trim();
-    const description = String(fd.get("description") ?? "").trim();
-
     if (title.length < 2) {
       setError("Укажите название");
       setLoading(false);
@@ -41,27 +45,24 @@ export default function AddPage() {
     }
 
     try {
-      const book = addBook({
-        title,
-        author,
-        category,
-        genre,
-        year: yearRaw ? Number(yearRaw) : undefined,
-        city,
-        description,
-        owner: user?.name ?? "Вы",
-      });
-
-      await fetch("/api/books", {
+      const res = await fetch("/api/books", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(book),
-      }).catch(() => {});
-
+        body: fd, // multipart: поля + cover
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(json.error ?? "Не удалось сохранить");
+        setLoading(false);
+        return;
+      }
+      setCreatedId(json.book?.id ?? null);
       setDone(true);
-      setTimeout(() => router.push("/catalog"), 900);
+      setTimeout(() => {
+        if (json.book?.id) router.push(`/book/${json.book.id}`);
+        else router.push("/catalog");
+      }, 800);
     } catch {
-      setError("Не удалось сохранить");
+      setError("Нет связи с сервером");
     } finally {
       setLoading(false);
     }
@@ -71,12 +72,13 @@ export default function AddPage() {
     <div className="mx-auto max-w-2xl px-4 py-10 sm:px-6">
       <h1 className="text-3xl font-extrabold text-stone-900">Добавить издание</h1>
       <p className="mt-2 text-stone-500">
-        Заполните форму — объявление сразу появится в каталоге.
+        Объявление сохранится на сервере и сразу появится в каталоге.
       </p>
 
       <form
         onSubmit={onSubmit}
         className="mt-8 space-y-5 rounded-2xl bg-white p-6 shadow-sm ring-1 ring-stone-200"
+        encType="multipart/form-data"
       >
         <div>
           <label htmlFor="title" className="mb-1.5 block text-sm font-medium text-stone-700">
@@ -89,7 +91,6 @@ export default function AddPage() {
             minLength={2}
             placeholder="Например: Хвост Феи"
             className={inputClass}
-            defaultValue=""
           />
         </div>
 
@@ -128,11 +129,42 @@ export default function AddPage() {
             <input id="year" name="year" type="number" min={1900} max={2030} className={inputClass} />
           </div>
           <div>
+            <label htmlFor="isbn" className="mb-1.5 block text-sm font-medium text-stone-700">
+              ISBN
+            </label>
+            <input id="isbn" name="isbn" placeholder="978-…" className={inputClass} />
+          </div>
+        </div>
+
+        <div className="grid gap-5 sm:grid-cols-2">
+          <div>
+            <label htmlFor="condition" className="mb-1.5 block text-sm font-medium text-stone-700">
+              Состояние
+            </label>
+            <select id="condition" name="condition" className={inputClass} defaultValue="used">
+              <option value="new">Новая</option>
+              <option value="used">Б/у</option>
+              <option value="annotated">С пометками</option>
+            </select>
+          </div>
+          <div>
             <label htmlFor="city" className="mb-1.5 block text-sm font-medium text-stone-700">
               Город
             </label>
-            <input id="city" name="city" placeholder="Актау, Астана…" className={inputClass} />
+            <input id="city" name="city" placeholder="Астана" className={inputClass} />
           </div>
+        </div>
+
+        <div>
+          <label htmlFor="campus" className="mb-1.5 block text-sm font-medium text-stone-700">
+            Корпус / общежитие
+          </label>
+          <input
+            id="campus"
+            name="campus"
+            placeholder="Главный корпус, общ. №3…"
+            className={inputClass}
+          />
         </div>
 
         <div>
@@ -144,18 +176,15 @@ export default function AddPage() {
 
         <div>
           <label htmlFor="cover" className="mb-1.5 block text-sm font-medium text-stone-700">
-            Обложка
+            Обложка (JPG, PNG, WebP ≤ 5 МБ)
           </label>
           <input
             id="cover"
             name="cover"
             type="file"
-            accept="image/*"
+            accept="image/jpeg,image/png,image/webp"
             className={`${inputClass} file:mr-4 file:rounded-md file:border-0 file:bg-indigo-50 file:px-3 file:py-1.5 file:font-semibold file:text-indigo-700 hover:file:bg-indigo-100`}
           />
-          <p className="mt-1 text-xs text-stone-400">
-            Пока без загрузки на сервер — обложка рисуется автоматически.
-          </p>
         </div>
 
         {error && (
@@ -165,13 +194,19 @@ export default function AddPage() {
         )}
         {done && (
           <p role="status" className="rounded-lg bg-emerald-50 p-3 text-sm text-emerald-700 ring-1 ring-emerald-200">
-            ✅ Объявление опубликовано! Переходим в каталог…
+            ✅ Объявление опубликовано
+            {createdId != null ? ` (#${createdId})` : ""}! Открываем страницу…
           </p>
         )}
 
-        <Button type="submit" size="lg" full disabled={loading || done}>
+        <Button type="submit" size="lg" full disabled={loading || done || !user}>
           {loading ? "Публикация…" : done ? "Готово" : "Опубликовать"}
         </Button>
+        {!user && !authLoading && (
+          <p className="text-center text-sm text-stone-500">
+            Нужно <a href="/login" className="text-indigo-600 underline">войти</a>, чтобы добавить книгу
+          </p>
+        )}
       </form>
     </div>
   );

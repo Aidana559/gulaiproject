@@ -1,6 +1,9 @@
+export const instant = false;
+
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { books, categoryLabels, getBook } from "@/data/books";
+import { categoryLabels, type Book } from "@/data/books";
+import { conditionLabels, getBook, type ServerBook } from "@/lib/books-store";
 import BookCover from "@/components/BookCover";
 import BookCard from "@/components/BookCard";
 import BookStatusBadge from "@/components/BookStatusBadge";
@@ -11,52 +14,100 @@ import OwnerRating from "@/components/OwnerRating";
 import ReportButton from "@/components/ReportButton";
 import ReviewsSection from "@/components/ReviewsSection";
 import BookGuard from "@/components/BookGuard";
+import { listBooks } from "@/lib/books-store";
 
-export function generateStaticParams() {
-  return books.map((b) => ({ id: String(b.id) }));
-}
 
 export default async function BookPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const book = getBook(Number(id));
-  if (!book) notFound();
+  const book = (await getBook(id, { includeHidden: true })) as ServerBook | undefined;
+  if (!book || book.deleted) notFound();
+  // скрытые отдаём только через API с правами; на SSR для простоты 404 гостю
+  if (book.hidden) notFound();
 
-  // Если в data/books.ts есть ownerId — используем его, иначе имя владельца
-  const ownerKey = String((book as any).ownerId ?? book.owner);
+  const ownerKey = String(book.ownerId ?? book.owner);
 
-  const similar = books.filter((b) => b.category === book.category && b.id !== book.id).slice(0, 4);
+  const similarRes = await listBooks({
+    category: book.category,
+    limit: 8,
+    sort: "popular",
+  });
+  const similar = similarRes.books.filter((b) => String(b.id) !== String(book.id)).slice(0, 4);
+
+  const condition =
+    book.condition && conditionLabels[book.condition]
+      ? conditionLabels[book.condition]
+      : null;
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
       <BookGuard bookId={book.id} />
 
       <nav className="text-sm text-stone-500">
-        <Link href="/catalog" className="hover:text-indigo-600">Каталог</Link> / {categoryLabels[book.category]}
+        <Link href="/catalog" className="hover:text-indigo-600">
+          Каталог
+        </Link>{" "}
+        / {categoryLabels[book.category]}
       </nav>
 
       <div className="mt-6 grid gap-10 lg:grid-cols-[20rem_1fr]">
-        <BookCover book={book} large />
+        <BookCover book={book as Book} large />
 
         <div>
-          <BookStatusBadge book={book} />
+          <BookStatusBadge book={book as Book} />
           <h1 className="mt-3 text-3xl font-extrabold text-stone-900">{book.title}</h1>
           <p className="mt-1 text-lg text-stone-500">{book.author}</p>
-          <p className="mt-6 text-stone-700">{book.description}</p>
+          {book.description && <p className="mt-6 text-stone-700">{book.description}</p>}
 
-          <dl className="mt-6 grid grid-cols-2 gap-4 rounded-2xl bg-white p-5 ring-1 ring-stone-200 sm:grid-cols-4">
-            <div><dt className="text-xs text-stone-400">Категория</dt><dd className="font-medium">{categoryLabels[book.category]}</dd></div>
-            <div><dt className="text-xs text-stone-400">Жанр / предмет</dt><dd className="font-medium">{book.genre}</dd></div>
-            <div><dt className="text-xs text-stone-400">Год</dt><dd className="font-medium">{book.year}</dd></div>
-            <div><dt className="text-xs text-stone-400">Страниц</dt><dd className="font-medium">{book.pages}</dd></div>
+          <dl className="mt-6 grid grid-cols-2 gap-4 rounded-2xl bg-white p-5 ring-1 ring-stone-200 sm:grid-cols-3 lg:grid-cols-4">
+            <div>
+              <dt className="text-xs text-stone-400">Категория</dt>
+              <dd className="font-medium">{categoryLabels[book.category]}</dd>
+            </div>
+            <div>
+              <dt className="text-xs text-stone-400">Жанр / предмет</dt>
+              <dd className="font-medium">{book.genre}</dd>
+            </div>
+            <div>
+              <dt className="text-xs text-stone-400">Год</dt>
+              <dd className="font-medium">{book.year || "—"}</dd>
+            </div>
+            <div>
+              <dt className="text-xs text-stone-400">Страниц</dt>
+              <dd className="font-medium">{book.pages || "—"}</dd>
+            </div>
+            {book.isbn && (
+              <div>
+                <dt className="text-xs text-stone-400">ISBN</dt>
+                <dd className="font-medium">{book.isbn}</dd>
+              </div>
+            )}
+            {condition && (
+              <div>
+                <dt className="text-xs text-stone-400">Состояние</dt>
+                <dd className="font-medium">{condition}</dd>
+              </div>
+            )}
+            {book.campus && (
+              <div>
+                <dt className="text-xs text-stone-400">Корпус / общ.</dt>
+                <dd className="font-medium">{book.campus}</dd>
+              </div>
+            )}
+            <div>
+              <dt className="text-xs text-stone-400">Просмотры</dt>
+              <dd className="font-medium">{book.views ?? 0}</dd>
+            </div>
           </dl>
 
           <div className="mt-6 flex items-center gap-3 text-sm text-stone-600">
             <span className="flex size-10 items-center justify-center rounded-full bg-indigo-100 font-bold text-indigo-700">
-              {book.owner[0]}
+              {(book.owner || "?")[0]}
             </span>
             <div>
               <p className="font-medium text-stone-900">{book.owner}</p>
-              <p className="text-stone-500">{book.city}</p>
+              <p className="text-stone-500">
+                {[book.city, book.campus].filter(Boolean).join(" · ")}
+              </p>
               <div className="mt-1">
                 <OwnerRating userId={ownerKey} />
               </div>
@@ -64,8 +115,10 @@ export default async function BookPage({ params }: { params: Promise<{ id: strin
           </div>
 
           <div className="mt-8 flex flex-wrap items-center gap-3">
-            <ReserveButton book={book} />
-            <LinkButton href="/catalog" variant="outline" size="lg">← К каталогу</LinkButton>
+            <ReserveButton book={book as Book} />
+            <LinkButton href="/catalog" variant="outline" size="lg">
+              ← К каталогу
+            </LinkButton>
           </div>
 
           <div className="mt-4 flex flex-wrap items-center gap-4">
@@ -81,7 +134,9 @@ export default async function BookPage({ params }: { params: Promise<{ id: strin
         <section className="mt-16">
           <h2 className="text-xl font-bold text-stone-900">Похожие издания</h2>
           <div className="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
-            {similar.map((b) => <BookCard key={b.id} book={b} />)}
+            {similar.map((b) => (
+              <BookCard key={b.id} book={b as Book} />
+            ))}
           </div>
         </section>
       )}

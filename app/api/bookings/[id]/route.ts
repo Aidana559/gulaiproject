@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getSessionUser } from "@/lib/auth";
+import { getSessionUser, toPublic } from "@/lib/auth";
 import { applyAction, type BookingAction } from "@/lib/bookings";
 
 const ACTIONS: BookingAction[] = ["cancel", "issue", "return", "extend"];
@@ -11,11 +11,24 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   const { id } = await params;
   const body = await req.json().catch(() => null);
   const action = (body?.action ?? "cancel") as BookingAction;
+
   if (!ACTIONS.includes(action)) {
     return NextResponse.json({ error: "Неизвестное действие" }, { status: 400 });
   }
 
-  const booking = await applyAction(user.id, id, action);
-  if (!booking) return NextResponse.json({ error: "Действие недоступно" }, { status: 400 });
+  const actor = toPublic(user);
+  const booking = await applyAction(
+    { id: String(actor.id), name: actor.name, role: actor.role },
+    id,
+    action,
+  );
+
+  if (!booking) {
+    return NextResponse.json(
+      { error: "Действие недоступно или бронь не найдена" },
+      { status: 403 },
+    );
+  }
+
   return NextResponse.json({ booking });
 }

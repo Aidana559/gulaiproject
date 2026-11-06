@@ -18,6 +18,9 @@ export async function POST(req: Request) {
   if (!user || !verifyPassword(password, user.passwordHash))
     return NextResponse.json({ error: "Неверный email или пароль" }, { status: 401 });
 
+  if (user.blocked)
+    return NextResponse.json({ error: "Аккаунт заблокирован администратором" }, { status: 403 });
+
   (await cookies()).set(SESSION_COOKIE, createSessionToken(user.id), sessionCookieOptions);
   return NextResponse.json({ user: toPublic(user) });
 }
