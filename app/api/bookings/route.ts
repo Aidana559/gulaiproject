@@ -1,12 +1,17 @@
 import { NextResponse } from "next/server";
-import { getSessionUser } from "@/lib/auth";
-import { createBooking, getBookingsByUser, getBookStates, isBookTaken } from "@/lib/bookings";
-import { getBook } from "@/data/books";
+import { getSessionUser, toPublic } from "@/lib/auth";
+import {
+  createBooking,
+  getBookingsByUser,
+  getBookStates,
+  isBookTaken,
+  listBookingsForActor,
+} from "@/lib/bookings";
+import { getBook as getStaticBook } from "@/data/books";
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
 
-  // занятые книги для меток в каталоге (вход не нужен)
   if (searchParams.get("states")) {
     return NextResponse.json(
       { states: await getBookStates() },
@@ -16,7 +21,20 @@ export async function GET(req: Request) {
 
   const user = await getSessionUser();
   if (!user) return NextResponse.json({ error: "Не авторизован" }, { status: 401 });
-  return NextResponse.json({ bookings: await getBookingsByUser(user.id) });
+
+  // scope=mine — только свои брони (профиль)
+  // иначе — для страницы транзакций (свои + заявки на мои книги / все для админа)
+  if (searchParams.get("scope") === "mine") {
+    return NextResponse.json({ bookings: await getBookingsByUser(user.id) });
+  }
+
+  const actor = toPublic(user);
+  const bookings = await listBookingsForActor({
+    id: String(actor.id),
+    name: actor.name,
+    role: actor.role,
+  });
+  return NextResponse.json({ bookings });
 }
 
 export async function POST(req: Request) {
@@ -24,23 +42,48 @@ export async function POST(req: Request) {
   if (!user) return NextResponse.json({ error: "Не авторизован" }, { status: 401 });
 
   const body = await req.json().catch(() => null);
-  let bookTitle = String(body?.bookTitle ?? "").trim();
-  let bookAuthor = String(body?.bookAuthor ?? "").trim();
-  let bookId: number | undefined;
+  const bookIdRaw = body?.bookId;
+  const bookId = typeof bookIdRaw === "number" ? bookIdRaw : Number(bookIdRaw);
 
-  if (typeof body?.bookId === "number") {
-    const book = getBook(body.bookId);
-    if (!book) return NextResponse.json({ error: "Книга не найдена" }, { status: 404 });
-    if (await isBookTaken(book.id)) {
-      return NextResponse.json({ error: "Эта книга уже забронирована" }, { status: 409 });
-    }
-    bookId = book.id;
-    bookTitle = book.title;
-    bookAuthor = book.author;
+  if (!Number.isFinite(bookId)) {
+    return NextResponse.json({ error: "bookId обязателен" }, { status: 400 });
   }
 
-  if (!bookTitle) return NextResponse.json({ error: "Укажите название книги" }, { status: 400 });
+  // книга: сначала books-store (если есть), иначе статика
+  let bookTitle = "";
+  let bookAuthor = "";
+  try {
+    const { getBook } = await import("@/lib/books-store");
+    const b = await getBook(String(bookId));
+    if (b && !b.deleted) {
+      bookTitle = b.title;
+      bookAuthor = b.author;
+    }
+  } catch {
+    /* */
+  }
+  if (!bookTitle) {
+    const s = getStaticBook(bookId);
+    if (!s) return NextResponse.json({ error: "Книга не найдена" }, { status: 404 });
+    bookTitle = s.title;
+    bookAuthor = s.author;
+  }
 
-  const booking = await createBooking(user.id, bookTitle, bookAuthor, bookId);
-  return NextResponse.json({ booking }, { status: 201 });
+  if (await isBookTaken(bookId)) {
+    return NextResponse.json({ error: "Эта книга уже забронирована" }, { status: 409 });
+  }
+
+  try {
+    const booking = await createBooking({
+      userId: user.id,
+      userName: user.name,
+      bookId,
+      bookTitle,
+      bookAuthor,
+    });
+    return NextResponse.json({ booking }, { status: 201 });
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : "Ошибка";
+    return NextResponse.json({ error: msg }, { status: 400 });
+  }
 }

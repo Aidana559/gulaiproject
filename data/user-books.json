@@ -1,0 +1,18 @@
+[
+  {
+    "title": "Алгоритмы: построение и анализ",
+    "author": "Т. Кормен и др.",
+    "category": "textbook",
+    "genre": "Информатика",
+    "status": "available",
+    "year": 2013,
+    "pages": 1328,
+    "description": "Фундаментальный учебник по алгоритмам и структурам данных.",
+    "id": 13,
+    "owner": "Алина Н.",
+    "city": "Кызылорда",
+    "gradient": "from-indigo-500 to-purple-600",
+    "views": 2,
+    "createdAt": "2026-01-01T00:00:00.000Z"
+  }
+]
