@@ -3,23 +3,25 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  addDays,
   formatDate,
   txLabels,
   txStyles,
   type TxStatus,
 } from "@/data/transactions";
 import { books } from "@/data/books";
-import { removeTransaction, updateTransaction, useTransactions } from "@/lib/txStore";
 import { useAuth } from "@/components/AuthProvider";
-import { displayName } from "@/lib/displayName";
 import { Button } from "./Button";
 import { inputClass } from "./FormField";
+import {
+  updateTransaction,
+  useTransactions,
+} from "@/lib/txStore";
+
+import { addDays } from "@/data/transactions";
 
 type SortKey = "due-asc" | "due-desc" | "start-desc" | "title";
 type Action = "issue" | "return" | "extend" | "cancel";
 
-// общий вид строки: и для демо-транзакций, и для броней с сервера
 type Row = {
   id: string;
   book: { id: number | string; title: string; author: string; gradient: string };
@@ -27,26 +29,26 @@ type Row = {
   status: TxStatus;
   startDate: string;
   dueDate: string;
-  server?: boolean;
+  allowedActions: Action[];
 };
 
 type ApiBooking = {
   id: string;
-  bookId?: number;
+  bookId: number;
   bookTitle: string;
   bookAuthor: string;
   status: string;
   startDate: string;
   dueDate: string;
   userName?: string;
+  userId?: string;
+  allowedActions?: Action[];
 };
 
 const statuses = Object.keys(txLabels) as TxStatus[];
 
-function toRow(b: ApiBooking, person: string): Row {
-  const found =
-    (b.bookId != null ? books.find((x) => x.id === b.bookId) : undefined) ??
-    books.find((x) => x.title === b.bookTitle);
+function toRow(b: ApiBooking, fallbackPerson: string): Row {
+  const found = books.find((x) => x.id === b.bookId) ?? books.find((x) => x.title === b.bookTitle);
   return {
     id: b.id,
     book: {
@@ -55,23 +57,29 @@ function toRow(b: ApiBooking, person: string): Row {
       author: b.bookAuthor,
       gradient: found?.gradient ?? "from-indigo-500 to-purple-600",
     },
-    person: b.userName ?? person,
-    status: b.status as TxStatus,
+    person: b.userName || fallbackPerson,
+    status: (b.status === "confirmed" ? "reserved" : b.status) as TxStatus,
     startDate: b.startDate,
     dueDate: b.dueDate,
-    server: true,
+    allowedActions: b.allowedActions ?? [],
   };
 }
 
+const ACTION_LABEL: Record<Action, string> = {
+  issue: "Выдать",
+  return: "Принять возврат",
+  extend: "Продлить на 7 дн.",
+  cancel: "Отменить бронь",
+};
+
 export default function TransactionsView() {
-  const storeItems = useTransactions();
   const { user } = useAuth();
+  const storeItems = useTransactions();
   const [serverBookings, setServerBookings] = useState<ApiBooking[]>([]);
   const [status, setStatus] = useState<TxStatus | "all" | "active">("active");
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<SortKey>("due-asc");
-
-  const update = updateTransaction;
+  const [loading, setLoading] = useState(true);
 
   const loadServer = useCallback(async () => {
     try {
@@ -84,6 +92,8 @@ export default function TransactionsView() {
       setServerBookings(json.bookings ?? []);
     } catch {
       setServerBookings([]);
+    } finally {
+      setLoading(false);
     }
   }, []);
 
@@ -91,34 +101,119 @@ export default function TransactionsView() {
     loadServer();
   }, [loadServer]);
 
-  // брони с сервера (кроме отменённых) + прежние демо-транзакции
   const items = useMemo<Row[]>(() => {
-    const person = user?.name ?? "Вы";
-    const mine = serverBookings.filter((b) => b.status !== "cancelled").map((b) => toRow(b, person));
-    return [...mine, ...(storeItems as unknown as Row[])];
+    const person = user?.name ?? "Читатель";
+    const fromServer = serverBookings
+      .filter((b) => b.status !== "cancelled") // отменённые — в профиле
+      .map((b) => toRow(b, person));
+
+    // Демонстрационные транзакции других читателей из transactions.json / txStore.
+    const fromStore: Row[] = storeItems.map((t) => ({
+      id: `demo-${t.id}`,
+      book: {
+        id: t.book.id,
+        title: t.book.title,
+        author: t.book.author,
+        gradient: t.book.gradient,
+      },
+      person: t.person,
+      status: ((t.status as string) === "confirmed" ? "reserved" : t.status) as TxStatus,
+      startDate: t.startDate,
+      dueDate: t.dueDate,
+      allowedActions: (() => {
+        const book = books.find((b) => b.id === t.book.id);
+        const isAdmin = user?.role === "admin" || user?.role === "moderator";
+        const isOwner = book?.owner === user?.name;
+        const isBorrower = t.person === user?.name;
+        const isReserved = (t.status as string) === "reserved" || (t.status as string) === "confirmed";
+        const actions: Action[] = [];
+
+        // Бронь: «Выдать» — владелец/админ, «Отменить бронь» — владелец/админ/сам читатель
+        if (isReserved) {
+          if (isAdmin || isOwner) actions.push("issue");
+          if (isAdmin || isOwner || isBorrower) actions.push("cancel");
+        }
+
+        if ((isAdmin || isOwner) && (t.status === "borrowed" || t.status === "overdue")) {
+          actions.push("return");
+          actions.push("extend");
+        }
+
+        return actions;
+      })(),
+
+    }));
+
+    return [...fromServer, ...fromStore];
   }, [serverBookings, storeItems, user]);
 
-  async function act(t: Row, action: Action) {
-    if (t.server) {
-      await fetch(`/api/bookings/${t.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action }),
-      });
-      await loadServer();
-      return;
+async function act(t: Row, action: Action) {
+  // Демонстрационные транзакции
+  if (t.id.startsWith("demo-")) {
+    const id = Number(t.id.replace("demo-", ""));
+
+    const today = new Date().toISOString().slice(0, 10);
+
+    switch (action) {
+      case "cancel":
+        updateTransaction(id, {
+          status: "cancelled",
+        });
+        break;
+
+      case "issue":
+        updateTransaction(id, {
+          status: "borrowed",
+          startDate: today,
+          dueDate: addDays(today, 14),
+        });
+        break;
+
+      case "return":
+        updateTransaction(id, {
+          status: "returned",
+        });
+        break;
+
+      case "extend":
+        updateTransaction(id, {
+          status: "borrowed",
+          dueDate: addDays(
+            t.dueDate < today ? today : t.dueDate,
+            7
+          ),
+        });
+        break;
     }
-    // демо-транзакции работают как раньше
-    const id = t.id as never;
-    if (action === "cancel") return removeTransaction(id);
-    if (action === "issue") return update(id, { status: "borrowed" });
-    if (action === "return") return update(id, { status: "returned" });
-    update(id, { dueDate: addDays(t.dueDate, 7), status: "borrowed" });
+
+    return;
   }
 
+  // Обычные серверные бронирования
+  const res = await fetch(`/api/bookings/${t.id}`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ action }),
+  });
+
+  if (res.ok) {
+    await loadServer();
+  }
+}
+
   const counts = useMemo(() => {
-    const c = { reserved: 0, borrowed: 0, overdue: 0, returned: 0 } as Record<TxStatus, number>;
-    items.forEach((t) => c[t.status]++);
+    const c = {
+      reserved: 0,
+      borrowed: 0,
+      overdue: 0,
+      returned: 0,
+      cancelled: 0,
+    } as Record<TxStatus, number>;
+    items.forEach((t) => {
+      if (t.status in c) c[t.status as TxStatus]++;
+    });
     return c;
   }, [items]);
 
@@ -126,11 +221,17 @@ export default function TransactionsView() {
     const q = query.trim().toLowerCase();
     return items
       .filter((t) =>
-        status === "all" ? true : status === "active" ? t.status !== "returned" : t.status === status,
+        status === "all"
+          ? true
+          : status === "active"
+            ? t.status !== "returned" && t.status !== "cancelled"
+            : t.status === status,
       )
       .filter(
         (t) =>
-          !q || t.book.title.toLowerCase().includes(q) || t.person.toLowerCase().includes(q),
+          !q ||
+          t.book.title.toLowerCase().includes(q) ||
+          t.person.toLowerCase().includes(q),
       )
       .sort((a, b) => {
         switch (sort) {
@@ -153,10 +254,20 @@ export default function TransactionsView() {
     { key: "returned", icon: "✅" },
   ];
 
+  if (!user) {
+    return (
+      <div className="rounded-2xl bg-white p-12 text-center ring-1 ring-stone-200">
+        <p className="font-semibold text-stone-800">Войдите, чтобы видеть транзакции</p>
+        <Link href="/login" className="mt-3 inline-block text-indigo-600 hover:underline">
+          Войти
+        </Link>
+      </div>
+    );
+  }
+
   return (
     <div>
-      {/* Счётчики */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
         {tiles.map((t) => (
           <button
             key={t.key}
@@ -167,25 +278,39 @@ export default function TransactionsView() {
             }`}
           >
             <p className="text-2xl">{t.icon}</p>
-            <p className="mt-2 text-3xl font-extrabold text-stone-900">{counts[t.key]}</p>
+            <p className="mt-2 text-3xl font-extrabold text-stone-900">{counts[t.key] ?? 0}</p>
             <p className="text-sm text-stone-500">{txLabels[t.key]}</p>
           </button>
         ))}
       </div>
 
-      {/* Фильтры */}
       <div className="mt-6 flex flex-wrap gap-2">
-        <Button size="sm" variant={status === "active" ? "primary" : "outline"} onClick={() => setStatus("active")}>
+        <Button
+          size="sm"
+          variant={status === "active" ? "primary" : "outline"}
+          onClick={() => setStatus("active")}
+        >
           Активные
         </Button>
-        <Button size="sm" variant={status === "all" ? "primary" : "outline"} onClick={() => setStatus("all")}>
+        <Button
+          size="sm"
+          variant={status === "all" ? "primary" : "outline"}
+          onClick={() => setStatus("all")}
+        >
           Все
         </Button>
-        {statuses.map((s) => (
-          <Button key={s} size="sm" variant={status === s ? "primary" : "outline"} onClick={() => setStatus(s)}>
-            {txLabels[s]}
-          </Button>
-        ))}
+        {statuses
+          .filter((s) => s !== "cancelled")
+          .map((s) => (
+            <Button
+              key={s}
+              size="sm"
+              variant={status === s ? "primary" : "outline"}
+              onClick={() => setStatus(s)}
+            >
+              {txLabels[s]}
+            </Button>
+          ))}
       </div>
 
       <div className="mt-4 grid gap-3 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-stone-200 sm:grid-cols-2">
@@ -197,7 +322,12 @@ export default function TransactionsView() {
           aria-label="Поиск"
           className={inputClass}
         />
-        <select value={sort} onChange={(e) => setSort(e.target.value as SortKey)} aria-label="Сортировка" className={inputClass}>
+        <select
+          value={sort}
+          onChange={(e) => setSort(e.target.value as SortKey)}
+          aria-label="Сортировка"
+          className={inputClass}
+        >
           <option value="due-asc">Срок возврата: ближайшие</option>
           <option value="due-desc">Срок возврата: дальние</option>
           <option value="start-desc">Сначала новые</option>
@@ -206,10 +336,12 @@ export default function TransactionsView() {
       </div>
 
       <p className="mt-5 text-sm text-stone-500">
-        Найдено: <b className="text-stone-800">{filtered.length}</b>
+        Найдено: <b className="text-stone-800">{loading ? "…" : filtered.length}</b>
+        {user.role === "admin" && (
+          <span className="ml-2 text-xs text-stone-400">(все транзакции)</span>
+        )}
       </p>
 
-      {/* Список */}
       {filtered.length === 0 ? (
         <div className="mt-6 rounded-2xl bg-white p-12 text-center ring-1 ring-stone-200">
           <p className="text-4xl">📭</p>
@@ -223,27 +355,42 @@ export default function TransactionsView() {
               className="flex flex-col gap-4 rounded-2xl bg-white p-4 ring-1 ring-stone-200 lg:flex-row lg:items-center lg:justify-between"
             >
               <div className="flex items-center gap-4">
-                <div className={`h-20 w-14 shrink-0 rounded-md bg-gradient-to-br ${t.book.gradient} shadow`} />
+                <div
+                  className={`h-20 w-14 shrink-0 rounded-md bg-gradient-to-br ${t.book.gradient} shadow`}
+                />
                 <div>
-                  <Link href={`/book/${t.book.id}`} className="font-semibold text-stone-900 hover:text-indigo-600">
+                  <Link
+                    href={`/book/${t.book.id}`}
+                    className="font-semibold text-stone-900 hover:text-indigo-600"
+                  >
                     {t.book.title}
                   </Link>
                   <p className="text-sm text-stone-500">{t.book.author}</p>
                   <p className="mt-1 text-sm text-stone-700">
-                    {t.status === "reserved" ? "Хочет взять: " : t.status === "returned" ? "Брал(а): " : "На руках у: "}
-                    <b>{displayName(t.person, user)}</b>
+                    {t.status === "reserved"
+                      ? "Хочет взять: "
+                      : t.status === "returned"
+                        ? "Брал(а): "
+                        : "На руках у: "}
+                    <b>{t.person}</b>
                   </p>
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-x-8 gap-y-1 text-sm lg:flex lg:gap-8">
                 <div>
-                  <p className="text-xs text-stone-400">{t.status === "reserved" ? "Бронь с" : "Выдана"}</p>
+                  <p className="text-xs text-stone-400">
+                    {t.status === "reserved" ? "Бронь с" : "Выдана"}
+                  </p>
                   <p className="font-medium">{formatDate(t.startDate)}</p>
                 </div>
                 <div>
                   <p className="text-xs text-stone-400">Вернуть до</p>
-                  <p className={`font-medium ${t.status === "overdue" ? "text-rose-600" : ""}`}>{formatDate(t.dueDate)}</p>
+                  <p
+                    className={`font-medium ${t.status === "overdue" ? "text-rose-600" : ""}`}
+                  >
+                    {formatDate(t.dueDate)}
+                  </p>
                 </div>
                 <span
                   className={`col-span-2 inline-flex h-fit w-fit items-center rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset ${txStyles[t.status]}`}
@@ -253,27 +400,19 @@ export default function TransactionsView() {
               </div>
 
               <div className="flex flex-wrap gap-2">
-                {t.status === "reserved" && (
-                  <>
-                    <Button size="sm" onClick={() => act(t, "issue")}>
-                      Выдать
-                    </Button>
-                    <Button size="sm" variant="danger" onClick={() => act(t, "cancel")}>
-                      Отменить бронь
-                    </Button>
-                  </>
+                {t.allowedActions.map((a) => (
+                  <Button
+                    key={a}
+                    size="sm"
+                    variant={a === "cancel" ? "danger" : a === "extend" ? "outline" : "primary"}
+                    onClick={() => act(t, a)}
+                  >
+                    {ACTION_LABEL[a]}
+                  </Button>
+                ))}
+                {t.allowedActions.length === 0 && t.status === "returned" && (
+                  <span className="text-sm text-stone-400">Завершено</span>
                 )}
-                {(t.status === "borrowed" || t.status === "overdue") && (
-                  <>
-                    <Button size="sm" onClick={() => act(t, "return")}>
-                      Принять возврат
-                    </Button>
-                    <Button size="sm" variant="outline" onClick={() => act(t, "extend")}>
-                      Продлить на 7 дн.
-                    </Button>
-                  </>
-                )}
-                {t.status === "returned" && <span className="text-sm text-stone-400">Завершено</span>}
               </div>
             </li>
           ))}

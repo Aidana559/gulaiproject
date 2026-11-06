@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import type { Book, Status } from "@/data/books";
 import { statusLabels, statusStyles } from "@/data/books";
-import { useTransactions } from "@/lib/txStore";
 
 type ServerMap = Record<string, "reserved" | "given">;
 
@@ -21,7 +20,6 @@ async function load(): Promise<ServerMap> {
   }
 }
 
-// force = true: перезапросить даже если запрос уже идёт (после новой брони)
 export function refreshBookStates(force = false) {
   if (inflight && !force) return inflight;
   const run = () =>
@@ -36,24 +34,13 @@ export function refreshBookStates(force = false) {
   return p;
 }
 
-const rank: Record<Status, number> = { available: 0, reserved: 1, given: 2 };
-
-// Чистая функция: считает статус по серверной карте и демо-транзакциям
-export function computeStatus(
-  bookId: number,
-  server: ServerMap,
-  tx: ReturnType<typeof useTransactions>,
-): Status {
-  let status: Status = server[String(bookId)] ?? "available";
-  for (const t of tx) {
-    if (Number(t.book.id) !== bookId || t.status === "returned") continue;
-    const s: Status = t.status === "reserved" ? "reserved" : "given";
-    if (rank[s] > rank[status]) status = s;
-  }
-  return status;
+export function computeStatus(bookId: number, server: ServerMap): Status {
+  const s = server[String(bookId)];
+  if (s === "given") return "given";
+  if (s === "reserved") return "reserved";
+  return "available";
 }
 
-// Хук, который отдаёт всю серверную карту (null, пока грузится)
 export function useServerStates(): ServerMap | null {
   const [server, setServer] = useState<ServerMap | null>(serverCache);
 
@@ -68,13 +55,10 @@ export function useServerStates(): ServerMap | null {
   return server;
 }
 
-// Единый статус книги: брони с сервера + демо-транзакции из «Транзакций».
-// null, пока данные загружаются.
 export function useBookStatus(bookId: number): Status | null {
   const server = useServerStates();
-  const tx = useTransactions();
   if (!server) return null;
-  return computeStatus(bookId, server, tx);
+  return computeStatus(bookId, server);
 }
 
 export default function BookStatusBadge({ book }: { book: Book }) {

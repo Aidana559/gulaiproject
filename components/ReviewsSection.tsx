@@ -1,117 +1,209 @@
 "use client";
+
 import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/components/AuthProvider";
-import { api } from "@/lib/api";
-import { Stars } from "./Stars";
+import { Button } from "./Button";
 
 type Review = {
-  id: string; authorId: string; authorName: string;
-  rating: number; text: string; createdAt: string;
+  id: string;
+  authorId: string;
+  authorName: string;
+  rating: number;
+  text: string;
+  createdAt: string;
 };
+
+function Stars({ value, onChange }: { value: number; onChange?: (n: number) => void }) {
+  return (
+    <div className="flex gap-0.5 text-xl">
+      {[1, 2, 3, 4, 5].map((n) => (
+        <button
+          key={n}
+          type="button"
+          disabled={!onChange}
+          onClick={() => onChange?.(n)}
+          className={n <= value ? "text-amber-400" : "text-stone-300"}
+        >
+          ★
+        </button>
+      ))}
+    </div>
+  );
+}
 
 export default function ReviewsSection({
   bookId,
   ownerId,
 }: {
   bookId: string | number;
-  ownerId: string | number;
+  ownerId?: string;
 }) {
   const { user } = useAuth();
-  const [data, setData] = useState<{ reviews: Review[]; average: number; count: number }>({
-    reviews: [], average: 0, count: 0,
-  });
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [average, setAverage] = useState(0);
   const [rating, setRating] = useState(5);
   const [text, setText] = useState("");
   const [error, setError] = useState("");
+  const [done, setDone] = useState(false);
+  const [reportId, setReportId] = useState<string | null>(null);
+  const [reportReason, setReportReason] = useState("");
+  const [reportMsg, setReportMsg] = useState("");
 
   const load = useCallback(async () => {
-    setData(await api(`/api/reviews?targetType=book&targetId=${bookId}`));
+    const res = await fetch(
+      `/api/reviews?targetType=book&targetId=${encodeURIComponent(String(bookId))}`,
+      { cache: "no-store" },
+    );
+    if (!res.ok) return;
+    const json = await res.json();
+    setReviews(json.reviews ?? []);
+    setAverage(json.average ?? 0);
   }, [bookId]);
 
-  useEffect(() => { load(); }, [load]);
-
-  const isOwner =
-    !!user && (String(user.id) === String(ownerId) || user.name === String(ownerId));
-  const isStaff = !!user && (user.role === "admin" || user.role === "moderator");
+  useEffect(() => {
+    load();
+  }, [load]);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
-    try {
-      await api("/api/reviews", user!.id, {
-        method: "POST",
-        body: JSON.stringify({ targetType: "book", targetId: String(bookId), rating, text }),
-      });
-      setText("");
-      load();
-    } catch (err: any) {
-      setError(err.message);
+    if (!user) {
+      setError("Войдите, чтобы оставить отзыв");
+      return;
     }
+    const res = await fetch("/api/reviews", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        targetType: "book",
+        targetId: String(bookId),
+        rating,
+        text,
+      }),
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      setError(json.error ?? "Ошибка");
+      return;
+    }
+    setText("");
+    setRating(5);
+    setDone(true);
+    setTimeout(() => setDone(false), 2000);
+    await load();
   }
 
-  async function remove(id: string) {
-    if (!confirm("Удалить отзыв?")) return;
-    await api(`/api/reviews?id=${id}`, user!.id, { method: "DELETE" });
-    load();
+  async function sendReport(reviewId: string) {
+    setReportMsg("");
+    if (reportReason.trim().length < 5) {
+      setReportMsg("Опишите причину (мин. 5 символов)");
+      return;
+    }
+    const res = await fetch("/api/reports", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        targetType: "review",
+        targetId: reviewId,
+        reason: reportReason.trim(),
+      }),
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      setReportMsg(json.error ?? "Не удалось отправить");
+      return;
+    }
+    setReportMsg("Жалоба отправлена");
+    setReportReason("");
+    setReportId(null);
   }
 
   return (
     <section className="mt-16 grid gap-10 lg:grid-cols-2">
       <div>
-        <h2 className="text-xl font-bold text-stone-900">
-          Отзывы{" "}
-          {data.count > 0 && (
-            <span className="text-base font-normal text-stone-500">
-              · {data.average.toFixed(1)} ★ ({data.count})
+        <div className="flex items-center gap-3">
+          <h2 className="text-xl font-bold text-stone-900">Отзывы</h2>
+          {reviews.length > 0 && (
+            <span className="text-sm text-stone-500">
+              ★ {average.toFixed(1)} ({reviews.length})
             </span>
           )}
-        </h2>
-        <ul className="mt-4 space-y-4">
-          {data.reviews.map((r) => (
-            <li key={r.id} className="rounded-2xl bg-white p-5 ring-1 ring-stone-200">
-              <div className="flex items-center justify-between">
-                <p className="font-medium text-stone-900">{r.authorName}</p>
-                <Stars value={r.rating} className="text-base" />
-              </div>
-              <p className="mt-2 whitespace-pre-wrap text-sm text-stone-600">{r.text}</p>
-              <div className="mt-2 flex gap-3 text-xs text-stone-400">
-                <span>{new Date(r.createdAt).toLocaleDateString("ru-RU")}</span>
-                {user && (String(user.id) === r.authorId || isStaff) && (
-                  <button onClick={() => remove(r.id)} className="text-red-600">Удалить</button>
+        </div>
+
+        {reviews.length === 0 ? (
+          <p className="mt-4 text-sm text-stone-500">Пока нет отзывов.</p>
+        ) : (
+          <ul className="mt-4 space-y-4">
+            {reviews.map((r) => (
+              <li key={r.id} className="rounded-2xl bg-white p-5 ring-1 ring-stone-200">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="font-medium text-stone-900">{r.authorName}</p>
+                  <Stars value={r.rating} />
+                </div>
+                {r.text && <p className="mt-2 text-sm text-stone-600">{r.text}</p>}
+                <div className="mt-2 flex items-center justify-between gap-2">
+                  <p className="text-xs text-stone-400">
+                    {new Date(r.createdAt).toLocaleDateString("ru-RU")}
+                  </p>
+                  {user && user.id !== r.authorId && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setReportId(reportId === r.id ? null : r.id);
+                        setReportMsg("");
+                      }}
+                      className="text-xs text-stone-500 underline hover:text-rose-600"
+                    >
+                      Пожаловаться
+                    </button>
+                  )}
+                </div>
+                {reportId === r.id && (
+                  <div className="mt-3 space-y-2 rounded-xl bg-stone-50 p-3">
+                    <textarea
+                      value={reportReason}
+                      onChange={(e) => setReportReason(e.target.value)}
+                      rows={2}
+                      placeholder="Причина жалобы"
+                      className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm"
+                    />
+                    {reportMsg && <p className="text-xs text-stone-600">{reportMsg}</p>}
+                    <Button size="sm" variant="danger" onClick={() => sendReport(r.id)}>
+                      Отправить жалобу
+                    </Button>
+                  </div>
                 )}
-              </div>
-            </li>
-          ))}
-          {data.reviews.length === 0 && <li className="text-stone-500">Отзывов пока нет.</li>}
-        </ul>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
 
       <div>
         <h2 className="text-xl font-bold text-stone-900">Оставить отзыв</h2>
-        <div className="mt-4 rounded-2xl bg-white p-5 ring-1 ring-stone-200">
-          {user && !isOwner ? (
-            <form onSubmit={submit} className="space-y-3">
-              <Stars value={rating} onChange={setRating} />
-              <textarea
-                value={text}
-                onChange={(e) => setText(e.target.value)}
-                maxLength={1000}
-                required
-                rows={4}
-                placeholder="Ваш отзыв о книге"
-                className="w-full rounded-xl border border-stone-300 p-3 text-sm"
-              />
-              {error && <p className="text-sm text-red-600">{error}</p>}
-              <button className="rounded-xl bg-indigo-600 px-5 py-2 text-sm font-medium text-white hover:bg-indigo-700">
-                Отправить отзыв
-              </button>
-            </form>
-          ) : (
-            <p className="text-sm text-stone-500">
-              {isOwner ? "Свою книгу оценивать нельзя." : "Войдите, чтобы оставить отзыв."}
-            </p>
+        <form onSubmit={submit} className="mt-4 space-y-4 rounded-2xl bg-white p-5 ring-1 ring-stone-200">
+          <div>
+            <p className="mb-1.5 text-sm font-medium text-stone-700">Оценка</p>
+            <Stars value={rating} onChange={setRating} />
+          </div>
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-stone-700">Текст</label>
+            <textarea
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              rows={4}
+              className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm"
+              placeholder="Как прошло получение книги?"
+            />
+          </div>
+          {error && <p className="text-sm text-red-600">{error}</p>}
+          {done && (
+            <p className="rounded-lg bg-emerald-50 p-2 text-sm text-emerald-700">✅ Сохранено</p>
           )}
-        </div>
+          <Button type="submit" size="lg" full disabled={!user}>
+            Отправить
+          </Button>
+        </form>
       </div>
     </section>
   );

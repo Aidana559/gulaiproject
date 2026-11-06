@@ -1,8 +1,33 @@
 import type { Book } from "@/data/books";
 import { categoryEmoji } from "@/data/books";
 
-/** Обложка, нарисованная на CSS (без внешних картинок) */
-export default function BookCover({ book, large = false }: { book: Book; large?: boolean }) {
+type BookWithCover = Book & { coverUrl?: string | null };
+
+/** Обложка: фото из /uploads или CSS-градиент */
+export default function BookCover({
+  book,
+  large = false,
+}: {
+  book: BookWithCover;
+  large?: boolean;
+}) {
+  if (book.coverUrl) {
+    return (
+      <div
+        className={`relative aspect-[3/4] w-full overflow-hidden rounded-lg shadow-md ${
+          large ? "max-w-xs" : ""
+        }`}
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={book.coverUrl}
+          alt={book.title}
+          className="h-full w-full object-cover"
+        />
+      </div>
+    );
+  }
+
   return (
     <div
       className={`relative flex aspect-[3/4] w-full flex-col justify-between overflow-hidden rounded-lg bg-gradient-to-br ${book.gradient} p-4 text-white shadow-md ${

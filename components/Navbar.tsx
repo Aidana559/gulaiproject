@@ -1,23 +1,48 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { LinkButton } from "./Button";
 import AuthMenu from "@/components/AuthMenu";
 import Avatar from "@/components/Avatar";
 import { useAuth } from "@/components/AuthProvider";
 
-const links = [
-  { href: "/", label: "Главная" },
-  { href: "/catalog", label: "Каталог" },
-  { href: "/transactions", label: "Транзакции" },
-  { href: "/add", label: "Добавить книгу" },
-  { href: "/about", label: "О проекте" },
-];
+type NavLink = { href: string; label: string };
+
+/** Меню по ролям: гость / user / moderator / admin */
+function linksFor(role?: string | null, loggedIn?: boolean): NavLink[] {
+  const base: NavLink[] = [
+    { href: "/", label: "Главная" },
+    { href: "/catalog", label: "Каталог" },
+    { href: "/about", label: "О проекте" },
+  ];
+  if (!loggedIn) return base;
+
+  const userLinks: NavLink[] = [
+    { href: "/", label: "Главная" },
+    { href: "/catalog", label: "Каталог" },
+    { href: "/transactions", label: "Транзакции" },
+    { href: "/add", label: "Добавить книгу" },
+    { href: "/about", label: "О проекте" },
+  ];
+
+  if (role === "moderator" || role === "admin") {
+    userLinks.push({ href: "/moderation", label: "Модерация" });
+  }
+  if (role === "admin") {
+    userLinks.push({ href: "/admin", label: "Админка" });
+  }
+  return userLinks;
+}
 
 export default function Navbar() {
   const [open, setOpen] = useState(false);
   const { user, loading } = useAuth();
+
+  const links = useMemo(
+    () => linksFor(user?.role, !!user),
+    [user?.role, user],
+  );
 
   return (
     <header className="sticky top-0 z-40 border-b border-stone-200 bg-white/90 backdrop-blur">
@@ -39,7 +64,6 @@ export default function Navbar() {
           ))}
         </ul>
 
-        {/* Справа: «Войти/Регистрация» или иконка профиля */}
         <div className="hidden items-center gap-2 md:flex">
           <AuthMenu />
         </div>
@@ -55,7 +79,11 @@ export default function Navbar() {
             {open ? (
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
             ) : (
-              <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5"
+              />
             )}
           </svg>
         </button>
