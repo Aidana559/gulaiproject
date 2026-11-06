@@ -1,13 +1,13 @@
 import { NextResponse } from "next/server";
-import { readJson } from "./db";
+import { getSessionUser, toPublic } from "./auth";
 import type { User } from "./types";
 
-export async function getActor(req: Request): Promise<User | null> {
-  const id = req.headers.get("x-user-id");
-  if (!id) return null;
-  const users = await readJson<User[]>("users.json", []);
-  const u = users.find((x) => String(x.id) === id);
-  return u && !u.blocked ? u : null;
+// Кто делает запрос: определяем по подписанной cookie сессии.
+// Заголовкам от клиента (например, x-user-id) доверять нельзя: их может подставить кто угодно.
+// Параметр req оставлен только для совместимости, чтобы не менять вызовы в API-роутах.
+export async function getActor(_req?: Request): Promise<User | null> {
+  const u = await getSessionUser(); // null для гостя и для заблокированного
+  return u ? (toPublic(u) as User) : null; // без passwordHash
 }
 
 export const isStaff = (u: User) => u.role === "admin" || u.role === "moderator";

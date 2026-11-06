@@ -1,22 +1,39 @@
 import { randomUUID } from "node:crypto";
 import { promises as fs } from "node:fs";
-import path from "node:path";
-import { books } from "@/data/books";
+import path from "path";
+import { books as staticBooks } from "@/data/books";
 
-export type BookingStatus = "reserved" | "borrowed" | "overdue" | "returned" | "cancelled";
+/**
+ * Цепочка: reserved → borrowed → returned
+ * + cancelled. overdue — только для отображения (borrowed + dueDate < today).
+ */
+export type BookingStatus =
+  | "reserved"
+  | "borrowed"
+  | "returned"
+  | "cancelled"
+  | "overdue"; // только view
+
 export type BookingAction = "cancel" | "issue" | "return" | "extend";
 
 export interface Booking {
   id: string;
   userId: string;
-  bookId?: number;
+  userName?: string;
+  bookId: number;
   bookTitle: string;
   bookAuthor: string;
-  status: BookingStatus;
+  status: Exclude<BookingStatus, "overdue">;
   createdAt: string;
-  startDate: string; // YYYY-MM-DD
-  dueDate: string; // YYYY-MM-DD
+  startDate: string;
+  dueDate: string;
 }
+
+export type BookingView = Booking & {
+  status: BookingStatus;
+  /** кнопки, которые можно показать текущему пользователю */
+  allowedActions?: BookingAction[];
+};
 
 const LOAN_DAYS = 14;
 const FILE = path.join(process.cwd(), "data", "bookings.json");
@@ -29,35 +46,52 @@ function plusDays(iso: string, n: number) {
   return day(d);
 }
 
-// Приводит старые записи к новому формату
-function normalize(raw: Booking): Booking {
-  const startDate = raw.startDate ?? raw.createdAt.slice(0, 10);
-  const status = (raw.status as string) === "given" ? "borrowed" : raw.status;
+function normalize(raw: Booking & { bookId?: number }): Booking | null {
+  // без bookId — мусор (типа «Grammar»), выкидываем при чтении
+  if (raw.bookId == null || Number.isNaN(Number(raw.bookId))) return null;
+
+  let status = raw.status as string;
+  if (status === "given") status = "borrowed";
+  // шаг «подтверждение» убран: старые confirmed считаем обычной бронью
+  if (status === "confirmed") status = "reserved";
+  if (!["reserved", "borrowed", "returned", "cancelled"].includes(status)) {
+    status = "reserved";
+  }
+
+  const startDate = raw.startDate ?? raw.createdAt?.slice(0, 10) ?? day();
   return {
-    ...raw,
-    status,
+    id: raw.id,
+    userId: raw.userId,
+    userName: raw.userName,
+    bookId: Number(raw.bookId),
+    bookTitle: raw.bookTitle,
+    bookAuthor: raw.bookAuthor ?? "",
+    status: status as Booking["status"],
+    createdAt: raw.createdAt ?? new Date().toISOString(),
     startDate,
     dueDate: raw.dueDate ?? plusDays(startDate, LOAN_DAYS),
   };
 }
 
-// Для показа: просроченная выдача получает статус «Просрочена»
-function view(b: Booking): Booking {
-  return b.status === "borrowed" && b.dueDate < day() ? { ...b, status: "overdue" } : b;
+function viewStatus(b: Booking): BookingStatus {
+  if (b.status === "borrowed" && b.dueDate < day()) return "overdue";
+  return b.status;
 }
 
-// id книги: из брони, а у старых броней без bookId ищем по названию
-function resolveBookId(b: Booking): number | undefined {
-  if (b.bookId != null) return b.bookId;
-  return books.find((x) => x.title === b.bookTitle)?.id;
-}
-
-const isActive = (b: Booking) => b.status === "reserved" || b.status === "borrowed";
+const isActive = (b: Booking) =>
+  b.status === "reserved" || b.status === "borrowed";
 
 async function readAll(): Promise<Booking[]> {
   try {
-    const items = JSON.parse(await fs.readFile(FILE, "utf8")) as Booking[];
-    return items.map(normalize);
+    const items = JSON.parse(await fs.readFile(FILE, "utf8")) as unknown[];
+    const out: Booking[] = [];
+    for (const raw of items) {
+      const n = normalize(raw as Booking);
+      if (n) out.push(n);
+    }
+    // одноразовая чистка файла от записей без bookId
+    if (out.length !== items.length) await writeAll(out);
+    return out;
   } catch {
     return [];
   }
@@ -68,48 +102,135 @@ async function writeAll(items: Booking[]) {
   await fs.writeFile(FILE, JSON.stringify(items, null, 2), "utf8");
 }
 
+/** владелец книги: ownerId или имя owner из статики / user-books */
+export async function resolveBookOwner(bookId: number): Promise<{
+  ownerId?: string;
+  ownerName?: string;
+}> {
+  try {
+    const { getBook } = await import("@/lib/books-store");
+    const b = await getBook(String(bookId), { includeHidden: true });
+    if (b) {
+      return {
+        ownerId: b.ownerId != null ? String(b.ownerId) : undefined,
+        ownerName: b.owner,
+      };
+    }
+  } catch {
+    /* books-store может ещё не быть */
+  }
+  const s = staticBooks.find((x) => x.id === bookId);
+  return s ? { ownerName: s.owner } : {};
+}
+
+function canManageBook(
+  actor: { id: string; name: string; role?: string },
+  owner: { ownerId?: string; ownerName?: string },
+) {
+  if (actor.role === "admin" || actor.role === "moderator") return true;
+  if (owner.ownerId && String(owner.ownerId) === String(actor.id)) return true;
+  if (owner.ownerName && owner.ownerName === actor.name) return true;
+  return false;
+}
+
+export function allowedActionsFor(
+  b: Booking,
+  actor: { id: string; name: string; role?: string } | null,
+  owner: { ownerId?: string; ownerName?: string },
+): BookingAction[] {
+  if (!actor) return [];
+  const actions: BookingAction[] = [];
+  const isBorrower = String(b.userId) === String(actor.id);
+  const isMgr = canManageBook(actor, owner);
+  const st = b.status;
+
+  // бронь: выдать и отменить (читатель — свою, владелец/админ — любую)
+  if ((isBorrower || isMgr) && st === "reserved") {
+    if (isMgr) actions.push("issue");
+    actions.push("cancel");
+  }
+  if (isMgr && st === "borrowed") {
+    actions.push("return");
+    actions.push("extend");
+  }
+  return actions;
+}
+
 export async function getBookingsByUser(userId: string) {
   const all = await readAll();
   return all
     .filter((b) => b.userId === userId)
-    .map(view)
+    .map((b) => ({ ...b, status: viewStatus(b) }))
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
-// Книга занята, если на неё есть чья-то активная бронь или выдача
-export async function isBookTaken(bookId: number) {
+/** Для страницы «Транзакции»: админ — все; иначе свои брони + заявки на свои книги */
+export async function listBookingsForActor(actor: {
+  id: string;
+  name: string;
+  role?: string;
+}): Promise<BookingView[]> {
   const all = await readAll();
-  return all.some((b) => isActive(b) && resolveBookId(b) === bookId);
+  const isAdmin = actor.role === "admin";
+
+  const result: BookingView[] = [];
+  for (const b of all) {
+    const owner = await resolveBookOwner(b.bookId);
+    const isBorrower = String(b.userId) === String(actor.id);
+    const isMgr = canManageBook(actor, owner);
+    // Показываем транзакции всех пользователей; allowedActions по-прежнему ограничивает управление.
+
+    result.push({
+      ...b,
+      status: viewStatus(b),
+      allowedActions: allowedActionsFor(b, actor, owner),
+    });
+  }
+  return result.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
-// Состояние занятых книг: { "3": "reserved", "7": "given" }
+export async function isBookTaken(bookId: number) {
+  const all = await readAll();
+  return all.some((b) => isActive(b) && b.bookId === bookId);
+}
+
+/** { "3": "reserved" | "given" } для бейджей каталога */
 export async function getBookStates() {
   const all = await readAll();
   const states: Record<string, "reserved" | "given"> = {};
   for (const b of all) {
     if (!isActive(b)) continue;
-    const id = resolveBookId(b);
-    if (id == null) continue;
-    if (states[String(id)] === "given") continue;
-    states[String(id)] = b.status === "borrowed" ? "given" : "reserved";
+    const key = String(b.bookId);
+    if (states[key] === "given") continue;
+    if (b.status === "borrowed") states[key] = "given";
+    else states[key] = "reserved";
   }
   return states;
 }
 
-export async function createBooking(
-  userId: string,
-  bookTitle: string,
-  bookAuthor: string,
-  bookId?: number,
-) {
+export async function createBooking(input: {
+  userId: string;
+  userName?: string;
+  bookId: number;
+  bookTitle: string;
+  bookAuthor: string;
+}) {
+  if (input.bookId == null || Number.isNaN(Number(input.bookId))) {
+    throw new Error("bookId обязателен");
+  }
+  if (await isBookTaken(input.bookId)) {
+    throw new Error("Эта книга уже забронирована");
+  }
+
   const all = await readAll();
   const today = day();
   const booking: Booking = {
     id: randomUUID(),
-    userId,
-    bookId,
-    bookTitle,
-    bookAuthor,
+    userId: input.userId,
+    userName: input.userName,
+    bookId: Number(input.bookId),
+    bookTitle: input.bookTitle,
+    bookAuthor: input.bookAuthor,
     status: "reserved",
     createdAt: new Date().toISOString(),
     startDate: today,
@@ -120,38 +241,46 @@ export async function createBooking(
   return booking;
 }
 
-export async function applyAction(userId: string, id: string, action: BookingAction) {
+export async function applyAction(
+  actor: { id: string; name: string; role?: string },
+  id: string,
+  action: BookingAction,
+): Promise<BookingView | null> {
   const all = await readAll();
-  const idx = all.findIndex((b) => b.id === id && b.userId === userId);
+  const idx = all.findIndex((b) => b.id === id);
   if (idx === -1) return null;
 
   const b = all[idx];
+  const owner = await resolveBookOwner(b.bookId);
+  const allowed = allowedActionsFor(b, actor, owner);
+  if (!allowed.includes(action)) return null;
+
   const today = day();
 
   switch (action) {
     case "cancel":
-      if (b.status !== "reserved") return null;
       b.status = "cancelled";
       break;
     case "issue":
-      if (b.status !== "reserved") return null;
       b.status = "borrowed";
       b.startDate = today;
       b.dueDate = plusDays(today, LOAN_DAYS);
       break;
     case "return":
-      if (b.status !== "borrowed") return null;
       b.status = "returned";
       break;
     case "extend":
-      if (b.status !== "borrowed") return null;
       b.dueDate = plusDays(b.dueDate < today ? today : b.dueDate, 7);
       break;
   }
 
   await writeAll(all);
-  return view(b);
+  return {
+    ...b,
+    status: viewStatus(b),
+    allowedActions: allowedActionsFor(b, actor, owner),
+  };
 }
 
-// оставлено для совместимости со старым кодом
-export const cancelBooking = (userId: string, id: string) => applyAction(userId, id, "cancel");
+export const cancelBooking = (actor: { id: string; name: string; role?: string }, id: string) =>
+  applyAction(actor, id, "cancel");

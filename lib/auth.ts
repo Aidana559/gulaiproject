@@ -18,17 +18,19 @@ export interface User {
   passwordHash: string;
   role: Role;
   createdAt: string;
+  /** полная блокировка — сессия не работает */
+  blocked?: boolean;
+  /** mute — вход есть, но нельзя публиковать объявления */
+  muted?: boolean;
 }
 
 export type PublicUser = Omit<User, "passwordHash">;
 
 export const SESSION_COOKIE = "session";
-export const SESSION_MAX_AGE = 60 * 60 * 24 * 7; // 7 күн
+export const SESSION_MAX_AGE = 60 * 60 * 24 * 7;
 
 const USERS_FILE = path.join(process.cwd(), "data", "users.json");
 const SECRET = process.env.AUTH_SECRET ?? "dev-secret-change-me";
-
-/* ---------- Пайдаланушылар (data/users.json) ---------- */
 
 async function readUsers(): Promise<User[]> {
   try {
@@ -53,6 +55,22 @@ export async function findUserById(id: string) {
   return users.find((u) => u.id === id);
 }
 
+export async function updateUser(
+  id: string,
+  patch: Partial<Pick<User, "role" | "blocked" | "muted" | "name">>,
+) {
+  const users = await readUsers();
+  const idx = users.findIndex((u) => u.id === id);
+  if (idx === -1) return null;
+  users[idx] = { ...users[idx], ...patch };
+  await writeUsers(users);
+  return users[idx];
+}
+
+export async function listUsers() {
+  return readUsers();
+}
+
 export async function createUser(name: string, email: string, password: string) {
   const users = await readUsers();
   const user: User = {
@@ -60,7 +78,6 @@ export async function createUser(name: string, email: string, password: string) 
     name: name.trim(),
     email: email.trim().toLowerCase(),
     passwordHash: hashPassword(password),
-    // Бірінші тіркелген адам админ болады, қалғандары — user
     role: users.length === 0 ? "admin" : "user",
     createdAt: new Date().toISOString(),
   };
@@ -75,8 +92,6 @@ export function toPublic(user: User): PublicUser {
   return rest;
 }
 
-/* ---------- Құпиясөз ---------- */
-
 export function hashPassword(password: string) {
   const salt = randomBytes(16).toString("hex");
   const hash = scryptSync(password, salt, 64).toString("hex");
@@ -90,8 +105,6 @@ export function verifyPassword(password: string, stored: string) {
   const b = scryptSync(password, salt, 64);
   return a.length === b.length && timingSafeEqual(a, b);
 }
-
-/* ---------- Сессия токені (cookie) ---------- */
 
 function sign(value: string) {
   return createHmac("sha256", SECRET).update(value).digest("base64url");
@@ -131,5 +144,7 @@ export const sessionCookieOptions = {
 
 export async function getSessionUser() {
   const uid = readSessionToken((await cookies()).get(SESSION_COOKIE)?.value);
-  return uid ? ((await findUserById(uid)) ?? null) : null;
+  if (!uid) return null;
+  const user = await findUserById(uid);
+  return user && !user.blocked ? user : null;
 }
