@@ -6,6 +6,7 @@ import { useAuth } from "@/components/AuthProvider";
 import { Button } from "@/components/Button";
 import { inputClass } from "@/components/FormField";
 import GenreSelect from "@/components/GenreSelect";
+import GoogleBookSearch, { type GoogleBookHit } from "@/components/GoogleBookSearch";
 import { FiCheckCircle } from "react-icons/fi";
 import type { Category } from "@/data/books";
 
@@ -17,6 +18,21 @@ export default function AddPage() {
   const [done, setDone] = useState(false);
   const [createdId, setCreatedId] = useState<number | string | null>(null);
   const [genre, setGenre] = useState("");
+  const [title, setTitle] = useState("");
+  const [author, setAuthor] = useState("");
+  const [year, setYear] = useState("");
+  const [pages, setPages] = useState("");
+  const [description, setDescription] = useState("");
+  const [coverUrl, setCoverUrl] = useState("");
+
+  function fillFromGoogle(b: GoogleBookHit) {
+    setTitle(b.title);
+    setAuthor(b.author);
+    setYear(b.year ? String(b.year) : "");
+    setPages(b.pages ? String(b.pages) : "");
+    setDescription(b.description.slice(0, 1000));
+    setCoverUrl(b.cover);
+  }
 
   if (!authLoading && !user) {
     if (typeof window !== "undefined") router.replace("/login");
@@ -34,14 +50,14 @@ export default function AddPage() {
     const form = e.currentTarget;
     const fd = new FormData(form);
 
-    const title = String(fd.get("title") ?? "").trim();
-    const author = String(fd.get("author") ?? "").trim();
-    if (title.length < 2) {
+    const titleVal = String(fd.get("title") ?? "").trim();
+    const authorVal = String(fd.get("author") ?? "").trim();
+    if (titleVal.length < 2) {
       setError("Укажите название");
       setLoading(false);
       return;
     }
-    if (author.length < 2) {
+    if (authorVal.length < 2) {
       setError("Укажите автора");
       setLoading(false);
       return;
@@ -83,6 +99,10 @@ export default function AddPage() {
         className="mt-8 space-y-5 rounded-2xl bg-white p-6 shadow-sm ring-1 ring-stone-200"
         encType="multipart/form-data"
       >
+        <GoogleBookSearch onPick={fillFromGoogle} />
+        <input type="hidden" name="coverUrl" value={coverUrl} />
+        <input type="hidden" name="pages" value={pages} />
+
         <div>
           <label htmlFor="title" className="mb-1.5 block text-sm font-medium text-stone-700">
             Название
@@ -90,6 +110,8 @@ export default function AddPage() {
           <input
             id="title"
             name="title"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
             required
             minLength={2}
             placeholder="Например: Хвост Феи"
@@ -101,7 +123,15 @@ export default function AddPage() {
           <label htmlFor="author" className="mb-1.5 block text-sm font-medium text-stone-700">
             Автор
           </label>
-          <input id="author" name="author" required minLength={2} className={inputClass} />
+          <input
+            id="author"
+            name="author"
+            value={author}
+            onChange={(e) => setAuthor(e.target.value)}
+            required
+            minLength={2}
+            className={inputClass}
+          />
         </div>
 
         <div className="grid gap-5 sm:grid-cols-2">
@@ -132,6 +162,8 @@ export default function AddPage() {
             <input
               id="year"
               name="year"
+              value={year}
+              onChange={(e) => setYear(e.target.value)}
               type="number"
               min={1900}
               max={2030}
@@ -175,13 +207,30 @@ export default function AddPage() {
           <label htmlFor="description" className="mb-1.5 block text-sm font-medium text-stone-700">
             Описание
           </label>
-          <textarea id="description" name="description" rows={4} className={inputClass} />
+          <textarea
+            id="description"
+            name="description"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            rows={4}
+            className={inputClass}
+          />
         </div>
 
         <div>
           <label htmlFor="cover" className="mb-1.5 block text-sm font-medium text-stone-700">
             Обложка (JPG, PNG, WebP ≤ 5 МБ)
           </label>
+          {coverUrl && (
+            <div className="mb-2 flex items-center gap-3 text-xs text-stone-500">
+              { }
+              <img src={coverUrl} alt="" className="h-16 w-11 rounded object-cover" />
+              <span>Обложка из Google Books. Загрузите свой файл ниже, чтобы заменить.</span>
+              <button type="button" onClick={() => setCoverUrl("")} className="text-rose-600 underline">
+                убрать
+              </button>
+            </div>
+          )}
           <input
             id="cover"
             name="cover"

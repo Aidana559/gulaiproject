@@ -73,6 +73,9 @@ export async function POST(req: Request) {
       const file = fd.get("cover");
       if (file && file instanceof File && file.size > 0) {
         coverUrl = await saveCoverFile(file);
+      } else {
+        const gUrl = String(fd.get("coverUrl") ?? "").trim();
+        if (/^https:\/\/books\.google\.com\//.test(gUrl)) coverUrl = gUrl;
       }
     } else {
       const body = await req.json();
