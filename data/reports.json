@@ -6,7 +6,19 @@
     "bookId": "1001",
     "reporterId": "857fb46b-ca21-43d9-a065-1e1e5e7534c7",
     "reason": "сюжет не очень",
-    "status": "open",
+    "status": "new",
     "createdAt": "2026-11-06T10:42:33.903Z"
+  },
+  {
+    "id": "a4f59d70-73cb-47cd-8e4b-56198e4bba97",
+    "targetType": "book",
+    "targetId": "3",
+    "targetLabel": "1984",
+    "bookId": "3",
+    "reporterId": "857fb46b-ca21-43d9-a065-1e1e5e7534c7",
+    "reasonCode": "spam",
+    "reason": "Спам и реклама",
+    "status": "new",
+    "createdAt": "2026-11-07T19:51:13.432Z"
   }
 ]

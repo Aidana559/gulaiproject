@@ -11,7 +11,6 @@ import type { Report } from "@/lib/types";
 
 const DAYS = 7;
 
-/** Последние n дней (UTC) в виде YYYY-MM-DD, от старого к новому */
 function lastDays(n: number): string[] {
   const out: string[] = [];
   const now = new Date();
@@ -41,7 +40,7 @@ async function Dashboard() {
     listBookingsForActor({ id: "dashboard", name: "admin", role: "admin" }),
   ]);
 
-  const openReports = reports.filter((r) => r.status === "open");
+  const openReports = reports.filter((r) => r.status === "new" || r.status === "open");
   const hiddenBooks = books.filter((b) => b.hidden).length;
   const blocked = users.filter((u) => u.blocked).length;
   const muted = users.filter((u) => u.muted).length;
@@ -79,14 +78,12 @@ async function Dashboard() {
     },
   ];
 
-  // Новые пользователи и объявления за 7 дней
   const days = lastDays(DAYS);
   const usersPerDay = days.map((d) => users.filter((u) => u.createdAt?.slice(0, 10) === d).length);
   const booksPerDay = days.map((d) => books.filter((b) => b.createdAt?.slice(0, 10) === d).length);
   const maxBar = Math.max(1, ...usersPerDay, ...booksPerDay);
   const BAR_H = 90;
 
-  // Объявления по категориям
   const byCategory = (Object.keys(categoryLabels) as Category[]).map((c) => ({
     key: c,
     label: categoryLabels[c],
