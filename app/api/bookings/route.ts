@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getSessionUser, toPublic } from "@/lib/auth";
 import {
   createBooking,
+  resolveBookOwner,
   getBookingsByUser,
   getBookStates,
   isBookTaken,
@@ -67,6 +68,18 @@ export async function POST(req: Request) {
     if (!s) return NextResponse.json({ error: "Книга не найдена" }, { status: 404 });
     bookTitle = s.title;
     bookAuthor = s.author;
+  }
+
+  // владелец не может бронировать собственную книгу
+  const owner = await resolveBookOwner(bookId);
+  if (
+    (owner.ownerId && String(owner.ownerId) === String(user.id)) ||
+    (owner.ownerName && owner.ownerName === user.name)
+  ) {
+    return NextResponse.json(
+      { error: "Нельзя бронировать собственную книгу" },
+      { status: 403 },
+    );
   }
 
   if (await isBookTaken(bookId)) {

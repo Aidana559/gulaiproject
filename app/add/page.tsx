@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
 import { Button } from "@/components/Button";
 import { inputClass } from "@/components/FormField";
+import GenreSelect from "@/components/GenreSelect";
+import { FiCheckCircle } from "react-icons/fi";
 import type { Category } from "@/data/books";
 
 export default function AddPage() {
@@ -14,6 +16,7 @@ export default function AddPage() {
   const [error, setError] = useState("");
   const [done, setDone] = useState(false);
   const [createdId, setCreatedId] = useState<number | string | null>(null);
+  const [genre, setGenre] = useState("");
 
   if (!authLoading && !user) {
     if (typeof window !== "undefined") router.replace("/login");
@@ -117,7 +120,7 @@ export default function AddPage() {
             <label htmlFor="genre" className="mb-1.5 block text-sm font-medium text-stone-700">
               Жанр / предмет
             </label>
-            <input id="genre" name="genre" placeholder="сёнэн, фэнтези…" className={inputClass} />
+            <GenreSelect value={genre} onChange={setGenre} />
           </div>
         </div>
 
@@ -193,8 +196,8 @@ export default function AddPage() {
           </p>
         )}
         {done && (
-          <p role="status" className="rounded-lg bg-emerald-50 p-3 text-sm text-emerald-700 ring-1 ring-emerald-200">
-            ✅ Объявление опубликовано
+          <p role="status" className="flex items-center gap-2 rounded-lg bg-emerald-50 p-3 text-sm text-emerald-700 ring-1 ring-emerald-200">
+            <FiCheckCircle className="shrink-0" /> Объявление опубликовано
             {createdId != null ? ` (#${createdId})` : ""}! Открываем страницу…
           </p>
         )}

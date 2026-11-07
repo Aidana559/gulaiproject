@@ -1,5 +1,7 @@
 import Link from "next/link";
-import { books, categoryEmoji, categoryLabels, type Category } from "@/data/books";
+import { FiArrowRight, FiBookOpen } from "react-icons/fi";
+import CategoryIcon from "@/components/CategoryIcon";
+import { books, categoryLabels, type Category } from "@/data/books";
 import BookCard from "@/components/BookCard";
 import { LinkButton } from "@/components/Button";
 
@@ -20,8 +22,8 @@ export default function Home() {
       {/* Hero */}
       <section className="bg-gradient-to-br from-indigo-600 via-indigo-700 to-purple-800 text-white">
         <div className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8 lg:py-28">
-          <p className="inline-block rounded-full bg-white/15 px-4 py-1 text-sm font-medium">
-            📚 Платформа студенческого буккроссинга
+          <p className="inline-flex items-center gap-2 rounded-full bg-white/15 px-4 py-1 text-sm font-medium">
+            <FiBookOpen /> Платформа студенческого буккроссинга
           </p>
           <h1 className="mt-6 max-w-3xl text-4xl font-extrabold tracking-tight sm:text-6xl">
             Читай, обменивайся, делись знаниями
@@ -61,7 +63,7 @@ export default function Home() {
               href={`/catalog?category=${c}`}
               className="rounded-2xl bg-white p-6 text-center shadow-sm ring-1 ring-stone-200 transition hover:-translate-y-1 hover:shadow-lg"
             >
-              <p className="text-4xl">{categoryEmoji[c]}</p>
+              <CategoryIcon category={c} className="mx-auto text-4xl text-indigo-600" />
               <p className="mt-3 font-semibold text-stone-900">{categoryLabels[c]}</p>
               <p className="text-sm text-stone-500">{books.filter((b) => b.category === c).length} шт.</p>
             </Link>
@@ -73,7 +75,7 @@ export default function Home() {
       <section className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex items-end justify-between">
           <h2 className="text-2xl font-bold text-stone-900 sm:text-3xl">Доступно сейчас</h2>
-          <LinkButton href="/catalog" variant="ghost">Весь каталог →</LinkButton>
+          <LinkButton href="/catalog" variant="ghost">Весь каталог <FiArrowRight /></LinkButton>
         </div>
         <div className="mt-8 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
           {popular.map((b) => (

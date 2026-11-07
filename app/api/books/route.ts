@@ -17,6 +17,8 @@ export async function GET(req: Request) {
     q: sp.get("q") ?? undefined,
     category: sp.get("category") ?? undefined,
     genre: sp.get("genre") ?? undefined,
+    author: sp.get("author") ?? undefined,
+    year: Number(sp.get("year")) || undefined,
     status: sp.get("status") ?? undefined,
     sort: (sp.get("sort") as "title" | "new" | "popular") || "title",
     page: Number(sp.get("page") || 1) || 1,

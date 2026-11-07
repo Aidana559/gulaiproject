@@ -1,5 +1,6 @@
 "use client";
 
+import GenreSelect from "@/components/GenreSelect";
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
@@ -29,7 +30,6 @@ export default function EditBookForm() {
   const [ownerId, setOwnerId] = useState<string>("");
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
-  const [genres, setGenres] = useState<{ id: string; name: string; type: string }[]>([]);
 
   useEffect(() => {
     fetch(`/api/books/${id}?view=0`, { cache: "no-store" })
@@ -57,11 +57,6 @@ export default function EditBookForm() {
         });
       })
       .catch(() => setError("Не удалось загрузить"));
-
-    fetch("/api/genres")
-      .then((r) => (r.ok ? r.json() : []))
-      .then((g) => setGenres(Array.isArray(g) ? g : g.genres ?? []))
-      .catch(() => {});
   }, [id]);
 
   // редирект нельзя вызывать во время рендера — только в эффекте
@@ -184,23 +179,14 @@ export default function EditBookForm() {
         </label>
       </div>
 
-      <label className={label}>
-        Жанр / предмет
-        <input
+      <div className={label}>
+        <label htmlFor="genre">Жанр / предмет</label>
+        <GenreSelect
           className={input}
-          name="genre"
-          list="genre-list"
           value={form.genre ?? ""}
-          onChange={(e) => set("genre", e.target.value)}
+          onChange={(v) => set("genre", v)}
         />
-        <datalist id="genre-list">
-          {genres
-            .filter((g) => g.type === "genre")
-            .map((g) => (
-              <option key={g.id} value={g.name} />
-            ))}
-        </datalist>
-      </label>
+      </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
         <label className={label}>

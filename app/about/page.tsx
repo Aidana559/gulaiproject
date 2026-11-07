@@ -1,29 +1,30 @@
+import { FiCheck, FiSearch, FiShield, FiUser } from "react-icons/fi";
 import { LinkButton } from "@/components/Button";
 
 export const metadata = { title: "О проекте — Page2Page" };
 
 const roles = [
   {
-    icon: "🛡️",
+    Icon: FiShield,
     title: "Администратор",
     text: "Управляет пользователями и ролями, видит все транзакции, может модерировать объявления и отзывы.",
   },
   {
-    icon: "🔎",
+    Icon: FiSearch,
     title: "Модератор",
     text: "Разбирает жалобы на книги и отзывы, скрывает и удаляет объявления, может выдать mute (запрет на новые объявления).",
   },
   {
-    icon: "👤",
+    Icon: FiUser,
     title: "Пользователь",
-    text: "Добавляет книги в каталог, бронирует, подтверждает выдачу своих книг, пишет отзывы и оставляет жалобы.",
+    text: "Добавляет книги в каталог, бронирует чужие книги (свои бронировать нельзя), выдаёт свои книги и оценивает читателей, пишет отзывы и оставляет жалобы.",
   },
 ];
 
 const features = [
   "Каталог книг, учебников, методичек и манги с поиском и фильтрами",
   "Добавление объявлений с обложкой, ISBN, состоянием и корпусом (на сервере)",
-  "Бронирование: бронь → подтверждение → выдача → возврат",
+  "Бронирование: бронь, выдача, возврат; у каждой книги виден список взявших и надёжность читателей",
   "Транзакции: свои заявки и заявки на ваши книги (админ видит все)",
   "Отзывы и оценки 1–5, жалобы на объявления и отзывы",
   "Модерация: очередь объявлений, жалобы, mute пользователей",
@@ -42,7 +43,7 @@ export default function AboutPage() {
       <ul className="mt-8 grid gap-3 sm:grid-cols-2">
         {features.map((f) => (
           <li key={f} className="flex gap-3 rounded-xl bg-white p-4 ring-1 ring-stone-200">
-            <span className="text-emerald-600">✔</span> {f}
+            <FiCheck className="mt-1 shrink-0 text-emerald-600" /> <span>{f}</span>
           </li>
         ))}
       </ul>
@@ -51,7 +52,7 @@ export default function AboutPage() {
       <div className="mt-6 grid gap-5 md:grid-cols-3">
         {roles.map((r) => (
           <div key={r.title} className="rounded-2xl bg-white p-6 ring-1 ring-stone-200">
-            <p className="text-3xl">{r.icon}</p>
+            <r.Icon className="text-3xl text-indigo-600" />
             <h3 className="mt-3 font-semibold text-stone-900">{r.title}</h3>
             <p className="mt-1 text-sm text-stone-500">{r.text}</p>
           </div>

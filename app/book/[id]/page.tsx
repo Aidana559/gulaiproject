@@ -15,6 +15,8 @@ import ReportButton from "@/components/ReportButton";
 import ReviewsSection from "@/components/ReviewsSection";
 import BookGuard from "@/components/BookGuard";
 import { listBooks } from "@/lib/books-store";
+import BookBorrowers from "@/components/BookBorrowers";
+import { FiArrowLeft } from "react-icons/fi";
 
 
 export default async function BookPage({ params }: { params: Promise<{ id: string }> }) {
@@ -55,7 +57,14 @@ export default async function BookPage({ params }: { params: Promise<{ id: strin
         <div>
           <BookStatusBadge book={book as Book} />
           <h1 className="mt-3 text-3xl font-extrabold text-stone-900">{book.title}</h1>
-          <p className="mt-1 text-lg text-stone-500">{book.author}</p>
+          <p className="mt-1 text-lg">
+            <Link
+              href={`/author/${encodeURIComponent(book.author)}`}
+              className="text-stone-500 hover:text-indigo-600 hover:underline"
+            >
+              {book.author}
+            </Link>
+          </p>
           {book.description && <p className="mt-6 text-stone-700">{book.description}</p>}
 
           <dl className="mt-6 grid grid-cols-2 gap-4 rounded-2xl bg-white p-5 ring-1 ring-stone-200 sm:grid-cols-3 lg:grid-cols-4">
@@ -65,11 +74,30 @@ export default async function BookPage({ params }: { params: Promise<{ id: strin
             </div>
             <div>
               <dt className="text-xs text-stone-400">Жанр / предмет</dt>
-              <dd className="font-medium">{book.genre}</dd>
+              <dd className="font-medium">
+                {book.genre && book.genre !== "—" ? (
+                  <Link
+                    href={`/catalog?genre=${encodeURIComponent(book.genre)}`}
+                    className="text-indigo-700 hover:underline"
+                  >
+                    {book.genre}
+                  </Link>
+                ) : (
+                  "—"
+                )}
+              </dd>
             </div>
             <div>
               <dt className="text-xs text-stone-400">Год</dt>
-              <dd className="font-medium">{book.year || "—"}</dd>
+              <dd className="font-medium">
+                {book.year ? (
+                  <Link href={`/catalog?year=${book.year}`} className="text-indigo-700 hover:underline">
+                    {book.year}
+                  </Link>
+                ) : (
+                  "—"
+                )}
+              </dd>
             </div>
             <div>
               <dt className="text-xs text-stone-400">Страниц</dt>
@@ -115,9 +143,9 @@ export default async function BookPage({ params }: { params: Promise<{ id: strin
           </div>
 
           <div className="mt-8 flex flex-wrap items-center gap-3">
-            <ReserveButton book={book as Book} />
+            <ReserveButton book={book as Book} ownerKey={ownerKey} />
             <LinkButton href="/catalog" variant="outline" size="lg">
-              ← К каталогу
+              <FiArrowLeft /> К каталогу
             </LinkButton>
           </div>
 
@@ -127,6 +155,8 @@ export default async function BookPage({ params }: { params: Promise<{ id: strin
           </div>
         </div>
       </div>
+
+      <BookBorrowers bookId={Number(book.id)} ownerKey={ownerKey} />
 
       <ReviewsSection bookId={book.id} ownerId={ownerKey} />
 

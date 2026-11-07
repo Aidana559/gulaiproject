@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { FiSearch } from "react-icons/fi";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
 import Avatar from "@/components/Avatar";
@@ -178,7 +179,7 @@ export default function ProfilePage() {
       avatar: draft.avatar,
     });
     setEditing(false);
-    setToast("Профиль сохранён ✓");
+    setToast("Профиль сохранён");
   }
 
   async function onPickAvatar(e: React.ChangeEvent<HTMLInputElement>) {
@@ -445,7 +446,7 @@ export default function ProfilePage() {
             Найти книгу
           </label>
           <div className="relative mt-2">
-            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">🔍</span>
+            <FiSearch className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               id="book-search"
               type="search"
