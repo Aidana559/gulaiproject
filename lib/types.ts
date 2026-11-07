@@ -23,16 +23,24 @@ export type Review = {
   createdAt: string;
 };
 
+export type ReportStatus = "new" | "in_review" | "resolved" | "rejected";
+
+export type ReportTargetType = "book" | "review" | "user";
 
 export type Report = {
   id: string;
   bookId?: string;
-  targetType: "book" | "review";
+  targetType: ReportTargetType;
   targetId: string;
+  targetLabel?: string;
   reporterId: string;
+  reasonCode?: string;
   reason: string;
-  status: "open" | "closed";
+  comment?: string;
+  status: ReportStatus | "open" | "closed";
   createdAt: string;
+  updatedAt?: string;
+  handledBy?: string;
 };
 
 export type Genre = { id: string; name: string; type: "genre" | "category" };
