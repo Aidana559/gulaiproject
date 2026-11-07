@@ -23,17 +23,31 @@ export type Review = {
   createdAt: string;
 };
 
-/** Жалоба на книгу или на отзыв */
+/** Статус жалобы. Старые значения "open"/"closed" приводятся к новым при чтении. */
+export type ReportStatus = "new" | "in_review" | "resolved" | "rejected";
+
+export type ReportTargetType = "book" | "review" | "user";
+
+/** Жалоба на книгу, отзыв или пользователя */
 export type Report = {
   id: string;
   /** @deprecated для старых записей; используй targetType/targetId */
   bookId?: string;
-  targetType: "book" | "review";
+  targetType: ReportTargetType;
   targetId: string;
+  /** Снимок объекта на момент жалобы (название книги / текст отзыва / имя пользователя) */
+  targetLabel?: string;
   reporterId: string;
+  /** Код причины из списка (spam, abuse, …). У старых жалоб его нет. */
+  reasonCode?: string;
+  /** Читаемое название причины (у старых жалоб — свободный текст) */
   reason: string;
-  status: "open" | "closed";
+  /** Комментарий — только для причины «Другое» */
+  comment?: string;
+  status: ReportStatus | "open" | "closed";
   createdAt: string;
+  updatedAt?: string;
+  handledBy?: string;
 };
 
 export type Genre = { id: string; name: string; type: "genre" | "category" };

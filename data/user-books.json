@@ -12,7 +12,23 @@
     "owner": "Алина Н.",
     "city": "Кызылорда",
     "gradient": "from-indigo-500 to-purple-600",
-    "views": 2,
+    "views": 5,
+    "createdAt": "2026-01-01T00:00:00.000Z"
+  },
+  {
+    "title": "Преступление и наказание",
+    "author": "Ф. М. Достоевский",
+    "category": "book",
+    "genre": "Классика",
+    "status": "available",
+    "year": 1866,
+    "pages": 576,
+    "description": "История студента Раскольникова и его теории о «право имеющих».",
+    "id": 2,
+    "owner": "Дамир Т.",
+    "city": "Астана",
+    "gradient": "from-slate-600 to-slate-800",
+    "views": 1,
     "createdAt": "2026-01-01T00:00:00.000Z"
   }
 ]

@@ -139,6 +139,14 @@ export default async function BookPage({ params }: { params: Promise<{ id: strin
               <div className="mt-1">
                 <OwnerRating userId={ownerKey} />
               </div>
+              <div className="mt-1">
+                <ReportButton
+                  targetType="user"
+                  targetId={ownerKey}
+                  label="Пожаловаться на пользователя"
+                  compact
+                />
+              </div>
             </div>
           </div>
 

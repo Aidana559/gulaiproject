@@ -5,6 +5,7 @@ import { readJson } from "@/lib/db";
 import { formatDate, txLabels, txStyles } from "@/data/transactions";
 import type { Review } from "@/lib/types";
 import BorrowerReview from "./BorrowerReview";
+import ReportButton from "./ReportButton";
 
 function reliabilityStyle(r: Reliability) {
   if (r.percent == null) return "bg-stone-100 text-stone-600 ring-stone-500/20";
@@ -92,6 +93,15 @@ export default async function BookBorrowers({
                     name={b.name}
                     ownerKey={ownerKey}
                   />
+                  {b.userId && (
+                    <ReportButton
+                      targetType="user"
+                      targetId={b.userId}
+                      label="Пожаловаться"
+                      title="Жалоба на пользователя"
+                      compact
+                    />
+                  )}
                 </div>
               </li>
             );
