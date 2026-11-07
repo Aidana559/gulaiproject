@@ -31,7 +31,6 @@ const EDITABLE = [
   "location",
   "city",
   "campus",
-  "isbn",
   "year",
   "pages",
 ] as const;
@@ -102,6 +101,14 @@ export async function PATCH(req: Request, { params }: Ctx) {
       if ("hidden" in body) {
         if (!isStaff(actor)) return forbidden();
         patch.hidden = !!body.hidden;
+      }
+      if ("reviewed" in body) {
+        if (!isStaff(actor)) return forbidden();
+        patch.reviewed = !!body.reviewed;
+      }
+      if ("moderationNote" in body) {
+        if (!isStaff(actor)) return forbidden();
+        patch.moderationNote = String(body.moderationNote ?? "").trim().slice(0, 500) || undefined;
       }
       if ("coverUrl" in body) patch.coverUrl = body.coverUrl;
     }

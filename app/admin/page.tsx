@@ -1,338 +1,237 @@
-"use client";
+import { Suspense } from "react";
+import Link from "next/link";
+import { connection } from "next/server";
+import PageTitle from "@/components/staff/PageTitle";
+import { categoryLabels, type Category } from "@/data/books";
+import { listUsers } from "@/lib/auth";
+import { getAllBooks } from "@/lib/books-store";
+import { listBookingsForActor } from "@/lib/bookings";
+import { readJson } from "@/lib/db";
+import type { Report } from "@/lib/types";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
-import { useAuth } from "@/components/AuthProvider";
-import { Button } from "@/components/Button";
-import { categoryLabels, genres, type Category } from "@/data/books";
-import { inputClass } from "@/components/FormField";
+const DAYS = 7;
 
-type Role = "admin" | "moderator" | "user";
-
-type UserRow = {
-  id: string;
-  name: string;
-  email: string;
-  role: Role;
-  blocked?: boolean;
-  muted?: boolean;
-  createdAt?: string;
-};
-
-const ROLE_LABEL: Record<Role, string> = {
-  admin: "Администратор",
-  moderator: "Модератор",
-  user: "Пользователь",
-};
-
-export default function AdminPage() {
-  const { user, loading } = useAuth();
-  const router = useRouter();
-  const [users, setUsers] = useState<UserRow[]>([]);
-  const [query, setQuery] = useState("");
-  const [tab, setTab] = useState<"users" | "catalog">("users");
-  const [customGenres, setCustomGenres] = useState<string[]>([]);
-  const [newGenre, setNewGenre] = useState("");
-  const [toast, setToast] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-
-  const loadUsers = useCallback(async () => {
-    try {
-      const res = await fetch("/api/admin/users", { cache: "no-store" });
-      if (!res.ok) {
-        setUsers([]);
-        return;
-      }
-      const json = await res.json();
-      // API отдаёт { users: [...] } — берём массив, не весь объект
-      const list = Array.isArray(json)
-        ? json
-        : Array.isArray(json?.users)
-          ? json.users
-          : [];
-      setUsers(list);
-    } catch {
-      setUsers([]);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (loading) return;
-    if (!user || user.role !== "admin") {
-      router.replace("/");
-      return;
-    }
-    loadUsers();
-    try {
-      setCustomGenres(JSON.parse(localStorage.getItem("p2p-custom-genres") ?? "[]"));
-    } catch {
-      /* */
-    }
-  }, [user, loading, router, loadUsers]);
-
-  useEffect(() => {
-    if (!toast) return;
-    const t = setTimeout(() => setToast(null), 2200);
-    return () => clearTimeout(t);
-  }, [toast]);
-
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return users;
-    return users.filter(
-      (u) =>
-        u.name?.toLowerCase().includes(q) ||
-        u.email?.toLowerCase().includes(q) ||
-        u.role?.toLowerCase().includes(q),
-    );
-  }, [users, query]);
-
-  async function patchUser(id: string, body: Record<string, unknown>, okMsg: string) {
-    setBusy(true);
-    try {
-      const res = await fetch("/api/admin/users", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id, ...body }),
-      });
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setToast(json.error ?? "Ошибка");
-        return;
-      }
-      setToast(okMsg);
-      await loadUsers();
-    } catch {
-      setToast("Нет связи с сервером");
-    } finally {
-      setBusy(false);
-    }
+/** Последние n дней (UTC) в виде YYYY-MM-DD, от старого к новому */
+function lastDays(n: number): string[] {
+  const out: string[] = [];
+  const now = new Date();
+  for (let i = n - 1; i >= 0; i--) {
+    const d = new Date(now);
+    d.setUTCDate(d.getUTCDate() - i);
+    out.push(d.toISOString().slice(0, 10));
   }
+  return out;
+}
 
-  function addGenre() {
-    const g = newGenre.trim();
-    if (!g) return;
-    const next = Array.from(new Set([...customGenres, g]));
-    setCustomGenres(next);
-    localStorage.setItem("p2p-custom-genres", JSON.stringify(next));
-    setNewGenre("");
-    setToast("Жанр добавлен (локально)");
-  }
+const ddmm = (iso: string) => `${iso.slice(8, 10)}.${iso.slice(5, 7)}`;
 
-  function removeGenre(g: string) {
-    const next = customGenres.filter((x) => x !== g);
-    setCustomGenres(next);
-    localStorage.setItem("p2p-custom-genres", JSON.stringify(next));
-  }
+function formatDate(iso: string) {
+  return `${ddmm(iso.slice(0, 10))}.${iso.slice(0, 4)}`;
+}
 
-  if (loading || !user) {
-    return (
-      <main className="flex min-h-[40vh] items-center justify-center text-stone-500">Загрузка…</main>
-    );
-  }
+type Stat = { label: string; value: number; note?: string; href?: string; tone?: "warn" | "danger" };
+
+async function Dashboard() {
+  await connection();
+
+  const [users, books, reports, bookings] = await Promise.all([
+    listUsers(),
+    getAllBooks({ includeHidden: true }),
+    readJson<Report[]>("reports.json", []),
+    listBookingsForActor({ id: "dashboard", name: "admin", role: "admin" }),
+  ]);
+
+  const openReports = reports.filter((r) => r.status === "open");
+  const hiddenBooks = books.filter((b) => b.hidden).length;
+  const blocked = users.filter((u) => u.blocked).length;
+  const muted = users.filter((u) => u.muted).length;
+  const reserved = bookings.filter((b) => b.status === "reserved").length;
+  const borrowed = bookings.filter((b) => b.status === "borrowed").length;
+  const overdue = bookings.filter((b) => b.status === "overdue").length;
+
+  const stats: Stat[] = [
+    {
+      label: "Пользователи",
+      value: users.length,
+      note: `заблокировано: ${blocked} · mute: ${muted}`,
+      href: "/admin/users",
+    },
+    {
+      label: "Объявления",
+      value: books.length,
+      note: `скрыто: ${hiddenBooks}`,
+      href: "/admin/books",
+    },
+    {
+      label: "Открытые жалобы",
+      value: openReports.length,
+      note: `всего жалоб: ${reports.length}`,
+      href: "/admin/reports",
+      tone: openReports.length > 0 ? "warn" : undefined,
+    },
+    { label: "Брони", value: reserved, note: "ждут выдачи" },
+    { label: "На руках", value: borrowed, note: "книги выданы" },
+    {
+      label: "Просрочено",
+      value: overdue,
+      note: "не вернули в срок",
+      tone: overdue > 0 ? "danger" : undefined,
+    },
+  ];
+
+  // Новые пользователи и объявления за 7 дней
+  const days = lastDays(DAYS);
+  const usersPerDay = days.map((d) => users.filter((u) => u.createdAt?.slice(0, 10) === d).length);
+  const booksPerDay = days.map((d) => books.filter((b) => b.createdAt?.slice(0, 10) === d).length);
+  const maxBar = Math.max(1, ...usersPerDay, ...booksPerDay);
+  const BAR_H = 90;
+
+  // Объявления по категориям
+  const byCategory = (Object.keys(categoryLabels) as Category[]).map((c) => ({
+    key: c,
+    label: categoryLabels[c],
+    count: books.filter((b) => b.category === c).length,
+  }));
+  const maxCat = Math.max(1, ...byCategory.map((c) => c.count));
+
+  const latestReports = [...openReports]
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+    .slice(0, 3);
+  const latestUsers = [...users]
+    .sort((a, b) => (b.createdAt ?? "").localeCompare(a.createdAt ?? ""))
+    .slice(0, 5);
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
-      <h1 className="text-3xl font-extrabold text-stone-900">Админка</h1>
-      <p className="mt-2 text-stone-500">Пользователи, роли, блокировка и справочники.</p>
-
-      <div className="mt-6 flex flex-wrap gap-2">
-        <Button size="sm" variant={tab === "users" ? "primary" : "outline"} onClick={() => setTab("users")}>
-          Пользователи
-        </Button>
-        <Button
-          size="sm"
-          variant={tab === "catalog" ? "primary" : "outline"}
-          onClick={() => setTab("catalog")}
-        >
-          Категории и жанры
-        </Button>
+    <>
+      <div className="dash-stats">
+        {stats.map((s) => {
+          const body = (
+            <>
+              <p className="dash-stat-label">{s.label}</p>
+              <p className="dash-stat-value">{s.value}</p>
+              {s.note && <p className="dash-stat-note">{s.note}</p>}
+            </>
+          );
+          const cls = `dash-stat${s.tone ? ` dash-stat-${s.tone}` : ""}`;
+          return s.href ? (
+            <Link key={s.label} href={s.href} className={`${cls} dash-stat-link`}>
+              {body}
+            </Link>
+          ) : (
+            <div key={s.label} className={cls}>
+              {body}
+            </div>
+          );
+        })}
       </div>
 
-      {tab === "users" && (
-        <>
-          <div className="mt-6">
-            <input
-              type="search"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Поиск по имени, email, роли"
-              className={inputClass}
-            />
+      <div className="dash-grid">
+        <section className="dash-card">
+          <h2 className="dash-card-title">Новое за 7 дней</h2>
+          <div className="dash-legend">
+            <span>
+              <i className="dash-dot dash-dot-users" /> Пользователи
+            </span>
+            <span>
+              <i className="dash-dot dash-dot-books" /> Объявления
+            </span>
           </div>
-
-          <div className="mt-4 overflow-x-auto rounded-2xl bg-white ring-1 ring-stone-200">
-            <table className="w-full min-w-[640px] text-left text-sm">
-              <thead className="border-b bg-stone-50 text-xs uppercase text-stone-500">
-                <tr>
-                  <th className="px-4 py-3">Имя</th>
-                  <th className="px-4 py-3">Email</th>
-                  <th className="px-4 py-3">Роль</th>
-                  <th className="px-4 py-3">Статус</th>
-                  <th className="px-4 py-3">Действия</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-stone-100">
-                {filtered.map((u) => {
-                  const self = String(u.id) === String(user.id);
-                  return (
-                    <tr
-                      key={u.id}
-                      className={u.blocked ? "bg-rose-50/40" : u.muted ? "bg-amber-50/40" : ""}
-                    >
-                      <td className="px-4 py-3 font-medium text-stone-900">
-                        {u.name}
-                        {self && <span className="ml-2 text-xs text-stone-400">(вы)</span>}
-                      </td>
-                      <td className="px-4 py-3 text-stone-600">{u.email}</td>
-                      <td className="px-4 py-3">
-                        <select
-                          disabled={self || busy}
-                          value={u.role}
-                          onChange={(e) =>
-                            patchUser(
-                              u.id,
-                              { role: e.target.value },
-                              `Роль: ${ROLE_LABEL[e.target.value as Role]}`,
-                            )
-                          }
-                          className="rounded-lg border border-stone-300 px-2 py-1 text-sm"
-                        >
-                          {(Object.keys(ROLE_LABEL) as Role[]).map((r) => (
-                            <option key={r} value={r}>
-                              {ROLE_LABEL[r]}
-                            </option>
-                          ))}
-                        </select>
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex flex-wrap gap-1">
-                          {u.blocked && (
-                            <span className="rounded-full bg-rose-100 px-2 py-0.5 text-xs text-rose-800">
-                              blocked
-                            </span>
-                          )}
-                          {u.muted && (
-                            <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-800">
-                              mute
-                            </span>
-                          )}
-                          {!u.blocked && !u.muted && (
-                            <span className="text-xs text-stone-400">активен</span>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3">
-                        {!self && (
-                          <div className="flex flex-wrap gap-2">
-                            <Button
-                              size="sm"
-                              variant={u.blocked ? "outline" : "danger"}
-                              disabled={busy}
-                              onClick={() =>
-                                patchUser(
-                                  u.id,
-                                  { blocked: !u.blocked },
-                                  u.blocked ? "Разблокирован" : "Заблокирован",
-                                )
-                              }
-                            >
-                              {u.blocked ? "Разблок." : "Блок"}
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant={u.muted ? "outline" : "danger"}
-                              disabled={busy}
-                              onClick={() =>
-                                patchUser(
-                                  u.id,
-                                  { muted: !u.muted },
-                                  u.muted ? "Mute снят" : "Mute",
-                                )
-                              }
-                            >
-                              {u.muted ? "Unmute" : "Mute"}
-                            </Button>
-                          </div>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-                {filtered.length === 0 && (
-                  <tr>
-                    <td colSpan={5} className="px-4 py-10 text-center text-stone-500">
-                      Пользователей нет
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+          <div className="dash-chart">
+            {days.map((d, i) => (
+              <div key={d} className="dash-chart-col">
+                <div className="dash-chart-bars" style={{ height: BAR_H }}>
+                  <div className="dash-bar-wrap">
+                    <span className="dash-bar-num">{usersPerDay[i] || ""}</span>
+                    <div
+                      className="dash-bar dash-bar-users"
+                      style={{ height: Math.max(usersPerDay[i] ? 6 : 2, (usersPerDay[i] / maxBar) * (BAR_H - 16)) }}
+                    />
+                  </div>
+                  <div className="dash-bar-wrap">
+                    <span className="dash-bar-num">{booksPerDay[i] || ""}</span>
+                    <div
+                      className="dash-bar dash-bar-books"
+                      style={{ height: Math.max(booksPerDay[i] ? 6 : 2, (booksPerDay[i] / maxBar) * (BAR_H - 16)) }}
+                    />
+                  </div>
+                </div>
+                <p className="dash-chart-label">{ddmm(d)}</p>
+              </div>
+            ))}
           </div>
-        </>
-      )}
+        </section>
 
-      {tab === "catalog" && (
-        <div className="mt-6 grid gap-6 lg:grid-cols-2">
-          <section className="rounded-2xl bg-white p-6 ring-1 ring-stone-200">
-            <h2 className="text-lg font-semibold text-stone-900">Категории</h2>
-            <ul className="mt-4 space-y-2">
-              {(Object.keys(categoryLabels) as Category[]).map((c) => (
-                <li
-                  key={c}
-                  className="flex items-center justify-between rounded-lg bg-stone-50 px-4 py-2.5 text-sm"
-                >
-                  <span className="font-medium text-stone-800">{categoryLabels[c]}</span>
-                  <span className="text-xs text-stone-400">{c}</span>
+        <section className="dash-card">
+          <h2 className="dash-card-title">Объявления по категориям</h2>
+          <ul className="dash-cats">
+            {byCategory.map((c) => (
+              <li key={c.key}>
+                <div className="dash-cat-head">
+                  <span>{c.label}</span>
+                  <b>{c.count}</b>
+                </div>
+                <div className="dash-cat-track">
+                  <div className="dash-cat-fill" style={{ width: `${(c.count / maxCat) * 100}%` }} />
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
+
+        <section className="dash-card">
+          <div className="dash-card-head">
+            <h2 className="dash-card-title">Открытые жалобы</h2>
+            <Link href="/admin/reports" className="dash-more">
+              Все →
+            </Link>
+          </div>
+          {latestReports.length === 0 ? (
+            <p className="dash-empty">Открытых жалоб нет</p>
+          ) : (
+            <ul className="dash-list">
+              {latestReports.map((r) => (
+                <li key={r.id}>
+                  <p className="dash-list-main">{r.reason}</p>
+                  <p className="dash-list-sub">
+                    {r.targetType === "review" ? "Отзыв" : "Книга"} · {formatDate(r.createdAt)}
+                  </p>
                 </li>
               ))}
             </ul>
-          </section>
+          )}
+        </section>
 
-          <section className="rounded-2xl bg-white p-6 ring-1 ring-stone-200">
-            <h2 className="text-lg font-semibold text-stone-900">Жанры</h2>
-            <ul className="mt-4 space-y-2">
-              {genres.map((g) => (
-                <li key={g} className="rounded-lg bg-stone-50 px-4 py-2.5 text-sm text-stone-800">
-                  {g}
-                </li>
-              ))}
-              {customGenres.map((g) => (
-                <li
-                  key={g}
-                  className="flex items-center justify-between rounded-lg bg-indigo-50 px-4 py-2.5 text-sm"
-                >
-                  <span className="font-medium text-indigo-900">{g}</span>
-                  <button
-                    type="button"
-                    onClick={() => removeGenre(g)}
-                    className="text-xs font-medium text-rose-600 hover:underline"
-                  >
-                    Удалить
-                  </button>
-                </li>
-              ))}
-            </ul>
-            <div className="mt-4 flex gap-2">
-              <input
-                value={newGenre}
-                onChange={(e) => setNewGenre(e.target.value)}
-                placeholder="Новый жанр"
-                className={inputClass}
-              />
-              <Button size="sm" onClick={addGenre}>
-                Добавить
-              </Button>
-            </div>
-          </section>
-        </div>
-      )}
+        <section className="dash-card">
+          <div className="dash-card-head">
+            <h2 className="dash-card-title">Новые пользователи</h2>
+            <Link href="/admin/users" className="dash-more">
+              Все →
+            </Link>
+          </div>
+          <ul className="dash-list">
+            {latestUsers.map((u) => (
+              <li key={u.id}>
+                <p className="dash-list-main">{u.name}</p>
+                <p className="dash-list-sub">
+                  {u.email}
+                  {u.createdAt ? ` · ${formatDate(u.createdAt)}` : ""}
+                </p>
+              </li>
+            ))}
+          </ul>
+        </section>
+      </div>
+    </>
+  );
+}
 
-      {toast && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 rounded-full bg-slate-900 px-5 py-2.5 text-sm text-white shadow-lg">
-          {toast}
-        </div>
-      )}
-    </div>
+export default function AdminDashboardPage() {
+  return (
+    <>
+      <PageTitle title="Обзор" hint="Что сейчас происходит на сайте." />
+      <Suspense fallback={<p className="dash-empty">Загрузка…</p>}>
+        <Dashboard />
+      </Suspense>
+    </>
   );
 }

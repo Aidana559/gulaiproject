@@ -129,17 +129,16 @@ export default function AddPage() {
             <label htmlFor="year" className="mb-1.5 block text-sm font-medium text-stone-700">
               Год издания
             </label>
-            <input id="year" name="year" type="number" min={1900} max={2030} className={inputClass} />
+            <input
+              id="year"
+              name="year"
+              type="number"
+              min={1900}
+              max={2030}
+              placeholder="2020"
+              className={inputClass}
+            />
           </div>
-          <div>
-            <label htmlFor="isbn" className="mb-1.5 block text-sm font-medium text-stone-700">
-              ISBN
-            </label>
-            <input id="isbn" name="isbn" placeholder="978-…" className={inputClass} />
-          </div>
-        </div>
-
-        <div className="grid gap-5 sm:grid-cols-2">
           <div>
             <label htmlFor="condition" className="mb-1.5 block text-sm font-medium text-stone-700">
               Состояние
@@ -150,24 +149,26 @@ export default function AddPage() {
               <option value="annotated">С пометками</option>
             </select>
           </div>
+        </div>
+
+        <div className="grid gap-5 sm:grid-cols-2">
           <div>
             <label htmlFor="city" className="mb-1.5 block text-sm font-medium text-stone-700">
               Город
             </label>
             <input id="city" name="city" placeholder="Астана" className={inputClass} />
           </div>
-        </div>
-
-        <div>
-          <label htmlFor="campus" className="mb-1.5 block text-sm font-medium text-stone-700">
-            Корпус / общежитие
-          </label>
-          <input
-            id="campus"
-            name="campus"
-            placeholder="Главный корпус, общ. №3…"
-            className={inputClass}
-          />
+          <div>
+            <label htmlFor="campus" className="mb-1.5 block text-sm font-medium text-stone-700">
+              Корпус / общежитие
+            </label>
+            <input
+              id="campus"
+              name="campus"
+              placeholder="Главный корпус, общ. №3…"
+              className={inputClass}
+            />
+          </div>
         </div>
 
         <div>

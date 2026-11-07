@@ -18,10 +18,10 @@ export interface User {
   passwordHash: string;
   role: Role;
   createdAt: string;
-  /** полная блокировка — сессия не работает */
   blocked?: boolean;
-  /** mute — вход есть, но нельзя публиковать объявления */
   muted?: boolean;
+  mutedUntil?: string;
+  muteReason?: string;
 }
 
 export type PublicUser = Omit<User, "passwordHash">;
@@ -57,7 +57,7 @@ export async function findUserById(id: string) {
 
 export async function updateUser(
   id: string,
-  patch: Partial<Pick<User, "role" | "blocked" | "muted" | "name">>,
+  patch: Partial<Pick<User, "role" | "blocked" | "muted" | "mutedUntil" | "muteReason" | "name">>,
 ) {
   const users = await readUsers();
   const idx = users.findIndex((u) => u.id === id);

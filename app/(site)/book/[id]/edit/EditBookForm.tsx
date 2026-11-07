@@ -15,7 +15,6 @@ type Form = {
   status?: string;
   city?: string;
   campus?: string;
-  isbn?: string;
   condition?: string;
   year?: string | number;
   pages?: string | number;
@@ -49,7 +48,6 @@ export default function EditBookForm() {
           status: b.status,
           city: b.city,
           campus: b.campus ?? "",
-          isbn: b.isbn ?? "",
           condition: b.condition ?? "used",
           year: b.year ?? "",
           pages: b.pages ?? "",
@@ -59,7 +57,6 @@ export default function EditBookForm() {
       .catch(() => setError("Не удалось загрузить"));
   }, [id]);
 
-  // редирект нельзя вызывать во время рендера — только в эффекте
   useEffect(() => {
     if (!authLoading && !user) router.replace("/login");
   }, [authLoading, user, router]);
@@ -91,7 +88,6 @@ export default function EditBookForm() {
       fd.set("category", form!.category ?? "book");
       fd.set("city", form!.city ?? "");
       fd.set("campus", form!.campus ?? "");
-      fd.set("isbn", form!.isbn ?? "");
       fd.set("condition", form!.condition ?? "used");
       if (form!.year) fd.set("year", String(form!.year));
       if (form!.pages) fd.set("pages", String(form!.pages));
@@ -189,15 +185,6 @@ export default function EditBookForm() {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <label className={label}>
-          ISBN
-          <input
-            className={input}
-            name="isbn"
-            value={form.isbn ?? ""}
-            onChange={(e) => set("isbn", e.target.value)}
-          />
-        </label>
         <label className={label}>
           Год
           <input

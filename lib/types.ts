@@ -5,10 +5,10 @@ export type User = {
   name: string;
   email?: string;
   role: Role;
-  /** полная блокировка (не может войти) */
   blocked?: boolean;
-  /** mute: может пользоваться сайтом, но не публиковать объявления */
   muted?: boolean;
+  mutedUntil?: string | null;
+  muteReason?: string;
   [k: string]: unknown;
 };
 
@@ -23,10 +23,9 @@ export type Review = {
   createdAt: string;
 };
 
-/** Жалоба на книгу или на отзыв */
+
 export type Report = {
   id: string;
-  /** @deprecated для старых записей; используй targetType/targetId */
   bookId?: string;
   targetType: "book" | "review";
   targetId: string;

@@ -10,8 +10,13 @@ import { useAuth } from "@/components/AuthProvider";
 
 type NavLink = { href: string; label: string };
 
-/** Меню по ролям: гость / user / moderator / admin */
-function linksFor(role?: string | null, loggedIn?: boolean): NavLink[] {
+function staffLinkFor(role?: string | null): NavLink | null {
+  if (role === "admin") return { href: "/admin", label: "Панель администратора" };
+  if (role === "moderator") return { href: "/moderation/queue", label: "Панель модератора" };
+  return null;
+}
+
+function linksFor(loggedIn?: boolean): NavLink[] {
   const base: NavLink[] = [
     { href: "/", label: "Главная" },
     { href: "/catalog", label: "Каталог" },
@@ -27,12 +32,6 @@ function linksFor(role?: string | null, loggedIn?: boolean): NavLink[] {
     { href: "/about", label: "О проекте" },
   ];
 
-  if (role === "moderator" || role === "admin") {
-    userLinks.push({ href: "/moderation", label: "Модерация" });
-  }
-  if (role === "admin") {
-    userLinks.push({ href: "/admin", label: "Админка" });
-  }
   return userLinks;
 }
 
@@ -40,10 +39,8 @@ export default function Navbar() {
   const [open, setOpen] = useState(false);
   const { user, loading } = useAuth();
 
-  const links = useMemo(
-    () => linksFor(user?.role, !!user),
-    [user?.role, user],
-  );
+  const links = useMemo(() => linksFor(!!user), [user]);
+  const staffLink = staffLinkFor(user?.role);
 
   return (
     <header className="sticky top-0 z-40 border-b border-stone-200 bg-white/90 backdrop-blur">
@@ -66,6 +63,11 @@ export default function Navbar() {
         </ul>
 
         <div className="hidden items-center gap-2 md:flex">
+          {staffLink && (
+            <LinkButton href={staffLink.href} variant="outline" size="sm" className="whitespace-nowrap">
+              {staffLink.label}
+            </LinkButton>
+          )}
           <AuthMenu />
         </div>
 
@@ -104,6 +106,17 @@ export default function Navbar() {
                 </Link>
               </li>
             ))}
+            {staffLink && (
+              <li>
+                <Link
+                  href={staffLink.href}
+                  onClick={() => setOpen(false)}
+                  className="block rounded-lg bg-indigo-50 px-3 py-2 text-base font-semibold text-indigo-700 hover:bg-indigo-100"
+                >
+                  {staffLink.label}
+                </Link>
+              </li>
+            )}
           </ul>
 
           {loading ? null : user ? (

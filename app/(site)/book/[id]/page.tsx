@@ -103,12 +103,6 @@ export default async function BookPage({ params }: { params: Promise<{ id: strin
               <dt className="text-xs text-stone-400">Страниц</dt>
               <dd className="font-medium">{book.pages || "—"}</dd>
             </div>
-            {book.isbn && (
-              <div>
-                <dt className="text-xs text-stone-400">ISBN</dt>
-                <dd className="font-medium">{book.isbn}</dd>
-              </div>
-            )}
             {condition && (
               <div>
                 <dt className="text-xs text-stone-400">Состояние</dt>

@@ -6,6 +6,7 @@ import {
   type Condition,
 } from "@/lib/books-store";
 import { bad, getActor, isStaff, unauthorized } from "@/lib/server-auth";
+import { isMutedNow, muteLabel } from "@/lib/mute";
 import type { Category } from "@/data/books";
 
 export async function GET(req: Request) {
@@ -33,6 +34,14 @@ export async function POST(req: Request) {
   const actor = await getActor(req);
   if (!actor) return unauthorized();
 
+  if (isMutedNow(actor)) {
+    const why = actor.muteReason ? ` Причина: ${actor.muteReason}.` : "";
+    return NextResponse.json(
+      { error: `Вам запрещено публиковать объявления (${muteLabel(actor)}).${why}` },
+      { status: 403 },
+    );
+  }
+
   try {
     const contentType = req.headers.get("content-type") ?? "";
     let title = "";
@@ -44,7 +53,6 @@ export async function POST(req: Request) {
     let city = "";
     let campus = "";
     let description = "";
-    let isbn = "";
     let condition: Condition = "used";
     let coverUrl: string | null = null;
 
@@ -61,7 +69,6 @@ export async function POST(req: Request) {
       city = String(fd.get("city") ?? "").trim();
       campus = String(fd.get("campus") ?? "").trim();
       description = String(fd.get("description") ?? "").trim();
-      isbn = String(fd.get("isbn") ?? "").trim();
       condition = (String(fd.get("condition") ?? "used") as Condition) || "used";
       const file = fd.get("cover");
       if (file && file instanceof File && file.size > 0) {
@@ -78,7 +85,6 @@ export async function POST(req: Request) {
       city = String(body.city ?? "").trim();
       campus = String(body.campus ?? "").trim();
       description = String(body.description ?? "").trim();
-      isbn = String(body.isbn ?? "").trim();
       condition = (body.condition as Condition) || "used";
       coverUrl = body.coverUrl ?? null;
     }
@@ -102,7 +108,6 @@ export async function POST(req: Request) {
       city,
       campus,
       description,
-      isbn,
       condition,
       coverUrl,
       ownerId: String(actor.id),

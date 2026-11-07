@@ -3,7 +3,6 @@ import path from "path";
 import { books as staticBooks, type Book, type Category, type Status } from "@/data/books";
 import { readJson, writeJson, uid } from "./db";
 
-/** Состояние экземпляра */
 export type Condition = "new" | "used" | "annotated";
 
 export const conditionLabels: Record<Condition, string> = {
@@ -12,12 +11,11 @@ export const conditionLabels: Record<Condition, string> = {
   annotated: "С пометками",
 };
 
-/** Полная модель книги на сервере (статика + user-books) */
+
 export type ServerBook = Book & {
   ownerId?: string;
-  isbn?: string;
   condition?: Condition;
-  campus?: string; // корпус / общежитие
+  campus?: string; 
   coverUrl?: string | null;
   views?: number;
   createdAt?: string;
@@ -47,7 +45,6 @@ async function writeUserBooks(list: ServerBook[]) {
   await writeJson(USER_FILE, list);
 }
 
-/** Статика + пользовательские, без удалённых */
 export async function getAllBooks(opts: { includeHidden?: boolean } = {}): Promise<ServerBook[]> {
   const user = await readUserBooks();
   const staticMapped: ServerBook[] = staticBooks.map((b) => ({
@@ -57,7 +54,7 @@ export async function getAllBooks(opts: { includeHidden?: boolean } = {}): Promi
     createdAt: "2026-01-01T00:00:00.000Z",
   }));
 
-  // user books override same id if ever collide; user first in list for «новые»
+
   const byId = new Map<string, ServerBook>();
   for (const b of staticMapped) byId.set(String(b.id), b);
   for (const b of user) byId.set(String(b.id), b);
@@ -107,8 +104,7 @@ export async function listBooks(query: ListQuery): Promise<ListResult> {
     list = list.filter(
       (b) =>
         b.title.toLowerCase().includes(q) ||
-        b.author.toLowerCase().includes(q) ||
-        (b.isbn && b.isbn.toLowerCase().includes(q)),
+        b.author.toLowerCase().includes(q),
     );
   }
   if (query.category && query.category !== "all") {
@@ -162,7 +158,6 @@ export type CreateBookInput = {
   city?: string;
   campus?: string;
   description?: string;
-  isbn?: string;
   condition?: Condition;
   coverUrl?: string | null;
   ownerId: string;
@@ -189,7 +184,6 @@ export async function createBook(input: CreateBookInput): Promise<ServerBook> {
     city: (input.city ?? "").trim() || "—",
     campus: (input.campus ?? "").trim() || undefined,
     description: (input.description ?? "").trim() || "",
-    isbn: (input.isbn ?? "").trim() || undefined,
     condition: input.condition ?? "used",
     status: "available" as Status,
     owner: input.ownerName,
@@ -220,7 +214,7 @@ export async function patchBook(
     return user[idx];
   }
 
-  // статическая книга — сохраняем как user-override копию
+
   const base = staticBooks.find((b) => String(b.id) === String(id));
   if (!base) return undefined;
   const merged: ServerBook = {
@@ -244,7 +238,7 @@ export async function incrementViews(id: string) {
   await patchBook(id, { views: (book.views ?? 0) + 1 });
 }
 
-/** Сохранить обложку: JPG/PNG/WebP, ≤ 5 МБ → /public/uploads/... */
+
 export async function saveCoverFile(file: File): Promise<string> {
   const allowed = ["image/jpeg", "image/png", "image/webp"];
   if (!allowed.includes(file.type)) {
