@@ -1,5 +1,5 @@
 import type { Book } from "@/data/books";
-import { categoryEmoji } from "@/data/books";
+import CategoryIcon from "./CategoryIcon";
 
 type BookWithCover = Book & { coverUrl?: string | null };
 
@@ -35,7 +35,7 @@ export default function BookCover({
       }`}
     >
       <div className="absolute inset-y-0 left-0 w-2 bg-black/20" />
-      <span className="text-2xl drop-shadow">{categoryEmoji[book.category]}</span>
+      <CategoryIcon category={book.category} className="text-2xl drop-shadow" />
       <div className="pl-2">
         <p className={`${large ? "text-2xl" : "text-base"} font-bold leading-tight drop-shadow`}>
           {book.title}

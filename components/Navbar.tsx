@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { FiBookOpen } from "react-icons/fi";
 import { useMemo, useState } from "react";
 import { LinkButton } from "./Button";
 import AuthMenu from "@/components/AuthMenu";
@@ -48,7 +49,7 @@ export default function Navbar() {
     <header className="sticky top-0 z-40 border-b border-stone-200 bg-white/90 backdrop-blur">
       <nav className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
         <Link href="/" className="flex items-center gap-2 text-xl font-extrabold text-indigo-700">
-          <span className="text-2xl">📚</span> Page2Page
+          <FiBookOpen className="text-2xl" /> Page2Page
         </Link>
 
         <ul className="hidden items-center gap-1 md:flex">

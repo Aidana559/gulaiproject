@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { FiArrowLeft, FiArrowRight, FiGrid, FiSearch, FiX } from "react-icons/fi";
+import CategoryIcon from "./CategoryIcon";
 import {
   categoryLabels,
   genres,
@@ -14,13 +16,23 @@ import BookCard from "./BookCard";
 import { Button } from "./Button";
 import { inputClass } from "./FormField";
 
-const tabs: { key: Category | "all"; label: string; emoji: string }[] = [
-  { key: "all", label: "Все", emoji: "🗂️" },
-  { key: "book", label: categoryLabels.book, emoji: "📖" },
-  { key: "textbook", label: categoryLabels.textbook, emoji: "🎓" },
-  { key: "guide", label: categoryLabels.guide, emoji: "📝" },
-  { key: "manga", label: categoryLabels.manga, emoji: "🈸" },
+const tabs: { key: Category | "all"; label: string }[] = [
+  { key: "all", label: "Все" },
+  { key: "book", label: categoryLabels.book },
+  { key: "textbook", label: categoryLabels.textbook },
+  { key: "guide", label: categoryLabels.guide },
+  { key: "manga", label: categoryLabels.manga },
 ];
+
+const chipClass = (active: boolean) =>
+  `rounded-full px-3 py-1 text-sm font-medium ring-1 ring-inset transition ${
+    active
+      ? "bg-indigo-600 text-white ring-indigo-600"
+      : "bg-white text-stone-700 ring-stone-300 hover:bg-indigo-50 hover:text-indigo-700"
+  }`;
+
+const activeChip =
+  "inline-flex items-center gap-1.5 rounded-full bg-indigo-50 px-3 py-1 font-medium text-indigo-700 ring-1 ring-inset ring-indigo-200 hover:bg-indigo-100";
 
 type SortKey = "title" | "new" | "popular";
 
@@ -40,6 +52,8 @@ export default function CatalogView() {
   const query = searchParams.get("q") ?? "";
   const category = (searchParams.get("category") as Category | "all") || "all";
   const genre = searchParams.get("genre") ?? "all";
+  const author = searchParams.get("author") ?? "";
+  const year = Number(searchParams.get("year")) || 0;
   const status = (searchParams.get("status") as Status | "all") || "all";
   const sort = (searchParams.get("sort") as SortKey) || "title";
   const page = Math.max(1, Number(searchParams.get("page") || 1) || 1);
@@ -68,6 +82,8 @@ export default function CatalogView() {
     if (query) sp.set("q", query);
     if (category !== "all") sp.set("category", category);
     if (genre !== "all") sp.set("genre", genre);
+    if (author) sp.set("author", author);
+    if (year) sp.set("year", String(year));
     if (status !== "all") sp.set("status", status);
     if (sort && sort !== "title") sp.set("sort", sort);
     sp.set("page", String(page));
@@ -87,7 +103,7 @@ export default function CatalogView() {
     return () => {
       cancelled = true;
     };
-  }, [query, category, genre, status, sort, page]);
+  }, [query, category, genre, author, year, status, sort, page]);
 
   function reset() {
     router.push(pathname);
@@ -107,12 +123,12 @@ export default function CatalogView() {
             variant={category === t.key ? "primary" : "outline"}
             onClick={() => setParams({ category: t.key === "all" ? null : t.key })}
           >
-            <span>{t.emoji}</span> {t.label}
+            {t.key === "all" ? <FiGrid /> : <CategoryIcon category={t.key} />} {t.label}
           </Button>
         ))}
       </div>
 
-      <div className="mt-5 grid gap-3 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-stone-200 sm:grid-cols-2 lg:grid-cols-5">
+      <div className="mt-5 grid gap-3 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-stone-200 sm:grid-cols-2 lg:grid-cols-4">
         <input
           type="search"
           defaultValue={query}
@@ -127,19 +143,6 @@ export default function CatalogView() {
           aria-label="Поиск"
           className={`${inputClass} lg:col-span-2`}
         />
-        <select
-          value={genre}
-          onChange={(e) => setParams({ genre: e.target.value })}
-          aria-label="Жанр"
-          className={inputClass}
-        >
-          <option value="all">Все жанры</option>
-          {genres.map((g) => (
-            <option key={g} value={g}>
-              {g}
-            </option>
-          ))}
-        </select>
         <select
           value={status}
           onChange={(e) => setParams({ status: e.target.value })}
@@ -165,6 +168,47 @@ export default function CatalogView() {
         </select>
       </div>
 
+      <div className="mt-4" role="group" aria-label="Жанр">
+        <p className="mb-2 text-xs font-medium uppercase tracking-wide text-stone-400">Жанр</p>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => setParams({ genre: null })}
+            aria-pressed={genre === "all"}
+            className={chipClass(genre === "all")}
+          >
+            Все жанры
+          </button>
+          {genres.map((g) => (
+            <button
+              key={g}
+              type="button"
+              onClick={() => setParams({ genre: genre === g ? null : g })}
+              aria-pressed={genre === g}
+              className={chipClass(genre === g)}
+            >
+              {g}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {(author || year > 0) && (
+        <div className="mt-4 flex flex-wrap items-center gap-2 text-sm">
+          <span className="text-stone-500">Фильтры:</span>
+          {author && (
+            <button type="button" onClick={() => setParams({ author: null })} className={activeChip}>
+              Автор: {author} <FiX />
+            </button>
+          )}
+          {year > 0 && (
+            <button type="button" onClick={() => setParams({ year: null })} className={activeChip}>
+              Год: {year} <FiX />
+            </button>
+          )}
+        </div>
+      )}
+
       <div className="mt-6 flex items-center justify-between">
         <p className="text-sm text-stone-500">
           Найдено: <b className="text-stone-800">{loading ? "…" : total}</b>
@@ -178,7 +222,7 @@ export default function CatalogView() {
         <p className="mt-10 text-center text-stone-500">Загрузка…</p>
       ) : books.length === 0 ? (
         <div className="mt-10 rounded-2xl bg-white p-12 text-center ring-1 ring-stone-200">
-          <p className="text-4xl">🔍</p>
+          <FiSearch className="mx-auto text-4xl text-stone-400" />
           <p className="mt-3 font-semibold text-stone-800">Ничего не найдено</p>
           <p className="mt-1 text-sm text-stone-500">Попробуйте изменить запрос или фильтры.</p>
         </div>
@@ -198,7 +242,7 @@ export default function CatalogView() {
             disabled={page <= 1}
             onClick={() => setParams({ page: String(page - 1) })}
           >
-            ← Назад
+            <FiArrowLeft /> Назад
           </Button>
           <span className="text-sm text-stone-600">
             {page} / {pages}
@@ -209,7 +253,7 @@ export default function CatalogView() {
             disabled={page >= pages}
             onClick={() => setParams({ page: String(page + 1) })}
           >
-            Вперёд →
+            Вперёд <FiArrowRight />
           </Button>
         </div>
       )}

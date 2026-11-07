@@ -19,9 +19,26 @@ export default function BookCard({ book }: { book: Book }) {
           <BookStatusBadge book={book} />
         </div>
         <h3 className="mt-2 line-clamp-2 font-semibold text-stone-900">{book.title}</h3>
-        <p className="mt-1 text-sm text-stone-500">{book.author}</p>
+        <p className="mt-1 text-sm">
+          <Link
+            href={`/author/${encodeURIComponent(book.author)}`}
+            className="text-stone-500 hover:text-indigo-600 hover:underline"
+          >
+            {book.author}
+          </Link>
+        </p>
         <p className="mt-1 text-xs text-stone-400">
-          {book.genre} · {book.city}
+          {book.genre && book.genre !== "—" ? (
+            <Link
+              href={`/catalog?genre=${encodeURIComponent(book.genre)}`}
+              className="hover:text-indigo-600 hover:underline"
+            >
+              {book.genre}
+            </Link>
+          ) : (
+            "—"
+          )}{" "}
+          · {book.city}
         </p>
         <div className="mt-4 flex-1" />
         <LinkButton href={`/book/${book.id}`} variant="outline" size="sm" full>

@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { FiBookmark, FiBookOpen, FiCheckCircle, FiClock, FiInbox } from "react-icons/fi";
+import type { IconType } from "react-icons";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   formatDate,
@@ -30,7 +32,10 @@ type Row = {
   startDate: string;
   dueDate: string;
   allowedActions: Action[];
+  reliability?: Reliability;
 };
+
+type Reliability = { percent: number | null; onTime: number; total: number };
 
 type ApiBooking = {
   id: string;
@@ -43,6 +48,7 @@ type ApiBooking = {
   userName?: string;
   userId?: string;
   allowedActions?: Action[];
+  reliability?: Reliability;
 };
 
 const statuses = Object.keys(txLabels) as TxStatus[];
@@ -62,8 +68,13 @@ function toRow(b: ApiBooking, fallbackPerson: string): Row {
     startDate: b.startDate,
     dueDate: b.dueDate,
     allowedActions: b.allowedActions ?? [],
+    reliability: b.reliability,
   };
 }
+
+/** Колонки таблицы на широких экранах: одинаковые для шапки и всех строк */
+const COLS =
+  "lg:grid lg:grid-cols-[3.5rem_minmax(0,1.6fr)_minmax(0,1.1fr)_7.5rem_7.5rem_7.5rem_13rem] lg:items-center lg:gap-4";
 
 const ACTION_LABEL: Record<Action, string> = {
   issue: "Выдать",
@@ -247,11 +258,11 @@ async function act(t: Row, action: Action) {
       });
   }, [items, status, query, sort]);
 
-  const tiles: { key: TxStatus; icon: string }[] = [
-    { key: "reserved", icon: "📌" },
-    { key: "borrowed", icon: "📖" },
-    { key: "overdue", icon: "⏰" },
-    { key: "returned", icon: "✅" },
+  const tiles: { key: TxStatus; Icon: IconType }[] = [
+    { key: "reserved", Icon: FiBookmark },
+    { key: "borrowed", Icon: FiBookOpen },
+    { key: "overdue", Icon: FiClock },
+    { key: "returned", Icon: FiCheckCircle },
   ];
 
   if (!user) {
@@ -267,17 +278,17 @@ async function act(t: Row, action: Action) {
 
   return (
     <div>
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         {tiles.map((t) => (
           <button
             key={t.key}
             type="button"
             onClick={() => setStatus(t.key)}
-            className={`rounded-2xl bg-white p-5 text-left ring-1 transition hover:shadow-md ${
+            className={`flex h-full flex-col rounded-2xl bg-white p-5 text-left ring-1 transition hover:shadow-md ${
               status === t.key ? "ring-2 ring-indigo-600" : "ring-stone-200"
             }`}
           >
-            <p className="text-2xl">{t.icon}</p>
+            <t.Icon className="size-6 text-indigo-600" />
             <p className="mt-2 text-3xl font-extrabold text-stone-900">{counts[t.key] ?? 0}</p>
             <p className="text-sm text-stone-500">{txLabels[t.key]}</p>
           </button>
@@ -344,79 +355,111 @@ async function act(t: Row, action: Action) {
 
       {filtered.length === 0 ? (
         <div className="mt-6 rounded-2xl bg-white p-12 text-center ring-1 ring-stone-200">
-          <p className="text-4xl">📭</p>
+          <FiInbox className="mx-auto text-4xl text-stone-400" />
           <p className="mt-3 font-semibold text-stone-800">Транзакций нет</p>
         </div>
       ) : (
-        <ul className="mt-4 space-y-3">
-          {filtered.map((t) => (
-            <li
-              key={t.id}
-              className="flex flex-col gap-4 rounded-2xl bg-white p-4 ring-1 ring-stone-200 lg:flex-row lg:items-center lg:justify-between"
-            >
-              <div className="flex items-center gap-4">
+        <div className="mt-4">
+          <div
+            className={`hidden rounded-xl bg-stone-100 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-stone-500 ${COLS}`}
+          >
+            <span />
+            <span>Книга</span>
+            <span>Читатель</span>
+            <span>Выдана</span>
+            <span>Вернуть до</span>
+            <span className="text-center">Статус</span>
+            <span className="text-right">Действия</span>
+          </div>
+          <ul className="mt-3 space-y-3">
+            {filtered.map((t) => (
+              <li
+                key={t.id}
+                className={`flex flex-col gap-3 rounded-2xl bg-white p-4 ring-1 ring-stone-200 ${COLS}`}
+              >
                 <div
-                  className={`h-20 w-14 shrink-0 rounded-md bg-gradient-to-br ${t.book.gradient} shadow`}
+                  className={`h-20 w-14 shrink-0 rounded-md bg-gradient-to-br ${t.book.gradient} shadow lg:h-16 lg:w-12`}
                 />
-                <div>
+
+                <div className="min-w-0">
                   <Link
                     href={`/book/${t.book.id}`}
-                    className="font-semibold text-stone-900 hover:text-indigo-600"
+                    className="block truncate font-semibold text-stone-900 hover:text-indigo-600"
                   >
                     {t.book.title}
                   </Link>
-                  <p className="text-sm text-stone-500">{t.book.author}</p>
-                  <p className="mt-1 text-sm text-stone-700">
-                    {t.status === "reserved"
-                      ? "Хочет взять: "
-                      : t.status === "returned"
-                        ? "Брал(а): "
-                        : "На руках у: "}
-                    <b>{t.person}</b>
-                  </p>
+                  <p className="truncate text-sm text-stone-500">{t.book.author}</p>
                 </div>
-              </div>
 
-              <div className="grid grid-cols-2 gap-x-8 gap-y-1 text-sm lg:flex lg:gap-8">
-                <div>
-                  <p className="text-xs text-stone-400">
+                <div className="min-w-0 text-sm">
+                  <p className="text-xs text-stone-400 lg:hidden">
+                    {t.status === "reserved"
+                      ? "Хочет взять"
+                      : t.status === "returned"
+                        ? "Брал(а)"
+                        : "На руках у"}
+                  </p>
+                  <p className="truncate font-semibold text-stone-800">{t.person}</p>
+                  {t.reliability && (
+                    <p
+                      className={`text-xs ${
+                        t.reliability.percent == null
+                          ? "text-stone-400"
+                          : t.reliability.percent >= 80
+                            ? "text-emerald-600"
+                            : t.reliability.percent >= 50
+                              ? "text-amber-600"
+                              : "text-rose-600"
+                      }`}
+                    >
+                      {t.reliability.percent == null
+                        ? "Истории возвратов нет"
+                        : `Возвращает вовремя: ${t.reliability.percent}% (${t.reliability.onTime}/${t.reliability.total})`}
+                    </p>
+                  )}
+                </div>
+
+                <div className="text-sm">
+                  <p className="text-xs text-stone-400 lg:hidden">
                     {t.status === "reserved" ? "Бронь с" : "Выдана"}
                   </p>
                   <p className="font-medium">{formatDate(t.startDate)}</p>
                 </div>
-                <div>
-                  <p className="text-xs text-stone-400">Вернуть до</p>
-                  <p
-                    className={`font-medium ${t.status === "overdue" ? "text-rose-600" : ""}`}
-                  >
+
+                <div className="text-sm">
+                  <p className="text-xs text-stone-400 lg:hidden">Вернуть до</p>
+                  <p className={`font-medium ${t.status === "overdue" ? "text-rose-600" : ""}`}>
                     {formatDate(t.dueDate)}
                   </p>
                 </div>
-                <span
-                  className={`col-span-2 inline-flex h-fit w-fit items-center rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset ${txStyles[t.status]}`}
-                >
-                  {txLabels[t.status]}
-                </span>
-              </div>
 
-              <div className="flex flex-wrap gap-2">
-                {t.allowedActions.map((a) => (
-                  <Button
-                    key={a}
-                    size="sm"
-                    variant={a === "cancel" ? "danger" : a === "extend" ? "outline" : "primary"}
-                    onClick={() => act(t, a)}
+                <div className="flex lg:justify-center">
+                  <span
+                    className={`inline-flex h-fit w-full max-w-[7.5rem] items-center justify-center rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset ${txStyles[t.status]}`}
                   >
-                    {ACTION_LABEL[a]}
-                  </Button>
-                ))}
-                {t.allowedActions.length === 0 && t.status === "returned" && (
-                  <span className="text-sm text-stone-400">Завершено</span>
-                )}
-              </div>
-            </li>
-          ))}
-        </ul>
+                    {txLabels[t.status]}
+                  </span>
+                </div>
+
+                <div className="flex flex-wrap gap-2 lg:justify-end">
+                  {t.allowedActions.map((a) => (
+                    <Button
+                      key={a}
+                      size="sm"
+                      variant={a === "cancel" ? "danger" : a === "extend" ? "outline" : "primary"}
+                      onClick={() => act(t, a)}
+                    >
+                      {ACTION_LABEL[a]}
+                    </Button>
+                  ))}
+                  {t.allowedActions.length === 0 && t.status === "returned" && (
+                    <span className="text-sm text-stone-400">Завершено</span>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
     </div>
   );

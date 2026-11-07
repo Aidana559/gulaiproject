@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
+import { FiCheckCircle } from "react-icons/fi";
 import { Button } from "./Button";
 
 /** Форма-заглушка: пока нет бэкенда, показывает сообщение об успехе */
@@ -28,8 +29,8 @@ export default function DemoForm({
         {submitLabel}
       </Button>
       {done && (
-        <p role="status" className="rounded-lg bg-emerald-50 p-3 text-sm text-emerald-700 ring-1 ring-emerald-200">
-          ✅ {successMessage}
+        <p role="status" className="flex items-center gap-2 rounded-lg bg-emerald-50 p-3 text-sm text-emerald-700 ring-1 ring-emerald-200">
+          <FiCheckCircle className="shrink-0" /> {successMessage}
         </p>
       )}
     </form>

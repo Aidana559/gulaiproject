@@ -3,11 +3,14 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { FiArrowRight, FiCheck, FiInfo } from "react-icons/fi";
 import type { Book } from "@/data/books";
+import { useAuth } from "@/components/AuthProvider";
 import { refreshBookStates, useBookStatus } from "@/components/BookStatusBadge";
 
-export default function ReserveButton({ book }: { book: Book }) {
+export default function ReserveButton({ book, ownerKey }: { book: Book; ownerKey?: string }) {
   const router = useRouter();
+  const { user } = useAuth();
   const status = useBookStatus(book.id);
   const [state, setState] = useState<"idle" | "loading" | "done">("idle");
   const [error, setError] = useState("");
@@ -43,17 +46,26 @@ export default function ReserveButton({ book }: { book: Book }) {
     }
   }
 
+  // владелец не может бронировать собственную книгу
+  if (user && ownerKey && (String(user.id) === ownerKey || user.name === ownerKey)) {
+    return (
+      <span className="inline-flex items-center gap-2 rounded-xl bg-stone-100 px-6 py-3 text-base font-semibold text-stone-600">
+        <FiInfo /> Это ваша книга
+      </span>
+    );
+  }
+
   if (state === "done") {
     return (
       <div className="flex flex-wrap items-center gap-3">
-        <span className="rounded-xl bg-emerald-100 px-6 py-3 text-base font-semibold text-emerald-800">
-          Забронирована ✓
+        <span className="inline-flex items-center gap-2 rounded-xl bg-emerald-100 px-6 py-3 text-base font-semibold text-emerald-800">
+          <FiCheck /> Забронирована
         </span>
-        <Link href="/profile" className="text-sm font-semibold text-indigo-600 hover:underline">
-          Мои брони →
+        <Link href="/profile" className="inline-flex items-center gap-1 text-sm font-semibold text-indigo-600 hover:underline">
+          Мои брони <FiArrowRight />
         </Link>
-        <Link href="/transactions" className="text-sm font-semibold text-indigo-600 hover:underline">
-          Транзакции →
+        <Link href="/transactions" className="inline-flex items-center gap-1 text-sm font-semibold text-indigo-600 hover:underline">
+          Транзакции <FiArrowRight />
         </Link>
       </div>
     );

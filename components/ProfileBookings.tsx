@@ -139,7 +139,7 @@ export default function ProfileBookings() {
                     )}
                     <p className="text-sm text-stone-500">{b.bookAuthor || "—"}</p>
                     <p className="mt-1 text-xs text-stone-400">
-                      {formatDate(b.startDate)} → {formatDate(b.dueDate)}
+                      {formatDate(b.startDate)} – {formatDate(b.dueDate)}
                     </p>
                   </div>
                 </div>

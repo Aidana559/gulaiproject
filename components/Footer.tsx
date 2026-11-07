@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { FiBookOpen } from "react-icons/fi";
 
 export default function Footer() {
   return (
@@ -6,7 +7,7 @@ export default function Footer() {
       <div className="mx-auto grid max-w-7xl gap-8 px-4 py-12 sm:px-6 md:grid-cols-3 lg:px-8">
         <div>
           <p className="flex items-center gap-2 text-lg font-extrabold text-indigo-700">
-            <span>📚</span> Page2Page
+            <FiBookOpen /> Page2Page
           </p>
           <p className="mt-3 max-w-xs text-sm text-stone-500">
             Студенческий буккроссинг: обменивайтесь книгами, учебниками, методичками и мангой.

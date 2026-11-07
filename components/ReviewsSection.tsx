@@ -2,7 +2,11 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/components/AuthProvider";
+import { FaStar } from "react-icons/fa";
+import { FiCheckCircle, FiFlag } from "react-icons/fi";
 import { Button } from "./Button";
+import { Stars } from "./Stars";
+import ReportModal from "./ReportModal";
 
 type Review = {
   id: string;
@@ -12,24 +16,6 @@ type Review = {
   text: string;
   createdAt: string;
 };
-
-function Stars({ value, onChange }: { value: number; onChange?: (n: number) => void }) {
-  return (
-    <div className="flex gap-0.5 text-xl">
-      {[1, 2, 3, 4, 5].map((n) => (
-        <button
-          key={n}
-          type="button"
-          disabled={!onChange}
-          onClick={() => onChange?.(n)}
-          className={n <= value ? "text-amber-400" : "text-stone-300"}
-        >
-          ★
-        </button>
-      ))}
-    </div>
-  );
-}
 
 export default function ReviewsSection({
   bookId,
@@ -46,8 +32,6 @@ export default function ReviewsSection({
   const [error, setError] = useState("");
   const [done, setDone] = useState(false);
   const [reportId, setReportId] = useState<string | null>(null);
-  const [reportReason, setReportReason] = useState("");
-  const [reportMsg, setReportMsg] = useState("");
 
   const load = useCallback(async () => {
     const res = await fetch(
@@ -93,31 +77,6 @@ export default function ReviewsSection({
     await load();
   }
 
-  async function sendReport(reviewId: string) {
-    setReportMsg("");
-    if (reportReason.trim().length < 5) {
-      setReportMsg("Опишите причину (мин. 5 символов)");
-      return;
-    }
-    const res = await fetch("/api/reports", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        targetType: "review",
-        targetId: reviewId,
-        reason: reportReason.trim(),
-      }),
-    });
-    const json = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      setReportMsg(json.error ?? "Не удалось отправить");
-      return;
-    }
-    setReportMsg("Жалоба отправлена");
-    setReportReason("");
-    setReportId(null);
-  }
-
   return (
     <section className="mt-16 grid gap-10 lg:grid-cols-2">
       <div>
@@ -125,7 +84,8 @@ export default function ReviewsSection({
           <h2 className="text-xl font-bold text-stone-900">Отзывы</h2>
           {reviews.length > 0 && (
             <span className="text-sm text-stone-500">
-              ★ {average.toFixed(1)} ({reviews.length})
+              <FaStar className="mr-1 inline text-amber-400" />
+              {average.toFixed(1)} ({reviews.length})
             </span>
           )}
         </div>
@@ -148,31 +108,13 @@ export default function ReviewsSection({
                   {user && user.id !== r.authorId && (
                     <button
                       type="button"
-                      onClick={() => {
-                        setReportId(reportId === r.id ? null : r.id);
-                        setReportMsg("");
-                      }}
-                      className="text-xs text-stone-500 underline hover:text-rose-600"
+                      onClick={() => setReportId(r.id)}
+                      className="inline-flex items-center gap-1 text-xs text-stone-500 hover:text-rose-600"
                     >
-                      Пожаловаться
+                      <FiFlag /> Пожаловаться
                     </button>
                   )}
                 </div>
-                {reportId === r.id && (
-                  <div className="mt-3 space-y-2 rounded-xl bg-stone-50 p-3">
-                    <textarea
-                      value={reportReason}
-                      onChange={(e) => setReportReason(e.target.value)}
-                      rows={2}
-                      placeholder="Причина жалобы"
-                      className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm"
-                    />
-                    {reportMsg && <p className="text-xs text-stone-600">{reportMsg}</p>}
-                    <Button size="sm" variant="danger" onClick={() => sendReport(r.id)}>
-                      Отправить жалобу
-                    </Button>
-                  </div>
-                )}
               </li>
             ))}
           </ul>
@@ -198,13 +140,22 @@ export default function ReviewsSection({
           </div>
           {error && <p className="text-sm text-red-600">{error}</p>}
           {done && (
-            <p className="rounded-lg bg-emerald-50 p-2 text-sm text-emerald-700">✅ Сохранено</p>
+            <p className="flex items-center gap-2 rounded-lg bg-emerald-50 p-2 text-sm text-emerald-700">
+              <FiCheckCircle /> Сохранено
+            </p>
           )}
           <Button type="submit" size="lg" full disabled={!user}>
             Отправить
           </Button>
         </form>
       </div>
+      <ReportModal
+        open={reportId !== null}
+        onClose={() => setReportId(null)}
+        targetType="review"
+        targetId={reportId ?? ""}
+        title="Жалоба на отзыв"
+      />
     </section>
   );
 }
