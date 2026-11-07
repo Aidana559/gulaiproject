@@ -9,7 +9,7 @@ export type TxStatus =
   | "cancelled";
 
 export interface Transaction {
-  id: string;
+  id: number;
   bookId: number;
   person: string;
   status: TxStatus;

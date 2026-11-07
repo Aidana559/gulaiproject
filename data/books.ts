@@ -23,13 +23,6 @@ export const categoryLabels: Record<Category, string> = {
   manga: "Манга",
 };
 
-export const categoryEmoji: Record<Category, string> = {
-  book: "📖",
-  textbook: "🎓",
-  guide: "📝",
-  manga: "🈸",
-};
-
 export const statusLabels: Record<Status, string> = {
   available: "Доступна",
   reserved: "Забронирована",
