@@ -83,9 +83,32 @@ export default function AdminUsersPage() {
     }
   }
 
+  async function removeUser(u: UserRow) {
+    if (!confirm(`Удалить пользователя «${u.name}» (${u.email})? Это действие нельзя отменить.`)) return;
+    setBusy(true);
+    try {
+      const res = await fetch("/api/admin/users", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: u.id }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast(json.error ?? "Не удалось удалить");
+        return;
+      }
+      toast("Пользователь удалён");
+      await loadUsers();
+    } catch {
+      toast("Нет связи с сервером");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <>
-      <PageTitle title="Пользователи" hint="Роли, блокировка и mute." />
+      <PageTitle title="Пользователи" hint="Роли, блокировка, mute и удаление." />
 
       <div className="mt-6">
         <input
@@ -184,6 +207,14 @@ export default function AdminUsersPage() {
                           }
                         >
                           {u.muted ? "Unmute" : "Mute"}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={busy}
+                          onClick={() => removeUser(u)}
+                        >
+                          Удалить
                         </Button>
                       </div>
                     )}

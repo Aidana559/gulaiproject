@@ -1,7 +1,10 @@
+import { Suspense } from "react";
 import Link from "next/link";
 import { FiArrowRight, FiBookOpen } from "react-icons/fi";
 import CategoryIcon from "@/components/CategoryIcon";
-import { books, categoryLabels, type Category } from "@/data/books";
+import { categoryLabels, type Category } from "@/data/books";
+import { getAllBooks } from "@/lib/books-store";
+import { getBookStates } from "@/lib/bookings";
 import BookCard from "@/components/BookCard";
 import { LinkButton } from "@/components/Button";
 
@@ -15,11 +18,21 @@ const steps = [
 ];
 
 export default function Home() {
-  const popular = books.filter((b) => b.status === "available").slice(0, 8);
+  return (
+    <Suspense fallback={<p className="px-4 py-20 text-center text-stone-500">Загрузка…</p>}>
+      <HomeContent />
+    </Suspense>
+  );
+}
+
+async function HomeContent() {
+  const [books, states] = await Promise.all([getAllBooks(), getBookStates()]);
+  
+  const popular = books.filter((b) => !states[String(b.id)]).slice(0, 8);
 
   return (
     <>
-      {/* Hero */}
+      { }
       <section className="bg-gradient-to-br from-indigo-600 via-indigo-700 to-purple-800 text-white">
         <div className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8 lg:py-28">
           <p className="inline-flex items-center gap-2 rounded-full bg-white/15 px-4 py-1 text-sm font-medium">
@@ -53,7 +66,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Категории */}
+      { }
       <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
         <h2 className="text-2xl font-bold text-stone-900 sm:text-3xl">Категории</h2>
         <div className="mt-8 grid grid-cols-2 gap-4 lg:grid-cols-4">
@@ -71,7 +84,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Свежие */}
+      { }
       <section className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex items-end justify-between">
           <h2 className="text-2xl font-bold text-stone-900 sm:text-3xl">Доступно сейчас</h2>
@@ -84,7 +97,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Как это работает */}
+      { }
       <section className="mx-auto mt-20 max-w-7xl px-4 sm:px-6 lg:px-8">
         <h2 className="text-center text-2xl font-bold text-stone-900 sm:text-3xl">Как это работает</h2>
         <ol className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
@@ -100,7 +113,7 @@ export default function Home() {
         </ol>
       </section>
 
-      {/* CTA */}
+      { }
       <section className="mx-auto mt-20 max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="rounded-3xl bg-amber-100 px-6 py-14 text-center">
           <h2 className="text-2xl font-bold text-stone-900 sm:text-3xl">Есть ненужные книги или конспекты?</h2>

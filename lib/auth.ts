@@ -67,6 +67,14 @@ export async function updateUser(
   return users[idx];
 }
 
+export async function deleteUser(id: string) {
+  const users = await readUsers();
+  const next = users.filter((u) => u.id !== id);
+  if (next.length === users.length) return false;
+  await writeUsers(next);
+  return true;
+}
+
 export async function listUsers() {
   return readUsers();
 }
