@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { promises as fs } from "node:fs";
 import path from "path";
 import { books as staticBooks } from "@/data/books";
+import demoTx from "@/data/transactions.json";
 
 /**
  * Цепочка: reserved → borrowed → returned
@@ -27,10 +28,14 @@ export interface Booking {
   createdAt: string;
   startDate: string;
   dueDate: string;
+  /** фактическая дата возврата (ставится при приёме книги) */
+  returnedAt?: string;
 }
 
-export type BookingView = Booking & {
+export type BookingView = Omit<Booking, "status"> & {
   status: BookingStatus;
+  /** надёжность читателя: доля книг, возвращённых вовремя */
+  reliability?: Reliability;
   /** кнопки, которые можно показать текущему пользователю */
   allowedActions?: BookingAction[];
 };
@@ -70,6 +75,7 @@ function normalize(raw: Booking & { bookId?: number }): Booking | null {
     createdAt: raw.createdAt ?? new Date().toISOString(),
     startDate,
     dueDate: raw.dueDate ?? plusDays(startDate, LOAN_DAYS),
+    returnedAt: raw.returnedAt,
   };
 }
 
@@ -174,6 +180,7 @@ export async function listBookingsForActor(actor: {
   const isAdmin = actor.role === "admin";
 
   const result: BookingView[] = [];
+  const reliabilityCache = new Map<string, Reliability>();
   for (const b of all) {
     const owner = await resolveBookOwner(b.bookId);
     const isBorrower = String(b.userId) === String(actor.id);
@@ -184,6 +191,7 @@ export async function listBookingsForActor(actor: {
       ...b,
       status: viewStatus(b),
       allowedActions: allowedActionsFor(b, actor, owner),
+      reliability: reliabilityFor(all, reliabilityCache, b.userId, b.userName),
     });
   }
   return result.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
@@ -268,6 +276,7 @@ export async function applyAction(
       break;
     case "return":
       b.status = "returned";
+      b.returnedAt = today;
       break;
     case "extend":
       b.dueDate = plusDays(b.dueDate < today ? today : b.dueDate, 7);
@@ -284,3 +293,123 @@ export async function applyAction(
 
 export const cancelBooking = (actor: { id: string; name: string; role?: string }, id: string) =>
   applyAction(actor, id, "cancel");
+
+
+/* ------------------------------------------------------------------ */
+/* Надёжность читателя и список тех, кто брал книгу                    */
+/* ------------------------------------------------------------------ */
+
+export type Reliability = {
+  /** вернул в срок */
+  onTime: number;
+  /** вернул с опозданием */
+  late: number;
+  /** до сих пор не вернул (срок вышел) */
+  notReturned: number;
+  /** сколько всего завершённых/просроченных выдач учтено */
+  total: number;
+  /** доля вернувших вовремя, 0–100; null — истории пока нет */
+  percent: number | null;
+};
+
+type DemoTx = {
+  id: number;
+  bookId: number;
+  person: string;
+  status: string;
+  startDate: string;
+  dueDate: string;
+};
+
+const demo = demoTx as DemoTx[];
+
+type Loan = { status: string; dueDate: string; returnedAt?: string };
+
+function summarize(loans: Loan[]): Reliability {
+  const today = day();
+  let onTime = 0;
+  let late = 0;
+  let notReturned = 0;
+  for (const l of loans) {
+    if (l.status === "returned") {
+      // у старых записей returnedAt нет — считаем, что вернул в срок
+      if (!l.returnedAt || l.returnedAt <= l.dueDate) onTime++;
+      else late++;
+    } else if (l.status === "overdue" || (l.status === "borrowed" && l.dueDate < today)) {
+      notReturned++;
+    }
+  }
+  const total = onTime + late + notReturned;
+  return {
+    onTime,
+    late,
+    notReturned,
+    total,
+    percent: total ? Math.round((onTime / total) * 100) : null,
+  };
+}
+
+function reliabilityFor(
+  all: Booking[],
+  cache: Map<string, Reliability>,
+  userId?: string,
+  name?: string,
+): Reliability {
+  const key = `${userId ?? ""}|${name ?? ""}`;
+  const hit = cache.get(key);
+  if (hit) return hit;
+  const loans: Loan[] = all.filter((b) => userId && String(b.userId) === String(userId));
+  // демонстрационные читатели известны только по имени
+  if (!userId && name) loans.push(...demo.filter((d) => d.person === name));
+  const r = summarize(loans);
+  cache.set(key, r);
+  return r;
+}
+
+export async function getReliability(userId?: string, name?: string): Promise<Reliability> {
+  return reliabilityFor(await readAll(), new Map(), userId, name);
+}
+
+export type Borrower = {
+  key: string;
+  /** id пользователя (для демо-читателей нет) */
+  userId?: string;
+  name: string;
+  status: BookingStatus;
+  startDate: string;
+  dueDate: string;
+  returnedAt?: string;
+  reliability: Reliability;
+};
+
+/** Все, кто брал или бронировал книгу (кроме отменённых), новые сверху */
+export async function getBookBorrowers(bookId: number): Promise<Borrower[]> {
+  const all = await readAll();
+  const cache = new Map<string, Reliability>();
+
+  const fromServer: Borrower[] = all
+    .filter((b) => b.bookId === bookId && b.status !== "cancelled")
+    .map((b) => ({
+      key: b.id,
+      userId: b.userId,
+      name: b.userName || "Читатель",
+      status: viewStatus(b),
+      startDate: b.startDate,
+      dueDate: b.dueDate,
+      returnedAt: b.returnedAt,
+      reliability: reliabilityFor(all, cache, b.userId, b.userName),
+    }));
+
+  const fromDemo: Borrower[] = demo
+    .filter((d) => d.bookId === bookId && d.status !== "cancelled")
+    .map((d) => ({
+      key: `demo-${d.id}`,
+      name: d.person,
+      status: (d.status === "borrowed" && d.dueDate < day() ? "overdue" : d.status) as BookingStatus,
+      startDate: d.startDate,
+      dueDate: d.dueDate,
+      reliability: reliabilityFor(all, cache, undefined, d.person),
+    }));
+
+  return [...fromServer, ...fromDemo].sort((a, b) => b.startDate.localeCompare(a.startDate));
+}

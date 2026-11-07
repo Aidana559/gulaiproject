@@ -82,6 +82,8 @@ export type ListQuery = {
   q?: string;
   category?: string;
   genre?: string;
+  author?: string;
+  year?: number;
   status?: string;
   sort?: "title" | "new" | "popular";
   page?: number;
@@ -114,6 +116,13 @@ export async function listBooks(query: ListQuery): Promise<ListResult> {
   }
   if (query.genre && query.genre !== "all") {
     list = list.filter((b) => b.genre === query.genre);
+  }
+  if (query.author) {
+    const a = query.author.trim().toLowerCase();
+    list = list.filter((b) => b.author.trim().toLowerCase() === a);
+  }
+  if (query.year) {
+    list = list.filter((b) => b.year === query.year);
   }
   if (query.status && query.status !== "all") {
     list = list.filter((b) => b.status === query.status);
