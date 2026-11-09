@@ -3,17 +3,14 @@ import { promises as fs } from "node:fs";
 import path from "path";
 import { books as staticBooks } from "@/data/books";
 import demoTx from "@/data/transactions.json";
+import { notify, resolveUserId } from "@/lib/notifications";
 
-/**
- * Цепочка: reserved → borrowed → returned
- * + cancelled. overdue — только для отображения (borrowed + dueDate < today).
- */
 export type BookingStatus =
   | "reserved"
   | "borrowed"
   | "returned"
   | "cancelled"
-  | "overdue"; // только view
+  | "overdue";
 
 export type BookingAction = "cancel" | "issue" | "return" | "extend";
 
@@ -28,15 +25,12 @@ export interface Booking {
   createdAt: string;
   startDate: string;
   dueDate: string;
-  /** фактическая дата возврата (ставится при приёме книги) */
   returnedAt?: string;
 }
 
 export type BookingView = Omit<Booking, "status"> & {
   status: BookingStatus;
-  /** надёжность читателя: доля книг, возвращённых вовремя */
   reliability?: Reliability;
-  /** кнопки, которые можно показать текущему пользователю */
   allowedActions?: BookingAction[];
 };
 
@@ -52,12 +46,10 @@ function plusDays(iso: string, n: number) {
 }
 
 function normalize(raw: Booking & { bookId?: number }): Booking | null {
-  // без bookId — мусор (типа «Grammar»), выкидываем при чтении
   if (raw.bookId == null || Number.isNaN(Number(raw.bookId))) return null;
 
   let status = raw.status as string;
   if (status === "given") status = "borrowed";
-  // шаг «подтверждение» убран: старые confirmed считаем обычной бронью
   if (status === "confirmed") status = "reserved";
   if (!["reserved", "borrowed", "returned", "cancelled"].includes(status)) {
     status = "reserved";
@@ -95,7 +87,6 @@ async function readAll(): Promise<Booking[]> {
       const n = normalize(raw as Booking);
       if (n) out.push(n);
     }
-    // одноразовая чистка файла от записей без bookId
     if (out.length !== items.length) await writeAll(out);
     return out;
   } catch {
@@ -108,7 +99,6 @@ async function writeAll(items: Booking[]) {
   await fs.writeFile(FILE, JSON.stringify(items, null, 2), "utf8");
 }
 
-/** владелец книги: ownerId или имя owner из статики / user-books */
 export async function resolveBookOwner(bookId: number): Promise<{
   ownerId?: string;
   ownerName?: string;
@@ -123,7 +113,7 @@ export async function resolveBookOwner(bookId: number): Promise<{
       };
     }
   } catch {
-    /* books-store может ещё не быть */
+
   }
   const s = staticBooks.find((x) => x.id === bookId);
   return s ? { ownerName: s.owner } : {};
@@ -150,7 +140,6 @@ export function allowedActionsFor(
   const isMgr = canManageBook(actor, owner);
   const st = b.status;
 
-  // бронь: выдать и отменить (читатель — свою, владелец/админ — любую)
   if ((isBorrower || isMgr) && st === "reserved") {
     if (isMgr) actions.push("issue");
     actions.push("cancel");
@@ -170,7 +159,6 @@ export async function getBookingsByUser(userId: string) {
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
-/** Для страницы «Транзакции»: админ — все; иначе свои брони + заявки на свои книги */
 export async function listBookingsForActor(actor: {
   id: string;
   name: string;
@@ -185,7 +173,6 @@ export async function listBookingsForActor(actor: {
     const owner = await resolveBookOwner(b.bookId);
     const isBorrower = String(b.userId) === String(actor.id);
     const isMgr = canManageBook(actor, owner);
-    // Показываем транзакции всех пользователей; allowedActions по-прежнему ограничивает управление.
 
     result.push({
       ...b,
@@ -202,7 +189,6 @@ export async function isBookTaken(bookId: number) {
   return all.some((b) => isActive(b) && b.bookId === bookId);
 }
 
-/** { "3": "reserved" | "given" } для бейджей каталога */
 export async function getBookStates() {
   const all = await readAll();
   const states: Record<string, "reserved" | "given"> = {};
@@ -284,6 +270,49 @@ export async function applyAction(
   }
 
   await writeAll(all);
+
+  const ownerUserId = await resolveUserId(owner);
+  const byBorrower = String(b.userId) === String(actor.id);
+  const title = `«${b.bookTitle}»`;
+  switch (action) {
+    case "cancel":
+      if (byBorrower) {
+        await notify(ownerUserId, {
+          type: "booking",
+          text: `${b.userName ?? "Читатель"} отменил(а) бронь книги ${title}.`,
+          href: "/transactions",
+        });
+      } else {
+        await notify(b.userId, {
+          type: "booking",
+          text: `Бронь книги ${title} отменена владельцем.`,
+          href: "/transactions",
+        });
+      }
+      break;
+    case "issue":
+      await notify(b.userId, {
+        type: "booking",
+        text: `Книга ${title} выдана вам. Вернуть нужно до ${b.dueDate}.`,
+        href: "/transactions",
+      });
+      break;
+    case "return":
+      await notify(b.userId, {
+        type: "booking",
+        text: `Возврат книги ${title} принят. Спасибо!`,
+        href: "/transactions",
+      });
+      break;
+    case "extend":
+      await notify(b.userId, {
+        type: "return",
+        text: `Срок возврата книги ${title} продлён до ${b.dueDate}.`,
+        href: "/transactions",
+      });
+      break;
+  }
+
   return {
     ...b,
     status: viewStatus(b),
@@ -295,20 +324,11 @@ export const cancelBooking = (actor: { id: string; name: string; role?: string }
   applyAction(actor, id, "cancel");
 
 
-/* ------------------------------------------------------------------ */
-/* Надёжность читателя и список тех, кто брал книгу                    */
-/* ------------------------------------------------------------------ */
-
 export type Reliability = {
-  /** вернул в срок */
   onTime: number;
-  /** вернул с опозданием */
   late: number;
-  /** до сих пор не вернул (срок вышел) */
   notReturned: number;
-  /** сколько всего завершённых/просроченных выдач учтено */
   total: number;
-  /** доля вернувших вовремя, 0–100; null — истории пока нет */
   percent: number | null;
 };
 
@@ -332,7 +352,6 @@ function summarize(loans: Loan[]): Reliability {
   let notReturned = 0;
   for (const l of loans) {
     if (l.status === "returned") {
-      // у старых записей returnedAt нет — считаем, что вернул в срок
       if (!l.returnedAt || l.returnedAt <= l.dueDate) onTime++;
       else late++;
     } else if (l.status === "overdue" || (l.status === "borrowed" && l.dueDate < today)) {
@@ -359,7 +378,6 @@ function reliabilityFor(
   const hit = cache.get(key);
   if (hit) return hit;
   const loans: Loan[] = all.filter((b) => userId && String(b.userId) === String(userId));
-  // демонстрационные читатели известны только по имени
   if (!userId && name) loans.push(...demo.filter((d) => d.person === name));
   const r = summarize(loans);
   cache.set(key, r);
@@ -372,7 +390,6 @@ export async function getReliability(userId?: string, name?: string): Promise<Re
 
 export type Borrower = {
   key: string;
-  /** id пользователя (для демо-читателей нет) */
   userId?: string;
   name: string;
   status: BookingStatus;
@@ -382,7 +399,6 @@ export type Borrower = {
   reliability: Reliability;
 };
 
-/** Все, кто брал или бронировал книгу (кроме отменённых), новые сверху */
 export async function getBookBorrowers(bookId: number): Promise<Borrower[]> {
   const all = await readAll();
   const cache = new Map<string, Reliability>();

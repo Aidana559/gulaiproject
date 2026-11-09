@@ -7,6 +7,7 @@ import { LinkButton } from "./Button";
 import AuthMenu from "@/components/AuthMenu";
 import Avatar from "@/components/Avatar";
 import { useAuth } from "@/components/AuthProvider";
+import NotificationBell from "@/components/NotificationBell";
 
 type NavLink = { href: string; label: string };
 
@@ -68,15 +69,18 @@ export default function Navbar() {
               {staffLink.label}
             </LinkButton>
           )}
+          <NotificationBell />
           <AuthMenu />
         </div>
 
+        <div className="flex items-center gap-1 md:hidden">
+          <NotificationBell />
         <button
           type="button"
           onClick={() => setOpen(!open)}
           aria-label="Меню"
           aria-expanded={open}
-          className="rounded-lg p-2 text-stone-700 hover:bg-stone-100 md:hidden"
+          className="rounded-lg p-2 text-stone-700 hover:bg-stone-100"
         >
           <svg className="size-6" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
             {open ? (
@@ -90,6 +94,7 @@ export default function Navbar() {
             )}
           </svg>
         </button>
+        </div>
       </nav>
 
       {open && (

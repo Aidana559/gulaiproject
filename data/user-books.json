@@ -1,5 +1,26 @@
 [
   {
+    "id": 1003,
+    "title": "Food Fight! (The SpongeBob Movie: Sponge Out of Water in 3D)",
+    "author": "Nickelodeon Publishing",
+    "category": "book",
+    "genre": "—",
+    "year": 2015,
+    "pages": 26,
+    "city": "—",
+    "description": "Nickelodeon’s SpongeBob SquarePants comes to the big screen in an all-new, super-silly 3-D movie releasing in February 2015. Plankton has a robot. SpongeBob has ketchup. Who will win?",
+    "condition": "used",
+    "status": "available",
+    "owner": "Kio",
+    "ownerId": "a9daa4ac-f4a0-40e7-b02e-788f5da119b0",
+    "gradient": "from-sky-500 to-blue-700",
+    "coverUrl": "https://books.google.com/books/content?id=jH7vBQAAQBAJ&printsec=frontcover&img=1&zoom=1&edge=curl&source=gbs_api",
+    "views": 3,
+    "createdAt": "2026-11-09T14:32:05.742Z",
+    "hidden": false,
+    "deleted": false
+  },
+  {
     "title": "Маленький принц",
     "author": "Антуан де Сент-Экзюпери",
     "category": "book",

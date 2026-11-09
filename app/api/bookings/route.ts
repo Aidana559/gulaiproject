@@ -9,6 +9,7 @@ import {
   listBookingsForActor,
 } from "@/lib/bookings";
 import { getBook as getStaticBook } from "@/data/books";
+import { notify, resolveUserId } from "@/lib/notifications";
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
@@ -23,8 +24,6 @@ export async function GET(req: Request) {
   const user = await getSessionUser();
   if (!user) return NextResponse.json({ error: "Не авторизован" }, { status: 401 });
 
-  // scope=mine — только свои брони (профиль)
-  // иначе — для страницы транзакций (свои + заявки на мои книги / все для админа)
   if (searchParams.get("scope") === "mine") {
     return NextResponse.json({ bookings: await getBookingsByUser(user.id) });
   }
@@ -50,7 +49,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "bookId обязателен" }, { status: 400 });
   }
 
-  // книга: сначала books-store (если есть), иначе статика
+
   let bookTitle = "";
   let bookAuthor = "";
   try {
@@ -61,7 +60,7 @@ export async function POST(req: Request) {
       bookAuthor = b.author;
     }
   } catch {
-    /* */
+
   }
   if (!bookTitle) {
     const s = getStaticBook(bookId);
@@ -70,7 +69,6 @@ export async function POST(req: Request) {
     bookAuthor = s.author;
   }
 
-  // владелец не может бронировать собственную книгу
   const owner = await resolveBookOwner(bookId);
   if (
     (owner.ownerId && String(owner.ownerId) === String(user.id)) ||
@@ -93,6 +91,11 @@ export async function POST(req: Request) {
       bookId,
       bookTitle,
       bookAuthor,
+    });
+    await notify(await resolveUserId(owner), {
+      type: "booking",
+      text: `${user.name} забронировал(а) вашу книгу «${bookTitle}».`,
+      href: "/transactions",
     });
     return NextResponse.json({ booking }, { status: 201 });
   } catch (e: unknown) {

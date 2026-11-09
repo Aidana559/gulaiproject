@@ -16,6 +16,7 @@ import {
   isStaff,
   unauthorized,
 } from "@/lib/server-auth";
+import { notify, resolveUserId } from "@/lib/notifications";
 import type { Report, Review } from "@/lib/types";
 
 type Ctx = { params: Promise<{ id: string }> };
@@ -126,6 +127,19 @@ export async function PATCH(req: Request, { params }: Ctx) {
     }
 
     const updated = await patchBook(id, patch as Partial<typeof book>);
+
+    if (typeof patch.hidden === "boolean" && patch.hidden !== !!book.hidden && !isOwner(book, actor)) {
+      const ownerUserId = await resolveUserId({ ownerId: book.ownerId, ownerName: book.owner });
+      const note = typeof patch.moderationNote === "string" && patch.moderationNote ? ` Причина: ${patch.moderationNote}.` : "";
+      await notify(ownerUserId, {
+        type: "moderation",
+        text: patch.hidden
+          ? `Модератор скрыл ваше объявление «${book.title}».${note}`
+          : `Ваше объявление «${book.title}» снова опубликовано.`,
+        href: patch.hidden ? "/profile" : `/book/${id}`,
+      });
+    }
+
     return NextResponse.json(updated);
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : "Ошибка";
@@ -143,6 +157,13 @@ export async function DELETE(req: Request, { params }: Ctx) {
   if (!isOwner(book, actor) && !isStaff(actor)) return forbidden();
 
   await softDeleteBook(id);
+
+  if (!isOwner(book, actor)) {
+    await notify(await resolveUserId({ ownerId: book.ownerId, ownerName: book.owner }), {
+      type: "moderation",
+      text: `Модератор удалил ваше объявление «${book.title}».`,
+    });
+  }
 
   const reviews = await readJson<Review[]>("reviews.json", []);
   await writeJson(

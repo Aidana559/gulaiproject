@@ -1,0 +1,20 @@
+[
+  {
+    "id": "ce84ad9a-ed83-4c5d-a56b-39fa3130a443",
+    "userId": "a9daa4ac-f4a0-40e7-b02e-788f5da119b0",
+    "type": "booking",
+    "text": "Min забронировал(а) вашу книгу «Food Fight! (The SpongeBob Movie: Sponge Out of Water in 3D)».",
+    "href": "/transactions",
+    "read": true,
+    "createdAt": "2026-11-09T14:32:47.683Z"
+  },
+  {
+    "id": "01ff1ad4-33ad-4dce-8ac4-872009632ef0",
+    "userId": "857fb46b-ca21-43d9-a065-1e1e5e7534c7",
+    "type": "booking",
+    "text": "Бронь книги «Food Fight! (The SpongeBob Movie: Sponge Out of Water in 3D)» отменена владельцем.",
+    "href": "/transactions",
+    "read": true,
+    "createdAt": "2026-11-09T14:33:33.062Z"
+  }
+]

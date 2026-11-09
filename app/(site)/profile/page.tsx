@@ -97,8 +97,9 @@ export default function ProfilePage() {
   const fileRef = useRef<HTMLInputElement>(null);
 
   const loadBookings = useCallback(async () => {
-    const res = await fetch("/api/bookings", { cache: "no-store" });
-    if (res.ok) setBookings((await res.json()).bookings);
+    // scope=mine — только брони текущего пользователя (без него приходят все транзакции сайта)
+    const res = await fetch("/api/bookings?scope=mine", { cache: "no-store" });
+    if (res.ok) setBookings((await res.json()).bookings ?? []);
   }, []);
 
   useEffect(() => {
