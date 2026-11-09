@@ -4,6 +4,7 @@ import path from "path";
 import { books as staticBooks } from "@/data/books";
 import demoTx from "@/data/transactions.json";
 import { notify, resolveUserId } from "@/lib/notifications";
+import { withLock } from "@/lib/db";
 
 export type BookingStatus =
   | "reserved"
@@ -165,14 +166,15 @@ export async function listBookingsForActor(actor: {
   role?: string;
 }): Promise<BookingView[]> {
   const all = await readAll();
-  const isAdmin = actor.role === "admin";
-
   const result: BookingView[] = [];
   const reliabilityCache = new Map<string, Reliability>();
   for (const b of all) {
     const owner = await resolveBookOwner(b.bookId);
     const isBorrower = String(b.userId) === String(actor.id);
     const isMgr = canManageBook(actor, owner);
+
+    // Видят только участники брони: читатель, владелец книги, админ/модератор.
+    if (!isBorrower && !isMgr) continue;
 
     result.push({
       ...b,
@@ -212,27 +214,32 @@ export async function createBooking(input: {
   if (input.bookId == null || Number.isNaN(Number(input.bookId))) {
     throw new Error("bookId обязателен");
   }
-  if (await isBookTaken(input.bookId)) {
-    throw new Error("Эта книга уже забронирована");
-  }
 
-  const all = await readAll();
-  const today = day();
-  const booking: Booking = {
-    id: randomUUID(),
-    userId: input.userId,
-    userName: input.userName,
-    bookId: Number(input.bookId),
-    bookTitle: input.bookTitle,
-    bookAuthor: input.bookAuthor,
-    status: "reserved",
-    createdAt: new Date().toISOString(),
-    startDate: today,
-    dueDate: plusDays(today, LOAN_DAYS),
-  };
-  all.push(booking);
-  await writeAll(all);
-  return booking;
+  // Проверка «книга свободна?» и запись брони — внутри одного замка,
+  // иначе две одновременные брони могут обе пройти проверку.
+  return withLock("bookings", async () => {
+    if (await isBookTaken(input.bookId)) {
+      throw new Error("Эта книга уже забронирована");
+    }
+
+    const all = await readAll();
+    const today = day();
+    const booking: Booking = {
+      id: randomUUID(),
+      userId: input.userId,
+      userName: input.userName,
+      bookId: Number(input.bookId),
+      bookTitle: input.bookTitle,
+      bookAuthor: input.bookAuthor,
+      status: "reserved",
+      createdAt: new Date().toISOString(),
+      startDate: today,
+      dueDate: plusDays(today, LOAN_DAYS),
+    };
+    all.push(booking);
+    await writeAll(all);
+    return booking;
+  });
 }
 
 export async function applyAction(
@@ -240,36 +247,41 @@ export async function applyAction(
   id: string,
   action: BookingAction,
 ): Promise<BookingView | null> {
-  const all = await readAll();
-  const idx = all.findIndex((b) => b.id === id);
-  if (idx === -1) return null;
+  const changed = await withLock("bookings", async () => {
+    const all = await readAll();
+    const idx = all.findIndex((b) => b.id === id);
+    if (idx === -1) return null;
 
-  const b = all[idx];
-  const owner = await resolveBookOwner(b.bookId);
-  const allowed = allowedActionsFor(b, actor, owner);
-  if (!allowed.includes(action)) return null;
+    const b = all[idx];
+    const owner = await resolveBookOwner(b.bookId);
+    const allowed = allowedActionsFor(b, actor, owner);
+    if (!allowed.includes(action)) return null;
 
-  const today = day();
+    const today = day();
 
-  switch (action) {
-    case "cancel":
-      b.status = "cancelled";
-      break;
-    case "issue":
-      b.status = "borrowed";
-      b.startDate = today;
-      b.dueDate = plusDays(today, LOAN_DAYS);
-      break;
-    case "return":
-      b.status = "returned";
-      b.returnedAt = today;
-      break;
-    case "extend":
-      b.dueDate = plusDays(b.dueDate < today ? today : b.dueDate, 7);
-      break;
-  }
+    switch (action) {
+      case "cancel":
+        b.status = "cancelled";
+        break;
+      case "issue":
+        b.status = "borrowed";
+        b.startDate = today;
+        b.dueDate = plusDays(today, LOAN_DAYS);
+        break;
+      case "return":
+        b.status = "returned";
+        b.returnedAt = today;
+        break;
+      case "extend":
+        b.dueDate = plusDays(b.dueDate < today ? today : b.dueDate, 7);
+        break;
+    }
 
-  await writeAll(all);
+    await writeAll(all);
+    return { b, owner };
+  });
+  if (!changed) return null;
+  const { b, owner } = changed;
 
   const ownerUserId = await resolveUserId(owner);
   const byBorrower = String(b.userId) === String(actor.id);

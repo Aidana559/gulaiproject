@@ -30,7 +30,11 @@ export const SESSION_COOKIE = "session";
 export const SESSION_MAX_AGE = 60 * 60 * 24 * 7;
 
 const USERS_FILE = path.join(process.cwd(), "data", "users.json");
-const SECRET = process.env.AUTH_SECRET ?? "dev-secret-change-me";
+const SECRET =
+  process.env.AUTH_SECRET ??
+  (process.env.NODE_ENV === "production"
+    ? (() => { throw new Error("AUTH_SECRET не задан"); })()
+    : "dev-secret-change-me");
 
 async function readUsers(): Promise<User[]> {
   try {

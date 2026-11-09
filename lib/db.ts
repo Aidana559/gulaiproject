@@ -16,3 +16,13 @@ export async function writeJson<T>(file: string, data: T) {
 }
 
 export const uid = () => crypto.randomUUID();
+
+const g = globalThis as unknown as { __locks?: Map<string, Promise<unknown>> };
+const locks = (g.__locks ??= new Map<string, Promise<unknown>>());
+
+export function withLock<T>(key: string, fn: () => Promise<T>): Promise<T> {
+  const prev = locks.get(key) ?? Promise.resolve();
+  const run = prev.then(fn, fn);
+  locks.set(key, run.catch(() => undefined));
+  return run;
+}
