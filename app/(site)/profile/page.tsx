@@ -29,6 +29,8 @@ type Booking = {
   createdAt: string;
   startDate: string;
   dueDate: string;
+  coverUrl?: string | null;
+  gradient?: string;
 };
 
 type Draft = { name: string; email: string; telegram: string; bio: string; avatar: string | null };
@@ -395,7 +397,8 @@ export default function ProfilePage() {
               const book =
                 (b.bookId != null ? books.find((x) => x.id === b.bookId) : undefined) ??
                 books.find((x) => x.title === b.bookTitle);
-              const gradient = book?.gradient ?? "from-indigo-500 to-purple-600";
+              const gradient = b.gradient ?? book?.gradient ?? "from-indigo-500 to-purple-600";
+              const bookHref = b.bookId != null ? `/book/${b.bookId}` : book ? `/book/${book.id}` : null;
 
               return (
                 <li
@@ -403,10 +406,20 @@ export default function ProfilePage() {
                   className="flex flex-wrap items-center justify-between gap-4 rounded-2xl bg-white p-4 ring-1 ring-stone-200"
                 >
                   <div className="flex items-center gap-4">
-                    <div className={`h-20 w-14 shrink-0 rounded-md bg-gradient-to-br ${gradient} shadow`} />
+                    {b.coverUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={b.coverUrl}
+                        alt=""
+                        loading="lazy"
+                        className="h-20 w-14 shrink-0 rounded-md object-cover shadow"
+                      />
+                    ) : (
+                      <div className={`h-20 w-14 shrink-0 rounded-md bg-gradient-to-br ${gradient} shadow`} />
+                    )}
                     <div>
-                      {book ? (
-                        <Link href={`/book/${book.id}`} className="font-semibold text-stone-900 hover:text-indigo-600">
+                      {bookHref ? (
+                        <Link href={bookHref} className="font-semibold text-stone-900 hover:text-indigo-600">
                           {b.bookTitle}
                         </Link>
                       ) : (
