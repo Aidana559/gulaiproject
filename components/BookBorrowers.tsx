@@ -1,4 +1,3 @@
-import { FiUsers } from "react-icons/fi";
 import { FaStar } from "react-icons/fa";
 import { getBookBorrowers, type Borrower, type Reliability } from "@/lib/bookings";
 import { readJson } from "@/lib/db";
@@ -19,7 +18,7 @@ function reliabilityText(r: Reliability) {
   return `Возвращает вовремя: ${r.percent}% (${r.onTime} из ${r.total})`;
 }
 
-/** Список тех, кто брал книгу, с надёжностью каждого читателя. */
+/** Список тех, кто брал книгу, с надёжностью каждого читателя. Скроллится внутри родителя фиксированной высоты. */
 export default async function BookBorrowers({
   bookId,
   ownerKey,
@@ -37,77 +36,68 @@ export default async function BookBorrowers({
     return { avg, count: list.length };
   };
 
+  if (borrowers.length === 0) {
+    return (
+      <div className="flex h-full items-center justify-center p-6 text-center text-sm text-stone-500">
+        Эту книгу пока никто не брал.
+      </div>
+    );
+  }
+
   return (
-    <section className="mt-12">
-      <h2 className="flex items-center gap-2 text-xl font-bold text-stone-900">
-        <FiUsers /> Кто брал эту книгу
-        <span className="text-sm font-normal text-stone-500">({borrowers.length})</span>
-      </h2>
-
-      {borrowers.length === 0 ? (
-        <p className="mt-4 text-sm text-stone-500">Эту книгу пока никто не брал.</p>
-      ) : (
-        <ul className="mt-4 divide-y divide-stone-100 rounded-2xl bg-white ring-1 ring-stone-200">
-          {borrowers.map((b) => {
-            const rating = ratingOf(b);
-            return (
-              <li
-                key={b.key}
-                className="grid gap-3 p-4 md:grid-cols-[minmax(0,1fr)_11rem_auto] md:items-center"
-              >
-                <div className="flex items-center gap-3">
-                  <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-indigo-100 font-bold text-indigo-700">
-                    {(b.name || "?")[0]}
-                  </span>
-                  <div className="min-w-0">
-                    <p className="truncate font-medium text-stone-900">{b.name}</p>
-                    <p className="flex flex-wrap items-center gap-x-2 text-xs text-stone-500">
-                      <span>
-                        {formatDate(b.startDate)} – {formatDate(b.returnedAt ?? b.dueDate)}
-                      </span>
-                      {rating.count > 0 && (
-                        <span className="inline-flex items-center gap-1">
-                          <FaStar className="text-amber-400" />
-                          {rating.avg.toFixed(1)} ({rating.count})
-                        </span>
-                      )}
-                    </p>
-                  </div>
-                </div>
-
-                <span
-                  className={`inline-flex h-fit w-fit items-center justify-center rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset md:w-full ${txStyles[b.status]}`}
-                >
-                  {txLabels[b.status]}
+    <ul className="h-full divide-y divide-stone-100 overflow-y-auto overscroll-contain">
+      {borrowers.map((b) => {
+        const rating = ratingOf(b);
+        return (
+          <li key={b.key} className="flex flex-col gap-3 p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex min-w-0 items-center gap-3">
+                <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-indigo-100 font-bold text-indigo-700">
+                  {(b.name || "?")[0]}
                 </span>
-
-                <div className="flex flex-wrap items-center gap-3 md:justify-end">
-                  <span
-                    className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset ${reliabilityStyle(b.reliability)}`}
-                    title="Доля книг, возвращённых в срок"
-                  >
-                    {reliabilityText(b.reliability)}
-                  </span>
-                  <BorrowerReview
-                    targetId={b.userId ?? b.name}
-                    name={b.name}
-                    ownerKey={ownerKey}
-                  />
-                  {b.userId && (
-                    <ReportButton
-                      targetType="user"
-                      targetId={b.userId}
-                      label="Пожаловаться"
-                      title="Жалоба на пользователя"
-                      compact
-                    />
-                  )}
+                <div className="min-w-0">
+                  <p className="truncate font-medium text-stone-900">{b.name}</p>
+                  <p className="flex flex-wrap items-center gap-x-2 text-xs text-stone-500">
+                    <span>
+                      {formatDate(b.startDate)} – {formatDate(b.returnedAt ?? b.dueDate)}
+                    </span>
+                    {rating.count > 0 && (
+                      <span className="inline-flex items-center gap-1">
+                        <FaStar className="text-amber-400" />
+                        {rating.avg.toFixed(1)} ({rating.count})
+                      </span>
+                    )}
+                  </p>
                 </div>
-              </li>
-            );
-          })}
-        </ul>
-      )}
-    </section>
+              </div>
+              <span
+                className={`inline-flex shrink-0 items-center rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset ${txStyles[b.status]}`}
+              >
+                {txLabels[b.status]}
+              </span>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-2 pl-[3.25rem]">
+              <span
+                className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset ${reliabilityStyle(b.reliability)}`}
+                title="Доля книг, возвращённых в срок"
+              >
+                {reliabilityText(b.reliability)}
+              </span>
+              <BorrowerReview targetId={b.userId ?? b.name} name={b.name} ownerKey={ownerKey} />
+              {b.userId && (
+                <ReportButton
+                  targetType="user"
+                  targetId={b.userId}
+                  label="Пожаловаться"
+                  title="Жалоба на пользователя"
+                  compact
+                />
+              )}
+            </div>
+          </li>
+        );
+      })}
+    </ul>
   );
 }

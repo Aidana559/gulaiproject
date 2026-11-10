@@ -1,5 +1,6 @@
 export const instant = false;
 
+import { Suspense } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { categoryLabels, type Book } from "@/data/books";
@@ -16,6 +17,12 @@ import ReviewsSection from "@/components/ReviewsSection";
 import BookGuard from "@/components/BookGuard";
 import { listBooks } from "@/lib/books-store";
 import BookBorrowers from "@/components/BookBorrowers";
+import BookTabs from "@/components/BookTabs";
+import AuthorBooks from "@/components/AuthorBooks";
+import AuthorInfoCard from "@/components/AuthorInfoCard";
+import { getBookBorrowers } from "@/lib/bookings";
+import { readJson } from "@/lib/db";
+import type { Review } from "@/lib/types";
 import { FiArrowLeft } from "react-icons/fi";
 
 
@@ -34,6 +41,11 @@ export default async function BookPage({ params }: { params: Promise<{ id: strin
     sort: "popular",
   });
   const similar = similarRes.books.filter((b) => String(b.id) !== String(book.id)).slice(0, 4);
+
+  const borrowers = await getBookBorrowers(Number(book.id));
+  const reviewsCount = (await readJson<Review[]>("reviews.json", [])).filter(
+    (r) => r.targetType === "book" && r.targetId === String(book.id),
+  ).length;
 
   const genreList =
     book.genres && book.genres.length > 0
@@ -174,9 +186,20 @@ export default async function BookPage({ params }: { params: Promise<{ id: strin
         </div>
       </div>
 
-      <BookBorrowers bookId={Number(book.id)} ownerKey={ownerKey} />
-
-      <ReviewsSection bookId={book.id} ownerId={ownerKey} />
+      <div className="mt-12 grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_21rem] xl:grid-cols-[minmax(0,1fr)_23rem]">
+        <BookTabs
+          borrowersCount={borrowers.length}
+          reviewsCount={reviewsCount}
+          borrowers={<BookBorrowers bookId={Number(book.id)} ownerKey={ownerKey} />}
+          reviews={<ReviewsSection bookId={book.id} ownerId={ownerKey} />}
+        />
+        <div className="flex min-w-0 flex-col gap-6">
+          <AuthorBooks author={book.author} currentId={book.id} />
+          <Suspense fallback={null}>
+            <AuthorInfoCard author={book.author} />
+          </Suspense>
+        </div>
+      </div>
 
       {similar.length > 0 && (
         <section className="mt-16">

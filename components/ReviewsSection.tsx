@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
 import { FaStar } from "react-icons/fa";
 import { FiCheckCircle, FiFlag } from "react-icons/fi";
@@ -25,6 +26,7 @@ export default function ReviewsSection({
   ownerId?: string;
 }) {
   const { user } = useAuth();
+  const router = useRouter();
   const [reviews, setReviews] = useState<Review[]>([]);
   const [average, setAverage] = useState(0);
   const [rating, setRating] = useState(5);
@@ -75,32 +77,32 @@ export default function ReviewsSection({
     setDone(true);
     setTimeout(() => setDone(false), 2000);
     await load();
+    router.refresh(); // обновить счётчик на вкладке «Отзывы»
   }
 
   return (
-    <section className="mt-16 grid gap-10 lg:grid-cols-2">
-      <div>
-        <div className="flex items-center gap-3">
-          <h2 className="text-xl font-bold text-stone-900">Отзывы</h2>
-          {reviews.length > 0 && (
-            <span className="text-sm text-stone-500">
-              <FaStar className="mr-1 inline text-amber-400" />
-              {average.toFixed(1)} ({reviews.length})
-            </span>
-          )}
-        </div>
+    <div className="flex h-full min-h-0 flex-col">
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-4">
+        {reviews.length > 0 && (
+          <p className="mb-3 text-sm text-stone-500">
+            <FaStar className="mr-1 inline text-amber-400" />
+            Средняя оценка {average.toFixed(1)} · {reviews.length}
+          </p>
+        )}
 
         {reviews.length === 0 ? (
-          <p className="mt-4 text-sm text-stone-500">Пока нет отзывов.</p>
+          <p className="py-6 text-center text-sm text-stone-500">Пока нет отзывов.</p>
         ) : (
-          <ul className="mt-4 space-y-4">
+          <ul className="space-y-3">
             {reviews.map((r) => (
-              <li key={r.id} className="rounded-2xl bg-white p-5 ring-1 ring-stone-200">
+              <li key={r.id} className="rounded-xl bg-stone-50 p-4 ring-1 ring-stone-200/70">
                 <div className="flex items-center justify-between gap-3">
-                  <p className="font-medium text-stone-900">{r.authorName}</p>
+                  <p className="min-w-0 truncate font-medium text-stone-900">{r.authorName}</p>
                   <Stars value={r.rating} />
                 </div>
-                {r.text && <p className="mt-2 text-sm text-stone-600">{r.text}</p>}
+                {r.text && (
+                  <p className="mt-2 break-words text-sm text-stone-600">{r.text}</p>
+                )}
                 <div className="mt-2 flex items-center justify-between gap-2">
                   <p className="text-xs text-stone-400">
                     {new Date(r.createdAt).toLocaleDateString("ru-RU")}
@@ -121,34 +123,30 @@ export default function ReviewsSection({
         )}
       </div>
 
-      <div>
-        <h2 className="text-xl font-bold text-stone-900">Оставить отзыв</h2>
-        <form onSubmit={submit} className="mt-4 space-y-4 rounded-2xl bg-white p-5 ring-1 ring-stone-200">
-          <div>
-            <p className="mb-1.5 text-sm font-medium text-stone-700">Оценка</p>
-            <Stars value={rating} onChange={setRating} />
-          </div>
-          <div>
-            <label className="mb-1.5 block text-sm font-medium text-stone-700">Текст</label>
-            <textarea
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              rows={4}
-              className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm"
-              placeholder="Как прошло получение книги?"
-            />
-          </div>
-          {error && <p className="text-sm text-red-600">{error}</p>}
-          {done && (
-            <p className="flex items-center gap-2 rounded-lg bg-emerald-50 p-2 text-sm text-emerald-700">
-              <FiCheckCircle /> Сохранено
-            </p>
-          )}
-          <Button type="submit" size="lg" full disabled={!user}>
-            Отправить
-          </Button>
-        </form>
-      </div>
+      <form onSubmit={submit} className="shrink-0 space-y-3 border-t border-stone-200 bg-white p-4">
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-sm font-medium text-stone-700">Оставить отзыв</p>
+          <Stars value={rating} onChange={setRating} />
+        </div>
+        <textarea
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          rows={2}
+          aria-label="Текст отзыва"
+          className="w-full resize-none rounded-lg border border-stone-300 px-3 py-2 text-sm"
+          placeholder="Как прошло получение книги?"
+        />
+        {error && <p className="text-sm text-red-600">{error}</p>}
+        {done && (
+          <p className="flex items-center gap-2 rounded-lg bg-emerald-50 p-2 text-sm text-emerald-700">
+            <FiCheckCircle /> Сохранено
+          </p>
+        )}
+        <Button type="submit" size="lg" full disabled={!user}>
+          Отправить
+        </Button>
+      </form>
+
       <ReportModal
         open={reportId !== null}
         onClose={() => setReportId(null)}
@@ -156,6 +154,6 @@ export default function ReviewsSection({
         targetId={reportId ?? ""}
         title="Жалоба на отзыв"
       />
-    </section>
+    </div>
   );
 }
