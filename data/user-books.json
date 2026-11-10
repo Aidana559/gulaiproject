@@ -19,21 +19,5 @@
     "createdAt": "2026-11-09T14:59:29.110Z",
     "hidden": false,
     "deleted": false
-  },
-  {
-    "title": "1984",
-    "author": "Джордж Оруэлл",
-    "category": "book",
-    "genre": "Антиутопия",
-    "status": "available",
-    "year": 1949,
-    "pages": 328,
-    "description": "Культовая антиутопия о тоталитарном обществе и контроле над мыслью.",
-    "id": 3,
-    "owner": "Мария С.",
-    "city": "Кызылорда",
-    "gradient": "from-slate-600 to-slate-800",
-    "views": 4,
-    "createdAt": "2026-01-01T00:00:00.000Z"
   }
 ]

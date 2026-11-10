@@ -35,6 +35,13 @@ export default async function BookPage({ params }: { params: Promise<{ id: strin
   });
   const similar = similarRes.books.filter((b) => String(b.id) !== String(book.id)).slice(0, 4);
 
+  const genreList =
+    book.genres && book.genres.length > 0
+      ? book.genres
+      : book.genre && book.genre !== "—"
+        ? [book.genre]
+        : [];
+
   const condition =
     book.condition && conditionLabels[book.condition]
       ? conditionLabels[book.condition]
@@ -75,16 +82,19 @@ export default async function BookPage({ params }: { params: Promise<{ id: strin
             <div>
               <dt className="text-xs text-stone-400">Жанр / предмет</dt>
               <dd className="font-medium">
-                {book.genre && book.genre !== "—" ? (
-                  <Link
-                    href={`/catalog?genre=${encodeURIComponent(book.genre)}`}
-                    className="text-indigo-700 hover:underline"
-                  >
-                    {book.genre}
-                  </Link>
-                ) : (
-                  "—"
-                )}
+                {genreList.length > 0
+                  ? genreList.map((g, i) => (
+                      <span key={g}>
+                        {i > 0 && ", "}
+                        <Link
+                          href={`/catalog?category=${book.category}&genre=${encodeURIComponent(g)}`}
+                          className="text-indigo-700 hover:underline"
+                        >
+                          {g}
+                        </Link>
+                      </span>
+                    ))
+                  : "—"}
               </dd>
             </div>
             <div>
@@ -103,6 +113,12 @@ export default async function BookPage({ params }: { params: Promise<{ id: strin
               <dt className="text-xs text-stone-400">Страниц</dt>
               <dd className="font-medium">{book.pages || "—"}</dd>
             </div>
+            {book.isbn && (
+              <div>
+                <dt className="text-xs text-stone-400">ISBN</dt>
+                <dd className="font-medium">{book.isbn}</dd>
+              </div>
+            )}
             {condition && (
               <div>
                 <dt className="text-xs text-stone-400">Состояние</dt>

@@ -1,432 +1,196 @@
-import { randomUUID } from "node:crypto";
-import { promises as fs } from "node:fs";
-import path from "path";
-import { books as staticBooks } from "@/data/books";
-import demoTx from "@/data/transactions.json";
-import { notify, resolveUserId } from "@/lib/notifications";
+export const instant = false;
 
-export type BookingStatus =
-  | "reserved"
-  | "borrowed"
-  | "returned"
-  | "cancelled"
-  | "overdue";
+import Link from "next/link";
+import PageTitle from "@/components/staff/PageTitle";
+import { categoryLabels, type Category } from "@/data/books";
+import { getAllBooks } from "@/lib/books-store";
+import { readJson } from "@/lib/db";
+import { TARGET_LABEL } from "@/lib/reports";
+import type { Report } from "@/lib/types";
 
-export type BookingAction = "cancel" | "issue" | "return" | "extend";
-
-export interface Booking {
-  id: string;
-  userId: string;
-  userName?: string;
-  bookId: number;
-  bookTitle: string;
-  bookAuthor: string;
-  status: Exclude<BookingStatus, "overdue">;
-  createdAt: string;
-  startDate: string;
-  dueDate: string;
-  returnedAt?: string;
-}
-
-export type BookingView = Omit<Booking, "status"> & {
-  status: BookingStatus;
-  reliability?: Reliability;
-  allowedActions?: BookingAction[];
-};
-
-const LOAN_DAYS = 14;
-const FILE = path.join(process.cwd(), "data", "bookings.json");
-
-const day = (d = new Date()) => d.toISOString().slice(0, 10);
-
-function plusDays(iso: string, n: number) {
-  const d = new Date(`${iso}T00:00:00Z`);
-  d.setUTCDate(d.getUTCDate() + n);
-  return day(d);
-}
-
-function normalize(raw: Booking & { bookId?: number }): Booking | null {
-  if (raw.bookId == null || Number.isNaN(Number(raw.bookId))) return null;
-
-  let status = raw.status as string;
-  if (status === "given") status = "borrowed";
-  if (status === "confirmed") status = "reserved";
-  if (!["reserved", "borrowed", "returned", "cancelled"].includes(status)) {
-    status = "reserved";
-  }
-
-  const startDate = raw.startDate ?? raw.createdAt?.slice(0, 10) ?? day();
-  return {
-    id: raw.id,
-    userId: raw.userId,
-    userName: raw.userName,
-    bookId: Number(raw.bookId),
-    bookTitle: raw.bookTitle,
-    bookAuthor: raw.bookAuthor ?? "",
-    status: status as Booking["status"],
-    createdAt: raw.createdAt ?? new Date().toISOString(),
-    startDate,
-    dueDate: raw.dueDate ?? plusDays(startDate, LOAN_DAYS),
-    returnedAt: raw.returnedAt,
-  };
-}
-
-function viewStatus(b: Booking): BookingStatus {
-  if (b.status === "borrowed" && b.dueDate < day()) return "overdue";
-  return b.status;
-}
-
-const isActive = (b: Booking) =>
-  b.status === "reserved" || b.status === "borrowed";
-
-async function readAll(): Promise<Booking[]> {
-  try {
-    const items = JSON.parse(await fs.readFile(FILE, "utf8")) as unknown[];
-    const out: Booking[] = [];
-    for (const raw of items) {
-      const n = normalize(raw as Booking);
-      if (n) out.push(n);
-    }
-    if (out.length !== items.length) await writeAll(out);
-    return out;
-  } catch {
-    return [];
-  }
-}
-
-async function writeAll(items: Booking[]) {
-  await fs.mkdir(path.dirname(FILE), { recursive: true });
-  await fs.writeFile(FILE, JSON.stringify(items, null, 2), "utf8");
-}
-
-export async function resolveBookOwner(bookId: number): Promise<{
-  ownerId?: string;
-  ownerName?: string;
-}> {
-  try {
-    const { getBook } = await import("@/lib/books-store");
-    const b = await getBook(String(bookId), { includeHidden: true });
-    if (b) {
-      return {
-        ownerId: b.ownerId != null ? String(b.ownerId) : undefined,
-        ownerName: b.owner,
-      };
-    }
-  } catch {
-
-  }
-  const s = staticBooks.find((x) => x.id === bookId);
-  return s ? { ownerName: s.owner } : {};
-}
-
-function canManageBook(
-  actor: { id: string; name: string; role?: string },
-  owner: { ownerId?: string; ownerName?: string },
-) {
-  if (actor.role === "admin" || actor.role === "moderator") return true;
-  if (owner.ownerId && String(owner.ownerId) === String(actor.id)) return true;
-  if (owner.ownerName && owner.ownerName === actor.name) return true;
-  return false;
-}
-
-export function allowedActionsFor(
-  b: Booking,
-  actor: { id: string; name: string; role?: string } | null,
-  owner: { ownerId?: string; ownerName?: string },
-): BookingAction[] {
-  if (!actor) return [];
-  const actions: BookingAction[] = [];
-  const isBorrower = String(b.userId) === String(actor.id);
-  const isMgr = canManageBook(actor, owner);
-  const st = b.status;
-
-  if ((isBorrower || isMgr) && st === "reserved") {
-    if (isMgr) actions.push("issue");
-    actions.push("cancel");
-  }
-  if (isMgr && st === "borrowed") {
-    actions.push("return");
-    actions.push("extend");
-  }
-  return actions;
-}
-
-export async function getBookingsByUser(userId: string) {
-  const all = await readAll();
-  return all
-    .filter((b) => b.userId === userId)
-    .map((b) => ({ ...b, status: viewStatus(b) }))
-    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-}
-
-export async function listBookingsForActor(actor: {
+type U = {
   id: string;
   name: string;
+  email?: string;
   role?: string;
-}): Promise<BookingView[]> {
-  const all = await readAll();
-  const result: BookingView[] = [];
-  const reliabilityCache = new Map<string, Reliability>();
-  for (const b of all) {
-    const owner = await resolveBookOwner(b.bookId);
-    const isBorrower = String(b.userId) === String(actor.id);
-    const isMgr = canManageBook(actor, owner);
-
-    // Видят только участники брони: читатель, владелец книги, админ/модератор.
-    if (!isBorrower && !isMgr) continue;
-
-    result.push({
-      ...b,
-      status: viewStatus(b),
-      allowedActions: allowedActionsFor(b, actor, owner),
-      reliability: reliabilityFor(all, reliabilityCache, b.userId, b.userName),
-    });
-  }
-  return result.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-}
-
-export async function isBookTaken(bookId: number) {
-  const all = await readAll();
-  return all.some((b) => isActive(b) && b.bookId === bookId);
-}
-
-export async function getBookStates() {
-  const all = await readAll();
-  const states: Record<string, "reserved" | "given"> = {};
-  for (const b of all) {
-    if (!isActive(b)) continue;
-    const key = String(b.bookId);
-    if (states[key] === "given") continue;
-    if (b.status === "borrowed") states[key] = "given";
-    else states[key] = "reserved";
-  }
-  return states;
-}
-
-export async function createBooking(input: {
-  userId: string;
-  userName?: string;
-  bookId: number;
-  bookTitle: string;
-  bookAuthor: string;
-}) {
-  if (input.bookId == null || Number.isNaN(Number(input.bookId))) {
-    throw new Error("bookId обязателен");
-  }
-  if (await isBookTaken(input.bookId)) {
-    throw new Error("Эта книга уже забронирована");
-  }
-
-  const all = await readAll();
-  const today = day();
-  const booking: Booking = {
-    id: randomUUID(),
-    userId: input.userId,
-    userName: input.userName,
-    bookId: Number(input.bookId),
-    bookTitle: input.bookTitle,
-    bookAuthor: input.bookAuthor,
-    status: "reserved",
-    createdAt: new Date().toISOString(),
-    startDate: today,
-    dueDate: plusDays(today, LOAN_DAYS),
-  };
-  all.push(booking);
-  await writeAll(all);
-  return booking;
-}
-
-export async function applyAction(
-  actor: { id: string; name: string; role?: string },
-  id: string,
-  action: BookingAction,
-): Promise<BookingView | null> {
-  const all = await readAll();
-  const idx = all.findIndex((b) => b.id === id);
-  if (idx === -1) return null;
-
-  const b = all[idx];
-  const owner = await resolveBookOwner(b.bookId);
-  const allowed = allowedActionsFor(b, actor, owner);
-  if (!allowed.includes(action)) return null;
-
-  const today = day();
-
-  switch (action) {
-    case "cancel":
-      b.status = "cancelled";
-      break;
-    case "issue":
-      b.status = "borrowed";
-      b.startDate = today;
-      b.dueDate = plusDays(today, LOAN_DAYS);
-      break;
-    case "return":
-      b.status = "returned";
-      b.returnedAt = today;
-      break;
-    case "extend":
-      b.dueDate = plusDays(b.dueDate < today ? today : b.dueDate, 7);
-      break;
-  }
-
-  await writeAll(all);
-
-  const ownerUserId = await resolveUserId(owner);
-  const byBorrower = String(b.userId) === String(actor.id);
-  const title = `«${b.bookTitle}»`;
-  switch (action) {
-    case "cancel":
-      if (byBorrower) {
-        await notify(ownerUserId, {
-          type: "booking",
-          text: `${b.userName ?? "Читатель"} отменил(а) бронь книги ${title}.`,
-          href: "/transactions",
-        });
-      } else {
-        await notify(b.userId, {
-          type: "booking",
-          text: `Бронь книги ${title} отменена владельцем.`,
-          href: "/transactions",
-        });
-      }
-      break;
-    case "issue":
-      await notify(b.userId, {
-        type: "booking",
-        text: `Книга ${title} выдана вам. Вернуть нужно до ${b.dueDate}.`,
-        href: "/transactions",
-      });
-      break;
-    case "return":
-      await notify(b.userId, {
-        type: "booking",
-        text: `Возврат книги ${title} принят. Спасибо!`,
-        href: "/transactions",
-      });
-      break;
-    case "extend":
-      await notify(b.userId, {
-        type: "return",
-        text: `Срок возврата книги ${title} продлён до ${b.dueDate}.`,
-        href: "/transactions",
-      });
-      break;
-  }
-
-  return {
-    ...b,
-    status: viewStatus(b),
-    allowedActions: allowedActionsFor(b, actor, owner),
-  };
-}
-
-export const cancelBooking = (actor: { id: string; name: string; role?: string }, id: string) =>
-  applyAction(actor, id, "cancel");
-
-
-export type Reliability = {
-  onTime: number;
-  late: number;
-  notReturned: number;
-  total: number;
-  percent: number | null;
+  createdAt?: string;
+  blocked?: boolean;
+  muted?: boolean;
 };
+type B = { status?: string; dueDate?: string };
 
-type DemoTx = {
-  id: number;
-  bookId: number;
-  person: string;
-  status: string;
-  startDate: string;
-  dueDate: string;
-};
+const card = "rounded-2xl bg-white p-5 shadow-sm ring-1 ring-stone-200";
+const fmt = (iso?: string) => (iso ? iso.slice(0, 10).split("-").reverse().join(".") : "—");
 
-const demo = demoTx as DemoTx[];
+export default async function AdminOverviewPage() {
+  const [books, users, bookings, reports] = await Promise.all([
+    getAllBooks({ includeHidden: true }),
+    readJson<U[]>("users.json", []),
+    readJson<B[]>("bookings.json", []),
+    readJson<Report[]>("reports.json", []),
+  ]);
 
-type Loan = { status: string; dueDate: string; returnedAt?: string };
+  const today = new Date().toISOString().slice(0, 10);
+  const openReports = reports.filter(
+    (r) => r.status === "new" || r.status === "in_review" || r.status === "open",
+  );
+  const reserved = bookings.filter((b) => b.status === "reserved").length;
+  const borrowed = bookings.filter((b) => b.status === "borrowed");
+  const overdue = borrowed.filter((b) => (b.dueDate ?? "9999") < today).length;
+  const onHands = borrowed.length - overdue;
 
-function summarize(loans: Loan[]): Reliability {
-  const today = day();
-  let onTime = 0;
-  let late = 0;
-  let notReturned = 0;
-  for (const l of loans) {
-    if (l.status === "returned") {
-      if (!l.returnedAt || l.returnedAt <= l.dueDate) onTime++;
-      else late++;
-    } else if (l.status === "overdue" || (l.status === "borrowed" && l.dueDate < today)) {
-      notReturned++;
-    }
-  }
-  const total = onTime + late + notReturned;
-  return {
-    onTime,
-    late,
-    notReturned,
-    total,
-    percent: total ? Math.round((onTime / total) * 100) : null,
-  };
-}
+  const stats = [
+    {
+      label: "Пользователи",
+      value: users.length,
+      sub: `заблокировано: ${users.filter((u) => u.blocked).length} · mute: ${users.filter((u) => u.muted).length}`,
+    },
+    { label: "Объявления", value: books.length, sub: `скрыто: ${books.filter((b) => b.hidden).length}` },
+    { label: "Открытые жалобы", value: openReports.length, sub: `всего жалоб: ${reports.length}`, accent: true },
+    { label: "Брони", value: reserved, sub: "ждут выдачи" },
+    { label: "На руках", value: onHands, sub: "книги выданы" },
+    { label: "Просрочено", value: overdue, sub: "не вернули в срок" },
+  ];
 
-function reliabilityFor(
-  all: Booking[],
-  cache: Map<string, Reliability>,
-  userId?: string,
-  name?: string,
-): Reliability {
-  const key = `${userId ?? ""}|${name ?? ""}`;
-  const hit = cache.get(key);
-  if (hit) return hit;
-  const loans: Loan[] = all.filter((b) => userId && String(b.userId) === String(userId));
-  if (!userId && name) loans.push(...demo.filter((d) => d.person === name));
-  const r = summarize(loans);
-  cache.set(key, r);
-  return r;
-}
+  // новое за 7 дней
+  const days = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date();
+    d.setUTCDate(d.getUTCDate() - (6 - i));
+    return d.toISOString().slice(0, 10);
+  });
+  const perDay = days.map((d) => ({
+    day: d,
+    label: d.slice(8, 10) + "." + d.slice(5, 7),
+    users: users.filter((u) => u.createdAt?.slice(0, 10) === d).length,
+    books: books.filter((b) => b.createdAt?.slice(0, 10) === d).length,
+  }));
+  const maxDay = Math.max(1, ...perDay.flatMap((d) => [d.users, d.books]));
 
-export async function getReliability(userId?: string, name?: string): Promise<Reliability> {
-  return reliabilityFor(await readAll(), new Map(), userId, name);
-}
+  const cats = (Object.keys(categoryLabels) as Category[]).map((c) => ({
+    label: categoryLabels[c],
+    count: books.filter((b) => b.category === c).length,
+  }));
+  const maxCat = Math.max(1, ...cats.map((c) => c.count));
 
-export type Borrower = {
-  key: string;
-  userId?: string;
-  name: string;
-  status: BookingStatus;
-  startDate: string;
-  dueDate: string;
-  returnedAt?: string;
-  reliability: Reliability;
-};
+  const newUsers = [...users]
+    .sort((a, b) => (b.createdAt ?? "").localeCompare(a.createdAt ?? ""))
+    .slice(0, 5);
 
-export async function getBookBorrowers(bookId: number): Promise<Borrower[]> {
-  const all = await readAll();
-  const cache = new Map<string, Reliability>();
+  return (
+    <>
+      <PageTitle title="Обзор" hint="Что сейчас происходит на сайте." />
 
-  const fromServer: Borrower[] = all
-    .filter((b) => b.bookId === bookId && b.status !== "cancelled")
-    .map((b) => ({
-      key: b.id,
-      userId: b.userId,
-      name: b.userName || "Читатель",
-      status: viewStatus(b),
-      startDate: b.startDate,
-      dueDate: b.dueDate,
-      returnedAt: b.returnedAt,
-      reliability: reliabilityFor(all, cache, b.userId, b.userName),
-    }));
+      <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {stats.map((s) => (
+          <div
+            key={s.label}
+            className={`${card} ${s.accent ? "ring-2 ring-amber-300" : ""}`}
+          >
+            <p className="text-xs text-stone-500">{s.label}</p>
+            <p className={`mt-1 text-3xl font-extrabold ${s.accent ? "text-amber-600" : "text-stone-900"}`}>
+              {s.value}
+            </p>
+            <p className="mt-1 text-xs text-stone-400">{s.sub}</p>
+          </div>
+        ))}
+      </div>
 
-  const fromDemo: Borrower[] = demo
-    .filter((d) => d.bookId === bookId && d.status !== "cancelled")
-    .map((d) => ({
-      key: `demo-${d.id}`,
-      name: d.person,
-      status: (d.status === "borrowed" && d.dueDate < day() ? "overdue" : d.status) as BookingStatus,
-      startDate: d.startDate,
-      dueDate: d.dueDate,
-      reliability: reliabilityFor(all, cache, undefined, d.person),
-    }));
+      <div className="mt-6 grid gap-4 lg:grid-cols-2">
+        <section className={card}>
+          <h2 className="text-sm font-bold text-stone-900">Новое за 7 дней</h2>
+          <div className="mt-2 flex items-center gap-4 text-xs text-stone-500">
+            <span className="flex items-center gap-1.5">
+              <i className="inline-block size-2 rounded-full bg-indigo-500" /> Пользователи
+            </span>
+            <span className="flex items-center gap-1.5">
+              <i className="inline-block size-2 rounded-full bg-teal-400" /> Объявления
+            </span>
+          </div>
+          <div className="mt-4 flex h-32 items-end justify-between gap-2">
+            {perDay.map((d) => (
+              <div key={d.day} className="flex flex-1 flex-col items-center gap-1">
+                <div className="flex h-24 items-end gap-1">
+                  {[
+                    { v: d.users, c: "bg-indigo-500" },
+                    { v: d.books, c: "bg-teal-400" },
+                  ].map((bar, i) => (
+                    <div key={i} className="flex flex-col items-center justify-end">
+                      {bar.v > 0 && <span className="text-[10px] text-stone-500">{bar.v}</span>}
+                      <div
+                        className={`w-3 rounded-t ${bar.c}`}
+                        style={{ height: `${Math.max(2, (bar.v / maxDay) * 80)}px` }}
+                      />
+                    </div>
+                  ))}
+                </div>
+                <span className="text-[10px] text-stone-400">{d.label}</span>
+              </div>
+            ))}
+          </div>
+        </section>
 
-  return [...fromServer, ...fromDemo].sort((a, b) => b.startDate.localeCompare(a.startDate));
+        <section className={card}>
+          <h2 className="text-sm font-bold text-stone-900">Объявления по категориям</h2>
+          <ul className="mt-4 space-y-3">
+            {cats.map((c) => (
+              <li key={c.label}>
+                <div className="flex justify-between text-xs text-stone-600">
+                  <span>{c.label}</span>
+                  <b className="text-stone-900">{c.count}</b>
+                </div>
+                <div className="mt-1 h-1.5 rounded-full bg-stone-100">
+                  <div
+                    className="h-1.5 rounded-full bg-indigo-500"
+                    style={{ width: `${(c.count / maxCat) * 100}%` }}
+                  />
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
+
+        <section className={card}>
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-bold text-stone-900">Открытые жалобы</h2>
+            <Link href="/admin/reports" className="text-xs font-medium text-indigo-600 hover:underline">
+              Все →
+            </Link>
+          </div>
+          {openReports.length === 0 ? (
+            <p className="mt-4 text-sm text-stone-400">Открытых жалоб нет.</p>
+          ) : (
+            <ul className="mt-4 space-y-3">
+              {openReports.slice(0, 5).map((r) => (
+                <li key={r.id}>
+                  <p className="text-sm text-stone-900">{r.comment || r.reason}</p>
+                  <p className="text-xs text-stone-400">
+                    {TARGET_LABEL[r.targetType] ?? r.targetType} · {fmt(r.createdAt)}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+
+        <section className={card}>
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-bold text-stone-900">Новые пользователи</h2>
+            <Link href="/admin/users" className="text-xs font-medium text-indigo-600 hover:underline">
+              Все →
+            </Link>
+          </div>
+          <ul className="mt-4 space-y-3">
+            {newUsers.map((u) => (
+              <li key={u.id}>
+                <p className="text-sm font-medium text-stone-900">{u.name}</p>
+                <p className="text-xs text-stone-400">
+                  {u.email} · {fmt(u.createdAt)}
+                </p>
+              </li>
+            ))}
+          </ul>
+        </section>
+      </div>
+    </>
+  );
 }

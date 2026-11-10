@@ -10,13 +10,14 @@ import {
   txStyles,
   type TxStatus,
 } from "@/data/transactions";
-import { books } from "@/data/books";
+import { books, type Book } from "@/data/books";
 import { useAuth } from "@/components/AuthProvider";
 import { Button } from "./Button";
 import { inputClass } from "./FormField";
 import {
   updateTransaction,
   useTransactions,
+  useCatalogBooks,
 } from "@/lib/txStore";
 
 import { addDays } from "@/data/transactions";
@@ -26,7 +27,7 @@ type Action = "issue" | "return" | "extend" | "cancel";
 
 type Row = {
   id: string;
-  book: { id: number | string; title: string; author: string; gradient: string };
+  book: { id: number | string; title: string; author: string; gradient: string; coverUrl?: string | null };
   person: string;
   status: TxStatus;
   startDate: string;
@@ -53,8 +54,8 @@ type ApiBooking = {
 
 const statuses = Object.keys(txLabels) as TxStatus[];
 
-function toRow(b: ApiBooking, fallbackPerson: string): Row {
-  const found = books.find((x) => x.id === b.bookId) ?? books.find((x) => x.title === b.bookTitle);
+function toRow(b: ApiBooking, fallbackPerson: string, catalog: Map<number, Book>): Row {
+  const found = catalog.get(Number(b.bookId)) ?? books.find((x) => x.id === b.bookId) ?? books.find((x) => x.title === b.bookTitle);
   return {
     id: b.id,
     book: {
@@ -62,6 +63,7 @@ function toRow(b: ApiBooking, fallbackPerson: string): Row {
       title: b.bookTitle,
       author: b.bookAuthor,
       gradient: found?.gradient ?? "from-indigo-500 to-purple-600",
+      coverUrl: found?.coverUrl ?? null,
     },
     person: b.userName || fallbackPerson,
     status: (b.status === "confirmed" ? "reserved" : b.status) as TxStatus,
@@ -86,6 +88,7 @@ const ACTION_LABEL: Record<Action, string> = {
 export default function TransactionsView() {
   const { user } = useAuth();
   const storeItems = useTransactions();
+  const catalog = useCatalogBooks();
   const [serverBookings, setServerBookings] = useState<ApiBooking[]>([]);
   const [status, setStatus] = useState<TxStatus | "all" | "active">("active");
   const [query, setQuery] = useState("");
@@ -116,7 +119,7 @@ export default function TransactionsView() {
     const person = user?.name ?? "Читатель";
     const fromServer = serverBookings
       .filter((b) => b.status !== "cancelled") // отменённые — в профиле
-      .map((b) => toRow(b, person));
+      .map((b) => toRow(b, person, catalog));
 
     // Демонстрационные транзакции других читателей из transactions.json / txStore.
     const fromStore: Row[] = storeItems.map((t) => ({
@@ -126,6 +129,7 @@ export default function TransactionsView() {
         title: t.book.title,
         author: t.book.author,
         gradient: t.book.gradient,
+        coverUrl: t.book.coverUrl ?? null,
       },
       person: t.person,
       status: ((t.status as string) === "confirmed" ? "reserved" : t.status) as TxStatus,
@@ -156,7 +160,7 @@ export default function TransactionsView() {
     }));
 
     return [...fromServer, ...fromStore];
-  }, [serverBookings, storeItems, user]);
+  }, [serverBookings, storeItems, user, catalog]);
 
 async function act(t: Row, action: Action) {
   // Демонстрационные транзакции
@@ -377,9 +381,18 @@ async function act(t: Row, action: Action) {
                 key={t.id}
                 className={`flex flex-col gap-3 rounded-2xl bg-white p-4 ring-1 ring-stone-200 ${COLS}`}
               >
-                <div
-                  className={`h-20 w-14 shrink-0 rounded-md bg-gradient-to-br ${t.book.gradient} shadow lg:h-16 lg:w-12`}
-                />
+                {t.book.coverUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={t.book.coverUrl}
+                    alt={t.book.title}
+                    className="h-20 w-14 shrink-0 rounded-md object-cover shadow lg:h-16 lg:w-12"
+                  />
+                ) : (
+                  <div
+                    className={`h-20 w-14 shrink-0 rounded-md bg-gradient-to-br ${t.book.gradient} shadow lg:h-16 lg:w-12`}
+                  />
+                )}
 
                 <div className="min-w-0">
                   <Link

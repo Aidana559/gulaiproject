@@ -6,7 +6,6 @@ import { FiArrowLeft, FiArrowRight, FiGrid, FiSearch, FiX } from "react-icons/fi
 import CategoryIcon from "./CategoryIcon";
 import {
   categoryLabels,
-  genres,
   statusLabels,
   type Book,
   type Category,
@@ -38,6 +37,7 @@ type SortKey = "title" | "new" | "popular";
 
 type ApiResult = {
   books: Book[];
+  genres?: string[];
   total: number;
   page: number;
   limit: number;
@@ -95,7 +95,7 @@ export default function CatalogView() {
         if (!cancelled) setData(json);
       })
       .catch(() => {
-        if (!cancelled) setData({ books: [], total: 0, page: 1, limit: 24, pages: 1 });
+        if (!cancelled) setData({ books: [], genres: [], total: 0, page: 1, limit: 24, pages: 1 });
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -110,6 +110,11 @@ export default function CatalogView() {
   }
 
   const books = data?.books ?? [];
+  // жанры берём из реальных книг выбранной категории; выбранный жанр показываем всегда,
+  // чтобы его можно было снять
+  const genres = Array.from(new Set([...(data?.genres ?? []), ...(genre !== "all" ? [genre] : [])])).sort(
+    (a, b) => a.localeCompare(b, "ru"),
+  );
   const total = data?.total ?? 0;
   const pages = data?.pages ?? 1;
 

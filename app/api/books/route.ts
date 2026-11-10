@@ -8,8 +8,13 @@ import {
 import { bad, getActor, isStaff, unauthorized } from "@/lib/server-auth";
 import { isMutedNow, muteLabel } from "@/lib/mute";
 import type { Category } from "@/data/books";
+import { ensureCatalog } from "@/lib/catalog-loader";
 
 export async function GET(req: Request) {
+  // Если каталог ещё не загружен из Google Books — дожидаемся (не дольше 25 с).
+  // Когда каталог полный, вызов мгновенный и в сеть не ходит.
+  await Promise.race([ensureCatalog(), new Promise((r) => setTimeout(r, 25000))]);
+
   const sp = new URL(req.url).searchParams;
   const actor = await getActor(req);
   const includeHidden = sp.get("all") === "1" && !!actor && isStaff(actor);

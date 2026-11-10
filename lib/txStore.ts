@@ -2,14 +2,14 @@
 
 import { useMemo, useSyncExternalStore } from "react";
 import raw from "@/data/transactions.json";
-import { getBook, type Book, type Status } from "@/data/books";
+import type { Book, Status } from "@/data/books";
 import { addDays, type Transaction, type TransactionWithBook } from "@/data/transactions";
 
 /**
  * Общее хранилище транзакций на клиенте (пока нет бэкенда).
  * Данные сохраняются в localStorage, поэтому видны и на странице книги, и в «Транзакциях».
  */
-const KEY = "page2page:transactions:v1";
+const KEY = "page2page:transactions:v2";
 export const ME = "Вы";
 
 const initial = raw as Transaction[];
@@ -38,6 +38,28 @@ function set(next: Transaction[]) {
   listeners.forEach((l) => l());
 }
 
+/** Книги каталога (загружаются с сервера): транзакции показывают именно их */
+let catalog = new Map<number, Book>();
+let catalogVersion = 0;
+let catalogRequested = false;
+
+function loadCatalog() {
+  if (catalogRequested || typeof window === "undefined") return;
+  catalogRequested = true;
+  fetch("/api/books?limit=100", { cache: "no-store" })
+    .then((r) => r.json())
+    .then((j: { books?: Book[] }) => {
+      catalog = new Map((j.books ?? []).map((b) => [Number(b.id), b]));
+      catalogVersion++;
+      listeners.forEach((l) => l());
+    })
+    .catch(() => {
+      catalogRequested = false;
+    });
+}
+
+const getBook = (id: number) => catalog.get(Number(id));
+
 function subscribe(l: () => void) {
   listeners.add(l);
   return () => listeners.delete(l);
@@ -53,15 +75,37 @@ function useRaw(): Transaction[] {
   return useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 }
 
+/** Книги каталога по id (для обложек и ссылок в списках броней) */
+export function useCatalogBooks(): Map<number, Book> {
+  useSyncExternalStore(
+    subscribe,
+    () => {
+      loadCatalog();
+      return catalogVersion;
+    },
+    () => 0,
+  );
+  return catalog;
+}
+
 /** Все транзакции вместе с данными книги */
 export function useTransactions(): TransactionWithBook[] {
   const list = useRaw();
+  const version = useSyncExternalStore(
+    subscribe,
+    () => {
+      loadCatalog();
+      return catalogVersion;
+    },
+    () => 0,
+  );
   return useMemo(
     () => list.flatMap((t) => {
       const book = getBook(t.bookId);
       return book ? [{ ...t, book }] : [];
     }),
-    [list],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [list, version],
   );
 }
 

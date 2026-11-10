@@ -6,6 +6,12 @@ import BookStatusBadge from "./BookStatusBadge";
 import { LinkButton } from "./Button";
 
 export default function BookCard({ book }: { book: Book }) {
+  const genreList =
+    book.genres && book.genres.length > 0
+      ? book.genres
+      : book.genre && book.genre !== "—"
+        ? [book.genre]
+        : [];
   return (
     <article className="group flex flex-col rounded-2xl bg-white p-4 shadow-sm ring-1 ring-stone-200 transition hover:-translate-y-1 hover:shadow-lg">
       <Link href={`/book/${book.id}`} aria-label={book.title}>
@@ -28,16 +34,19 @@ export default function BookCard({ book }: { book: Book }) {
           </Link>
         </p>
         <p className="mt-1 text-xs text-stone-400">
-          {book.genre && book.genre !== "—" ? (
-            <Link
-              href={`/catalog?genre=${encodeURIComponent(book.genre)}`}
-              className="hover:text-indigo-600 hover:underline"
-            >
-              {book.genre}
-            </Link>
-          ) : (
-            "—"
-          )}{" "}
+          {genreList.length > 0
+            ? genreList.map((g, i) => (
+                <span key={g}>
+                  {i > 0 && ", "}
+                  <Link
+                    href={`/catalog?category=${book.category}&genre=${encodeURIComponent(g)}`}
+                    className="hover:text-indigo-600 hover:underline"
+                  >
+                    {g}
+                  </Link>
+                </span>
+              ))
+            : "—"}{" "}
           · {book.city}
         </p>
         <div className="mt-4 flex-1" />

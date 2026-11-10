@@ -1,6 +1,6 @@
 import { promises as fs } from "fs";
 import path from "path";
-import { books as staticBooks, type Book, type Category, type Status } from "@/data/books";
+import type { Book, Category, Status } from "@/data/books";
 import { readJson, writeJson, uid } from "./db";
 
 export type Condition = "new" | "used" | "annotated";
@@ -24,6 +24,7 @@ export type ServerBook = Book & {
 };
 
 const USER_FILE = "user-books.json";
+const CATALOG_FILE = "catalog-books.json"; // каталог, загруженный из Google Books (см. lib/catalog-loader.ts)
 const UPLOAD_DIR = path.join(process.cwd(), "public", "uploads");
 
 const GRADIENTS = [
@@ -37,6 +38,17 @@ const GRADIENTS = [
   "from-violet-500 to-indigo-700",
 ];
 
+async function readCatalog(): Promise<ServerBook[]> {
+  return readJson<ServerBook[]>(CATALOG_FILE, []);
+}
+
+/** Все жанры книги (для старых записей без genres — единственный genre) */
+export function genresOf(b: { genre?: string; genres?: string[] }): string[] {
+  const list = (b.genres ?? []).filter((x) => x && x !== "—");
+  if (list.length) return list;
+  return b.genre && b.genre !== "—" ? [b.genre] : [];
+}
+
 async function readUserBooks(): Promise<ServerBook[]> {
   return readJson<ServerBook[]>(USER_FILE, []);
 }
@@ -47,11 +59,11 @@ async function writeUserBooks(list: ServerBook[]) {
 
 export async function getAllBooks(opts: { includeHidden?: boolean } = {}): Promise<ServerBook[]> {
   const user = await readUserBooks();
-  const staticMapped: ServerBook[] = staticBooks.map((b) => ({
+  const staticMapped: ServerBook[] = (await readCatalog()).map((b) => ({
     ...b,
     ownerId: undefined,
-    views: 0,
-    createdAt: "2026-01-01T00:00:00.000Z",
+    views: b.views ?? 0,
+    createdAt: b.createdAt ?? "2026-01-01T00:00:00.000Z",
   }));
 
 
@@ -90,6 +102,8 @@ export type ListQuery = {
 
 export type ListResult = {
   books: ServerBook[];
+  /** жанры, которые есть у книг по текущим фильтрам (кроме самого жанра) */
+  genres: string[];
   total: number;
   page: number;
   limit: number;
@@ -110,9 +124,6 @@ export async function listBooks(query: ListQuery): Promise<ListResult> {
   if (query.category && query.category !== "all") {
     list = list.filter((b) => b.category === query.category);
   }
-  if (query.genre && query.genre !== "all") {
-    list = list.filter((b) => b.genre === query.genre);
-  }
   if (query.author) {
     const a = query.author.trim().toLowerCase();
     list = list.filter((b) => b.author.trim().toLowerCase() === a);
@@ -122,6 +133,16 @@ export async function listBooks(query: ListQuery): Promise<ListResult> {
   }
   if (query.status && query.status !== "all") {
     list = list.filter((b) => b.status === query.status);
+  }
+
+  // жанры для фильтра: по книгам выбранной категории/поиска, до применения самого жанра
+  const genreFacet = Array.from(new Set(list.flatMap((b) => genresOf(b)))).sort((a, b) =>
+    a.localeCompare(b, "ru"),
+  );
+
+  if (query.genre && query.genre !== "all") {
+    const wanted = query.genre;
+    list = list.filter((b) => genresOf(b).includes(wanted));
   }
 
   const sort = query.sort ?? "title";
@@ -145,7 +166,7 @@ export async function listBooks(query: ListQuery): Promise<ListResult> {
   const start = (page - 1) * limit;
   const books = list.slice(start, start + limit);
 
-  return { books, total, page, limit, pages };
+  return { books, genres: genreFacet, total, page, limit, pages };
 }
 
 export type CreateBookInput = {
@@ -179,6 +200,7 @@ export async function createBook(input: CreateBookInput): Promise<ServerBook> {
     author: input.author.trim(),
     category: input.category,
     genre: (input.genre ?? "").trim() || "—",
+    genres: (input.genre ?? "").trim() ? [(input.genre ?? "").trim()] : [],
     year: input.year || new Date().getFullYear(),
     pages: input.pages || 0,
     city: (input.city ?? "").trim() || "—",
@@ -201,6 +223,16 @@ export async function createBook(input: CreateBookInput): Promise<ServerBook> {
   return book;
 }
 
+/** Если сменили основной жанр — список жанров подстраиваем, не теряя остальные */
+function withGenres(current: ServerBook, patch: Partial<ServerBook>): Partial<ServerBook> {
+  if (typeof patch.genre !== "string" || patch.genres) return patch;
+  const list = genresOf(current);
+  if (list.includes(patch.genre)) {
+    return { ...patch, genres: [patch.genre, ...list.filter((g) => g !== patch.genre)] };
+  }
+  return { ...patch, genres: patch.genre && patch.genre !== "—" ? [patch.genre] : [] };
+}
+
 export async function patchBook(
   id: string,
   patch: Partial<ServerBook>,
@@ -209,19 +241,19 @@ export async function patchBook(
   const idx = user.findIndex((b) => String(b.id) === String(id));
 
   if (idx >= 0) {
-    user[idx] = { ...user[idx], ...patch };
+    user[idx] = { ...user[idx], ...withGenres(user[idx], patch) };
     await writeUserBooks(user);
     return user[idx];
   }
 
 
-  const base = staticBooks.find((b) => String(b.id) === String(id));
+  const base = (await readCatalog()).find((b) => String(b.id) === String(id));
   if (!base) return undefined;
   const merged: ServerBook = {
     ...base,
-    views: 0,
-    createdAt: "2026-01-01T00:00:00.000Z",
-    ...patch,
+    views: base.views ?? 0,
+    createdAt: base.createdAt ?? "2026-01-01T00:00:00.000Z",
+    ...withGenres(base, patch),
   };
   user.unshift(merged);
   await writeUserBooks(user);

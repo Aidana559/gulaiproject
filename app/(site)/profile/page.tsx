@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { FiSearch } from "react-icons/fi";
 import { useRouter } from "next/navigation";
@@ -118,14 +118,26 @@ export default function ProfilePage() {
     return () => clearTimeout(id);
   }, [toast]);
 
-  // результаты поиска по книгам каталога
-  const results = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return [];
-    return books
-      .filter((b) => `${b.title} ${b.author}`.toLowerCase().includes(q))
-      .slice(0, 6);
+  // результаты поиска по книгам каталога (каталог живёт на сервере)
+  const [found, setFound] = useState<{ id: number | string; title: string; author: string }[]>([]);
+  useEffect(() => {
+    const q = query.trim();
+    if (!q) return;
+    let cancelled = false;
+    const t = setTimeout(() => {
+      fetch(`/api/books?q=${encodeURIComponent(q)}&limit=6`, { cache: "no-store" })
+        .then((r) => r.json())
+        .then((j) => {
+          if (!cancelled) setFound(Array.isArray(j.books) ? j.books : []);
+        })
+        .catch(() => {});
+    }, 250);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
   }, [query]);
+  const results = query.trim() ? found : [];
 
   async function logout() {
     await fetch("/api/auth/logout", { method: "POST" });
@@ -242,10 +254,12 @@ export default function ProfilePage() {
                 <dt className="text-slate-500">Дата регистрации</dt>
                 <dd className="text-slate-900">{fmt(user.createdAt)}</dd>
               </div>
-              <div>
-                <dt className="text-slate-500">Активных броней</dt>
-                <dd className="text-slate-900">{active}</dd>
-              </div>
+              {user.role === "user" && (
+                <div>
+                  <dt className="text-slate-500">Активных броней</dt>
+                  <dd className="text-slate-900">{active}</dd>
+                </div>
+              )}
             </dl>
 
             {(shown.telegram || shown.bio) && (
@@ -342,7 +356,8 @@ export default function ProfilePage() {
         )}
       </section>
 
-      {/* Брондар */}
+      {/* Брони — только у обычных пользователей (админ и модератор не бронируют) */}
+      {user.role === "user" && (
       <section className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
         <h2 className="text-lg font-semibold text-slate-900">Мои брони</h2>
 
@@ -481,6 +496,7 @@ export default function ProfilePage() {
           )}
         </div>
       </section>
+      )}
 
       {toast && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 rounded-full bg-slate-900 px-5 py-2.5 text-sm text-white shadow-lg">

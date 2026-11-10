@@ -46,6 +46,15 @@ export default function ReserveButton({ book, ownerKey }: { book: Book; ownerKey
     }
   }
 
+  // администратор и модератор не бронируют книги
+  if (user && (user.role === "admin" || user.role === "moderator")) {
+    return (
+      <span className="inline-flex items-center gap-2 rounded-xl bg-stone-100 px-6 py-3 text-base font-semibold text-stone-600">
+        <FiInfo /> Админ и модератор не бронируют книги
+      </span>
+    );
+  }
+
   // владелец не может бронировать собственную книгу
   if (user && ownerKey && (String(user.id) === ownerKey || user.name === ownerKey)) {
     return (

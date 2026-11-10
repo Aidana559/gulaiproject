@@ -8,7 +8,6 @@ import {
   isBookTaken,
   listBookingsForActor,
 } from "@/lib/bookings";
-import { getBook as getStaticBook } from "@/data/books";
 import { notify, resolveUserId } from "@/lib/notifications";
 
 export async function GET(req: Request) {
@@ -41,6 +40,14 @@ export async function POST(req: Request) {
   const user = await getSessionUser();
   if (!user) return NextResponse.json({ error: "Не авторизован" }, { status: 401 });
 
+  // Администратор и модератор не бронируют книги
+  if (user.role === "admin" || user.role === "moderator") {
+    return NextResponse.json(
+      { error: "Администратор и модератор не могут бронировать книги" },
+      { status: 403 },
+    );
+  }
+
   const body = await req.json().catch(() => null);
   const bookIdRaw = body?.bookId;
   const bookId = typeof bookIdRaw === "number" ? bookIdRaw : Number(bookIdRaw);
@@ -63,10 +70,7 @@ export async function POST(req: Request) {
 
   }
   if (!bookTitle) {
-    const s = getStaticBook(bookId);
-    if (!s) return NextResponse.json({ error: "Книга не найдена" }, { status: 404 });
-    bookTitle = s.title;
-    bookAuthor = s.author;
+    return NextResponse.json({ error: "Книга не найдена" }, { status: 404 });
   }
 
   const owner = await resolveBookOwner(bookId);
