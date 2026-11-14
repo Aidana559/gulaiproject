@@ -29,7 +29,7 @@ function catalogSummary(books: BookLite[]): { description: string; extract: stri
   const genres = Array.from(new Set(books.flatMap((b) => genresOf(b)))).slice(0, 6);
   const years = books.map((b) => b.year).filter((y): y is number => !!y && y > 0);
   return {
-    description: `Автор книг из каталога Page2Page`,
+    description: `Автор книг из каталога Kitapta`,
     extract:
       `В каталоге представлены книги: ${titles.join(", ")}${more}.` +
       (genres.length ? ` Жанры и темы: ${genres.join(", ").toLowerCase()}.` : "") +

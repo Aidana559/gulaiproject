@@ -10,7 +10,7 @@ import { refreshBookStates } from "@/components/BookStatusBadge";
  * Общее хранилище транзакций на клиенте (пока нет бэкенда).
  * Данные сохраняются в localStorage, поэтому видны и на странице книги, и в «Транзакциях».
  */
-const KEY = "page2page:transactions:v2";
+const KEY = "kitapta:transactions:v2";
 export const ME = "Вы";
 
 /** Копия состояния на сервере: каталог считает статусы книг по ней (см. lib/bookings.ts). */

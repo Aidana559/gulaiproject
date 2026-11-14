@@ -70,7 +70,7 @@ export default function StaffShell({
               <FiShield />
             </span>
             <div>
-              <p className="staff-brand-name">Page2Page</p>
+              <p className="staff-brand-name">Kitapta</p>
               <p className="staff-brand-title">{menu.title}</p>
             </div>
           </div>

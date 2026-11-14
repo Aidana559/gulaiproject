@@ -31,7 +31,7 @@ type Entry = {
 const FILE = "authors.json";
 const ALGO_VERSION = 3;
 const TTL_MS = { ok: 30 * 86_400_000, none: 7 * 86_400_000, error: 10 * 60_000 };
-const UA = "Page2Page/1.0 (student book exchange; contact: admin@page2page.local)";
+const UA = "Kitapta/1.0 (student book exchange; contact: admin@kitapta.local)";
 
 export const authorKey = (name: string) =>
   name.trim().toLowerCase().replace(/ё/g, "е").replace(/\s+/g, " ");

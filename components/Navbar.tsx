@@ -50,7 +50,7 @@ export default function Navbar() {
     <header className="sticky top-0 z-40 bg-stone-50/85 backdrop-blur">
       <nav className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
         <Link href="/" className="flex items-center gap-2 font-serif text-3xl font-semibold tracking-tight text-stone-900">
-          <FiBookOpen className="text-2xl text-indigo-700" /> Page2Page
+          <FiBookOpen className="text-2xl text-indigo-700" /> Kitapta
         </Link>
 
         <ul className="hidden items-center gap-1 rounded-full bg-white/70 p-1 ring-1 ring-stone-200 md:flex">

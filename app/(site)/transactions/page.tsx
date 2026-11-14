@@ -1,6 +1,6 @@
 import TransactionsView from "@/components/TransactionsView";
 
-export const metadata = { title: "Транзакции — Page2Page" };
+export const metadata = { title: "Транзакции — Kitapta" };
 
 export default function TransactionsPage() {
   return (

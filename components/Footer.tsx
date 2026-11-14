@@ -8,7 +8,7 @@ export default function Footer() {
       <div className="grid gap-8 px-6 py-12 sm:px-10 md:grid-cols-3">
         <div>
           <p className="flex items-center gap-2 font-serif text-3xl font-semibold text-stone-900">
-            <FiBookOpen /> Page2Page
+            <FiBookOpen /> Kitapta
           </p>
           <p className="mt-3 max-w-xs text-sm text-stone-500">
             Студенческий буккроссинг: обменивайтесь книгами, учебниками, методичками и мангой.
@@ -33,7 +33,7 @@ export default function Footer() {
         </div>
       </div>
       <div className="border-t border-indigo-200/70 py-4 text-center text-xs text-stone-500">
-        © 2026 Page2Page. Студенческая платформа обмена литературой.
+        © 2026 Kitapta. Студенческая платформа обмена литературой.
       </div>
       </div>
     </footer>

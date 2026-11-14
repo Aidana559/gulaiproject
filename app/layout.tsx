@@ -3,8 +3,15 @@ import "./globals.css";
 import { AuthProvider } from "@/components/AuthProvider";
 
 export const metadata: Metadata = {
-  title: "Page2Page — студенческий буккроссинг",
-  description: "Обмен книгами, учебниками, методичками и мангой между студентами.",
+  title: "Kitapta — студенческий буккроссинг",
+  description: "Kitapta — студенческая платформа для обмена книгами.",
+  applicationName: "Kitapta",
+  openGraph: {
+    title: "Kitapta — студенческий буккроссинг",
+    description: "Kitapta — студенческая платформа для обмена книгами.",
+    siteName: "Kitapta",
+    type: "website",
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

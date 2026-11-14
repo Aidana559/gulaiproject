@@ -52,7 +52,7 @@ export default function AuthForm({ mode }: { mode: Mode }) {
           <h1 className="text-2xl font-semibold text-slate-900">
             {isRegister ? "Регистрация" : "Вход"}
           </h1>
-          <p className="mt-1 text-sm text-slate-600">Page2Page — студентческий буккроссинг</p>
+          <p className="mt-1 text-sm text-slate-600">Kitapta — студенческий буккроссинг</p>
         </div>
 
         {isRegister && (

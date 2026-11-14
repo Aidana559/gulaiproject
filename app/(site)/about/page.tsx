@@ -1,7 +1,7 @@
 import { FiCheck, FiSearch, FiShield, FiUser } from "react-icons/fi";
 import { LinkButton } from "@/components/Button";
 
-export const metadata = { title: "О проекте — Page2Page" };
+export const metadata = { title: "О проекте — Kitapta" };
 
 const roles = [
   {
@@ -33,9 +33,9 @@ const features = [
 export default function AboutPage() {
   return (
     <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6">
-      <h1 className="text-3xl font-extrabold text-stone-900">О проекте Page2Page</h1>
+      <h1 className="text-3xl font-extrabold text-stone-900">О проекте Kitapta</h1>
       <p className="mt-4 max-w-3xl text-stone-600">
-        Page2Page — студенческий буккроссинг. Можно выставлять прочитанные книги, бронировать чужие,
+        Kitapta — студенческий буккроссинг. Можно выставлять прочитанные книги, бронировать чужие,
         отслеживать выдачу и возврат, оставлять отзывы. Объявления и брони хранятся на сервере, поэтому
         видны всем участникам, а не только в одном браузере.
       </p>
