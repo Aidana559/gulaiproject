@@ -14,7 +14,6 @@ import OwnerRating from "@/components/OwnerRating";
 import ReportButton from "@/components/ReportButton";
 import ReviewsSection from "@/components/ReviewsSection";
 import BookGuard from "@/components/BookGuard";
-import ContactOwnerButton from "@/components/ContactOwnerButton";
 import UserLink from "@/components/UserLink";
 import { listBooks } from "@/lib/books-store";
 import BookBorrowers from "@/components/BookBorrowers";
@@ -177,8 +176,7 @@ export default async function BookPage({ params }: { params: Promise<{ id: strin
           </div>
 
           <div className="mt-8 flex flex-wrap items-center gap-3">
-            <ReserveButton book={book as Book} ownerKey={ownerKey} />
-            <ContactOwnerButton bookId={book.id} ownerKey={ownerKey} hasOwnerAccount={book.ownerId != null} />
+            <ReserveButton book={book as Book} ownerKey={ownerKey} hasOwnerAccount={book.ownerId != null} />
             <LinkButton href="/catalog" variant="outline" size="lg">
               <FiArrowLeft /> К каталогу
             </LinkButton>
