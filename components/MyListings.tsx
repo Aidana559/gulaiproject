@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/components/AuthProvider";
 import { Button, LinkButton } from "./Button";
+import BookCover from "./BookCover";
 import type { Book } from "@/data/books";
 import { categoryLabels } from "@/data/books";
 import { genresOf } from "@/lib/genres";
@@ -173,7 +174,12 @@ export default function MyListings() {
                 key={b.id}
                 className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between"
               >
-                <div className="min-w-0">
+                <div className="flex min-w-0 gap-4">
+                  {/* Обложка: фото или градиент-заглушка (BookCover сам выбирает) */}
+                  <div className="w-14 shrink-0 sm:w-16">
+                    <BookCover book={b} compact />
+                  </div>
+                  <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
                     {(state === "published" || state === "pending") && !ownerHidden ? (
                       <Link href={`/book/${b.id}`} className="font-semibold text-stone-900 hover:text-indigo-600">
@@ -213,6 +219,7 @@ export default function MyListings() {
                   {state === "deleted" && b.deletedReason && (
                     <p className="mt-1 text-sm text-rose-700">Причина удаления: {b.deletedReason}</p>
                   )}
+                  </div>
                 </div>
                 <div className="flex shrink-0 flex-wrap gap-2">
                   <LinkButton href={`/book/${b.id}/info`} variant="ghost" size="sm">
