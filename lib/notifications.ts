@@ -76,13 +76,18 @@ export async function listFor(userId: string): Promise<Notification[]> {
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
-export async function markRead(userId: string, opts: { id?: string; all?: boolean }) {
+export async function markRead(
+  userId: string,
+  opts: { id?: string; ids?: string[]; all?: boolean; types?: string[] },
+) {
+  const idSet = new Set([...(opts.ids ?? []), ...(opts.id ? [opts.id] : [])]);
   await withLock(async () => {
     const all = await readJson<Notification[]>(FILE, []);
     let changed = false;
     for (const n of all) {
       if (n.userId !== String(userId) || n.read) continue;
-      if (opts.all || n.id === opts.id) {
+      const inScope = !opts.types?.length || opts.types.includes(n.type);
+      if ((opts.all && inScope) || idSet.has(n.id)) {
         n.read = true;
         changed = true;
       }
@@ -100,4 +105,25 @@ export async function resolveUserId(o: {
   if (!o.ownerName) return undefined;
   const users = await listUsers();
   return users.find((u) => u.name === o.ownerName)?.id;
+}
+
+/** Удаление уведомлений пользователя: по списку id и/или все прочитанные (в рамках types). */
+export async function deleteNotifications(
+  userId: string,
+  opts: { ids?: string[]; allRead?: boolean; types?: string[] },
+): Promise<number> {
+  const idSet = new Set(opts.ids ?? []);
+  let removed = 0;
+  await withLock(async () => {
+    const all = await readJson<Notification[]>(FILE, []);
+    const keep = all.filter((n) => {
+      if (n.userId !== String(userId)) return true;
+      const inScope = !opts.types?.length || opts.types.includes(n.type);
+      const kill = idSet.has(n.id) || (!!opts.allRead && n.read && inScope);
+      if (kill) removed++;
+      return !kill;
+    });
+    if (removed) await writeJson(FILE, keep);
+  });
+  return removed;
 }

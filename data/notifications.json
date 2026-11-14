@@ -65,5 +65,30 @@
     },
     "read": true,
     "createdAt": "2026-11-14T12:30:26.164Z"
+  },
+  {
+    "id": "7c63ab7d-de35-4648-99ec-2b9177cd7710",
+    "userId": "b7418835-56e3-44ef-b866-f57a78c2dbd2",
+    "type": "moderation",
+    "text": "Книга временно скрыта: «Истории про любовь 30». Выполнил: Администратор айдана. Причина: Некорректная информация о книге. Скрыта до 21.11.2026.",
+    "href": "/book/1001/info",
+    "key": "mod:20d4fd25-87f6-4451-b698-2dae15d4ff8e",
+    "moderation": {
+      "id": "20d4fd25-87f6-4451-b698-2dae15d4ff8e",
+      "bookId": "1001",
+      "bookTitle": "Истории про любовь 30",
+      "authorId": "b7418835-56e3-44ef-b866-f57a78c2dbd2",
+      "authorName": "asd",
+      "action": "hidden",
+      "actorId": "c9d66741-f31e-41a2-9dba-71847b76d865",
+      "actorName": "айдана",
+      "actorRole": "admin",
+      "reason": "Некорректная информация о книге",
+      "until": "2026-11-21T13:08:09.293Z",
+      "stateAfter": "hidden",
+      "createdAt": "2026-11-14T13:08:09.332Z"
+    },
+    "read": true,
+    "createdAt": "2026-11-14T13:08:09.417Z"
   }
 ]

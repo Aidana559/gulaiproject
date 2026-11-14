@@ -2,49 +2,46 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { FiBell } from "react-icons/fi";
+import { FiBell, FiBook, FiBookmark, FiCheckCircle, FiClock, FiInfo } from "react-icons/fi";
 import { useAuth } from "@/components/AuthProvider";
-
-type Item = {
-  id: string;
-  text: string;
-  href?: string;
-  read: boolean;
-  createdAt: string;
-};
+import { GROUPS, fmtShort, titleOf, type NotifItem } from "@/lib/notification-ui";
 
 const POLL_MS = 30_000;
 
-function ago(iso: string) {
-  const s = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
-  if (s < 60) return "только что";
-  if (s < 3600) return `${Math.floor(s / 60)} мин назад`;
-  if (s < 86400) return `${Math.floor(s / 3600)} ч назад`;
-  return new Date(iso).toLocaleDateString("ru-RU");
-}
+const ICONS: Record<string, React.ReactNode> = {
+  moderation: <FiBook />,
+  booking: <FiBookmark />,
+  return: <FiClock />,
+  info: <FiInfo />,
+};
 
 export default function NotificationBell() {
   const { user } = useAuth();
-  const [items, setItems] = useState<Item[]>([]);
+  const [items, setItems] = useState<NotifItem[]>([]);
   const [unread, setUnread] = useState(0);
+  const [counts, setCounts] = useState<Record<string, number>>({});
+  const [filter, setFilter] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
   const boxRef = useRef<HTMLDivElement>(null);
 
   const load = useCallback(async () => {
     try {
-      const res = await fetch("/api/notifications", { cache: "no-store" });
+      // в выпадающем списке — только непрочитанные; прочитанные остаются на странице «Все оповещения»
+      const res = await fetch("/api/notifications?unread=1", { cache: "no-store" });
       if (!res.ok) return;
       const json = await res.json();
       setItems(Array.isArray(json.items) ? json.items : []);
       setUnread(Number(json.unread) || 0);
+      setCounts(json.counts && typeof json.counts === "object" ? json.counts : {});
     } catch {
-
+      /* сеть недоступна — оставляем прежний список */
     }
   }, []);
 
   useEffect(() => {
     if (!user) return;
-    load();
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void load();
     const t = setInterval(load, POLL_MS);
     return () => clearInterval(t);
   }, [user, load]);
@@ -57,7 +54,7 @@ export default function NotificationBell() {
     return () => document.removeEventListener("mousedown", onDoc);
   }, []);
 
-  async function mark(body: { id?: string; all?: boolean }) {
+  async function mark(body: { id?: string; all?: boolean; types?: string[] }) {
     await fetch("/api/notifications", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -68,15 +65,18 @@ export default function NotificationBell() {
 
   if (!user) return null;
 
+  const activeFilter = filter && (counts[filter] ?? 0) > 0 ? filter : null;
+  const shown = activeFilter ? items.filter((n) => n.type === activeFilter) : items;
+
   return (
     <div ref={boxRef} className="relative">
       <button
         type="button"
         onClick={() => {
           setOpen((v) => !v);
-          if (!open) load();
+          if (!open) void load();
         }}
-        aria-label={unread ? `Уведомления: ${unread} новых` : "Уведомления"}
+        aria-label={unread ? `Оповещения: ${unread} новых` : "Оповещения"}
         aria-expanded={open}
         className="relative rounded-full p-2 text-stone-600 transition hover:bg-stone-100 hover:text-stone-900"
       >
@@ -89,65 +89,95 @@ export default function NotificationBell() {
       </button>
 
       {open && (
-        <div className="absolute right-0 z-50 mt-2 w-80 max-w-[calc(100vw-2rem)] overflow-hidden rounded-2xl bg-white shadow-xl ring-1 ring-stone-200">
-          <div className="flex items-center justify-between border-b border-stone-100 px-4 py-3">
-            <p className="text-sm font-semibold text-stone-900">Уведомления</p>
+        <div className="absolute right-0 z-50 mt-2 w-[22rem] max-w-[calc(100vw-2rem)] overflow-hidden rounded-2xl bg-white shadow-xl ring-1 ring-stone-200">
+          <div className="flex items-center justify-between px-4 pb-2 pt-3">
+            <p className="text-base font-bold text-stone-900">Оповещения</p>
             {unread > 0 && (
               <button
                 type="button"
                 onClick={() => mark({ all: true })}
-                className="text-xs font-medium text-indigo-600 hover:underline"
+                className="inline-flex items-center gap-1 text-sm font-medium text-stone-600 hover:text-indigo-700"
               >
-                Прочитать все
+                <FiCheckCircle /> Прочитано
               </button>
             )}
           </div>
 
-          {items.length === 0 ? (
-            <p className="px-4 py-8 text-center text-sm text-stone-500">Пока ничего нового</p>
+          {unread === 0 ? (
+            <div className="flex flex-col items-center px-4 py-10 text-stone-400">
+              <FiBell className="text-6xl" strokeWidth={1.5} />
+              <p className="mt-3 text-base text-stone-500">Нет новых оповещений.</p>
+            </div>
           ) : (
-            <ul className="max-h-96 divide-y divide-stone-100 overflow-y-auto">
-              {items.map((n) => {
-                const body = (
-                  <>
-                    <p className="text-sm text-stone-800">{n.text}</p>
-                    <p className="mt-1 text-xs text-stone-400">{ago(n.createdAt)}</p>
-                  </>
-                );
-                const cls = `block px-4 py-3 hover:bg-stone-50 ${n.read ? "" : "bg-indigo-50/60"}`;
-                return (
-                  <li key={n.id}>
-                    {n.href ? (
-                      <Link
-                        href={n.href}
-                        className={cls}
-                        onClick={() => {
-                          if (!n.read) mark({ id: n.id });
-                          setOpen(false);
-                        }}
-                      >
-                        {body}
-                      </Link>
-                    ) : (
-                      <button
-                        type="button"
-                        className={`${cls} w-full text-left`}
-                        onClick={() => !n.read && mark({ id: n.id })}
-                      >
-                        {body}
-                      </button>
-                    )}
-                  </li>
-                );
-              })}
-            </ul>
+            <>
+              <div className="flex flex-wrap gap-2 px-4 pb-3">
+                {GROUPS.filter((g) => (counts[g.type] ?? 0) > 0).map((g) => {
+                  const on = activeFilter === g.type;
+                  return (
+                    <button
+                      key={g.type}
+                      type="button"
+                      onClick={() => setFilter(on ? null : g.type)}
+                      aria-pressed={on}
+                      title={g.label}
+                      className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-bold ring-1 ring-inset ${
+                        on
+                          ? "bg-indigo-600 text-white ring-indigo-600"
+                          : "bg-indigo-50 text-indigo-800 ring-indigo-100 hover:bg-indigo-100"
+                      }`}
+                    >
+                      {ICONS[g.type]} {counts[g.type]}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <ul className="max-h-96 divide-y divide-stone-100 overflow-y-auto border-t border-stone-100">
+                {shown.map((n) => {
+                  const body = (
+                    <div className="flex gap-3">
+                      <span className="mt-0.5 shrink-0 text-xl text-indigo-700">{ICONS[n.type] ?? <FiInfo />}</span>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-baseline justify-between gap-2">
+                          <p className="text-sm font-bold text-stone-900">{titleOf(n)}</p>
+                          <p className="shrink-0 text-xs text-stone-400">{fmtShort(n.createdAt)}</p>
+                        </div>
+                        <p className="mt-0.5 line-clamp-3 break-words text-sm text-stone-700">{n.text}</p>
+                      </div>
+                    </div>
+                  );
+                  const cls = "block w-full px-4 py-3 text-left hover:bg-stone-50";
+                  return (
+                    <li key={n.id}>
+                      {n.href ? (
+                        <Link
+                          href={n.href}
+                          className={cls}
+                          onClick={() => {
+                            void mark({ id: n.id });
+                            setOpen(false);
+                          }}
+                        >
+                          {body}
+                        </Link>
+                      ) : (
+                        <button type="button" className={cls} onClick={() => mark({ id: n.id })}>
+                          {body}
+                        </button>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            </>
           )}
+
           <Link
             href="/notifications"
             onClick={() => setOpen(false)}
-            className="block border-t border-stone-100 px-4 py-2.5 text-center text-sm font-medium text-indigo-600 hover:bg-stone-50"
+            className="block border-t border-stone-100 px-4 py-3 text-center text-sm font-medium text-stone-600 hover:bg-stone-50 hover:text-indigo-700"
           >
-            Вся история уведомлений
+            Все оповещения
           </Link>
         </div>
       )}
