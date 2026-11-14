@@ -4,9 +4,10 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { FiArrowLeft } from "react-icons/fi";
 import BookCard from "@/components/BookCard";
-import AuthorInfoCard from "@/components/AuthorInfoCard";
+import AuthorProfile, { AuthorHeadingOnly } from "@/components/AuthorProfile";
 import { LinkButton } from "@/components/Button";
 import { listBooks } from "@/lib/books-store";
+import { splitAuthors } from "@/lib/author-info";
 import type { Book } from "@/data/books";
 
 export default async function AuthorPage({ params }: { params: Promise<{ name: string }> }) {
@@ -18,6 +19,7 @@ export default async function AuthorPage({ params }: { params: Promise<{ name: s
     /* оставляем как есть */
   }
 
+  const people = splitAuthors(author);
   const { books, total } = await listBooks({ author, limit: 100, sort: "title" });
 
   return (
@@ -29,30 +31,39 @@ export default async function AuthorPage({ params }: { params: Promise<{ name: s
         / Автор
       </nav>
 
-      <h1 className="mt-4 text-3xl font-extrabold text-stone-900">{author}</h1>
-      <p className="mt-2 text-stone-500">Книг этого автора в каталоге: {total}</p>
+      {/* Имя автора, под ним справка из Википедии, ниже — его книги.
+          Если в поле несколько авторов («А, Б, В») — справка про каждого отдельно. */}
+      {people.length <= 1 ? (
+        <Suspense fallback={<AuthorHeadingOnly name={author} total={total} />}>
+          <AuthorProfile author={author} total={total} books={books} />
+        </Suspense>
+      ) : (
+        <>
+          <AuthorHeadingOnly name={author} total={total} />
+          <div className="mt-6 grid gap-5 lg:grid-cols-2">
+            {people.map((p) => (
+              <Suspense key={p} fallback={<div className="h-32 animate-pulse rounded-2xl bg-stone-100" />}>
+                <AuthorProfile author={p} member books={books} />
+              </Suspense>
+            ))}
+          </div>
+        </>
+      )}
 
-      <div className="mt-8 flex flex-col gap-8 lg:flex-row lg:items-start">
-        <div className="min-w-0 empty:hidden lg:order-2 lg:w-[22rem] lg:shrink-0">
-          <Suspense fallback={null}>
-            <AuthorInfoCard author={author} />
-          </Suspense>
-        </div>
-
-        <div className="min-w-0 flex-1 lg:order-1">
-          {books.length === 0 ? (
-            <div className="rounded-2xl bg-white p-12 text-center ring-1 ring-stone-200">
-              <p className="font-semibold text-stone-800">Книг этого автора пока нет</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3">
-              {books.map((b) => (
-                <BookCard key={b.id} book={b as Book} />
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
+      <section className="mt-10" aria-label="Книги автора">
+        <h2 className="text-2xl font-bold text-stone-900">Книги</h2>
+        {books.length === 0 ? (
+          <div className="mt-5 rounded-2xl bg-white p-12 text-center ring-1 ring-stone-200">
+            <p className="font-semibold text-stone-800">Книг этого автора пока нет</p>
+          </div>
+        ) : (
+          <div className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {books.map((b) => (
+              <BookCard key={b.id} book={b as Book} />
+            ))}
+          </div>
+        )}
+      </section>
 
       <div className="mt-10">
         <LinkButton href="/catalog" variant="outline">

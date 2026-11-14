@@ -1,6 +1,5 @@
 export const instant = false;
 
-import { Suspense } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { categoryLabels, type Book } from "@/data/books";
@@ -19,7 +18,6 @@ import { listBooks } from "@/lib/books-store";
 import BookBorrowers from "@/components/BookBorrowers";
 import BookTabs from "@/components/BookTabs";
 import AuthorBooks from "@/components/AuthorBooks";
-import AuthorInfoCard from "@/components/AuthorInfoCard";
 import { getBookBorrowers } from "@/lib/bookings";
 import { readJson } from "@/lib/db";
 import type { Review } from "@/lib/types";
@@ -195,9 +193,6 @@ export default async function BookPage({ params }: { params: Promise<{ id: strin
         />
         <div className="flex min-w-0 flex-col gap-6">
           <AuthorBooks author={book.author} currentId={book.id} />
-          <Suspense fallback={null}>
-            <AuthorInfoCard author={book.author} />
-          </Suspense>
         </div>
       </div>
 

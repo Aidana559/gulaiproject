@@ -16,11 +16,6 @@
     }
   },
   {
-    "key": "фиалка султангирова",
-    "status": "none",
-    "fetchedAt": "2026-11-10T11:25:03.399Z"
-  },
-  {
     "key": "кэнтаро миура",
     "status": "ok",
     "fetchedAt": "2026-11-10T11:25:15.357Z",
@@ -65,5 +60,103 @@
     "key": "редакция журнала успехи. истории про любовь",
     "status": "none",
     "fetchedAt": "2026-11-14T13:05:12.068Z"
+  },
+  {
+    "key": "фрэнк герберт",
+    "status": "ok",
+    "fetchedAt": "2026-11-14T13:59:36.399Z",
+    "info": {
+      "name": "Герберт, Фрэнк",
+      "description": "американский писатель-фантаст (1920—1986)",
+      "extract": "Франклин Патрик Ге́рберт-младший — американский писатель-фантаст, известный прежде всего как автор цикла «Хроники Дюны», в особенности первого романа из этого цикла — «Дюна».",
+      "born": "8 октября 1920",
+      "died": "11 февраля 1986",
+      "birthPlace": "Такома",
+      "photo": "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/8e/Frank_Herbert_1984_%28square%29.jpg/330px-Frank_Herbert_1984_%28square%29.jpg?utm_source=ru.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "url": "https://ru.wikipedia.org/wiki/%D0%93%D0%B5%D1%80%D0%B1%D0%B5%D1%80%D1%82%2C_%D0%A4%D1%80%D1%8D%D0%BD%D0%BA",
+      "source": "wikipedia"
+    }
+  },
+  {
+    "key": "джером дэвид сэлинджер",
+    "status": "ok",
+    "fetchedAt": "2026-11-14T14:00:04.604Z",
+    "info": {
+      "name": "Сэлинджер, Джером Дэвид",
+      "description": "американский писатель",
+      "extract": "Джеро́м Дэ́вид Сэ́линджер — американский писатель, произведения которого увидели свет в журнале The New Yorker во второй половине 1940-х и в 1950-е годы.",
+      "born": "1 января 1919",
+      "died": "27 января 2010",
+      "birthPlace": "Нью-Йорк",
+      "photo": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/93/J._D._Salinger_%28Catcher_in_the_Rye_portrait%29.jpg/330px-J._D._Salinger_%28Catcher_in_the_Rye_portrait%29.jpg?utm_source=ru.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "url": "https://ru.wikipedia.org/wiki/%D0%A1%D1%8D%D0%BB%D0%B8%D0%BD%D0%B4%D0%B6%D0%B5%D1%80%2C_%D0%94%D0%B6%D0%B5%D1%80%D0%BE%D0%BC_%D0%94%D1%8D%D0%B2%D0%B8%D0%B4",
+      "source": "wikipedia"
+    }
+  },
+  {
+    "key": "д.в. сивухин",
+    "status": "none",
+    "fetchedAt": "2026-11-14T14:00:47.469Z"
+  },
+  {
+    "key": "роберт льюис стивенсон",
+    "v": 2,
+    "status": "ok",
+    "fetchedAt": "2026-11-14T14:09:47.616Z",
+    "info": {
+      "name": "Стивенсон, Роберт Льюис",
+      "description": "шотландский писатель и поэт (1850—1894)",
+      "extract": "Ро́берт Лью́ис Бэ́лфур Сти́венсон — британский писатель, автор приключенческих романов и повестей, крупнейший представитель неоромантизма. Наиболее значительные его произведения — романы «Остров сокровищ», «Похищенный», «Владетель Баллантрэ», «Уир Гермистон», повесть «Странная история доктора Джекила и мистера Хайда».",
+      "born": "13 ноября 1850",
+      "died": "3 декабря 1894",
+      "birthPlace": "Эдинбург",
+      "photo": "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/7a/Robert_Louis_Stevenson_by_Henry_Walter_Barnett_bw.jpg/330px-Robert_Louis_Stevenson_by_Henry_Walter_Barnett_bw.jpg?utm_source=ru.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "url": "https://ru.wikipedia.org/wiki/%D0%A1%D1%82%D0%B8%D0%B2%D0%B5%D0%BD%D1%81%D0%BE%D0%BD%2C_%D0%A0%D0%BE%D0%B1%D0%B5%D1%80%D1%82_%D0%9B%D1%8C%D1%8E%D0%B8%D1%81",
+      "source": "wikipedia"
+    }
+  },
+  {
+    "key": "hiromu arakawa",
+    "v": 2,
+    "status": "ok",
+    "fetchedAt": "2026-11-14T14:10:16.384Z",
+    "info": {
+      "name": "Аракава, Хирому",
+      "description": "японская мангака",
+      "extract": "Хиро́му Арака́ва (яп. 荒川弘 Аракава Хирому, род. 8 мая 1973 года), настоящее имя Хироми Аракава (яп. 荒川弘美), — японская мангака. Наиболее известна как автор манги «Стальной алхимик», которая стала хитом как в Японии, так и на международном уровне. Она также известна благодаря адаптации-манги новеллы «Сказание об Арслане».",
+      "born": "8 мая 1973",
+      "birthPlace": "Хоккайдо",
+      "url": "https://ru.wikipedia.org/wiki/%D0%90%D1%80%D0%B0%D0%BA%D0%B0%D0%B2%D0%B0%2C_%D0%A5%D0%B8%D1%80%D0%BE%D0%BC%D1%83",
+      "source": "wikipedia"
+    }
+  },
+  {
+    "key": "ф. достоевский",
+    "v": 2,
+    "status": "ok",
+    "fetchedAt": "2026-11-14T14:11:00.442Z",
+    "info": {
+      "name": "Достоевский, Фёдор Михайлович",
+      "description": "русский писатель и философ (1821–1881)",
+      "extract": "Фёдор Миха́йлович Достое́вский — русский писатель, мыслитель, философ и публицист.",
+      "born": "11 ноября 1821",
+      "died": "28 января 1881",
+      "birthPlace": "Мариинская больница для бедных",
+      "photo": "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/78/Vasily_Perov_-_%D0%9F%D0%BE%D1%80%D1%82%D1%80%D0%B5%D1%82_%D0%A4.%D0%9C.%D0%94%D0%BE%D1%81%D1%82%D0%BE%D0%B5%D0%B2%D1%81%D0%BA%D0%BE%D0%B3%D0%BE_-_Google_Art_Project.jpg/330px-Vasily_Perov_-_%D0%9F%D0%BE%D1%80%D1%82%D1%80%D0%B5%D1%82_%D0%A4.%D0%9C.%D0%94%D0%BE%D1%81%D1%82%D0%BE%D0%B5%D0%B2%D1%81%D0%BA%D0%BE%D0%B3%D0%BE_-_Google_Art_Project.jpg?utm_source=ru.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "url": "https://ru.wikipedia.org/wiki/%D0%94%D0%BE%D1%81%D1%82%D0%BE%D0%B5%D0%B2%D1%81%D0%BA%D0%B8%D0%B9%2C_%D0%A4%D1%91%D0%B4%D0%BE%D1%80_%D0%9C%D0%B8%D1%85%D0%B0%D0%B9%D0%BB%D0%BE%D0%B2%D0%B8%D1%87",
+      "source": "wikipedia"
+    }
+  },
+  {
+    "key": "фиалка султангирова",
+    "v": 3,
+    "status": "none",
+    "fetchedAt": "2026-11-14T14:17:09.291Z"
+  },
+  {
+    "key": "н. ш. мифтахова",
+    "v": 3,
+    "status": "none",
+    "fetchedAt": "2026-11-14T14:18:26.120Z"
   }
 ]
