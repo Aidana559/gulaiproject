@@ -6,7 +6,9 @@ import { genresOf } from "@/lib/genres";
 import {
   STATE_STYLE,
   bookState,
+  APP_TZ,
   fmtDate,
+  fmtDateTime,
   stateLabel,
   type BookState,
 } from "@/lib/moderation-shared";
@@ -20,6 +22,7 @@ type BookRow = {
   owner?: string;
   genre?: string;
   genres?: string[];
+  createdAt?: string;
   hidden?: boolean;
   hiddenUntil?: string | null;
   hiddenReason?: string;
@@ -98,7 +101,9 @@ export default function BooksPanel() {
           ? "Объявление скрыто, автор уведомлён"
           : mode === "delete"
             ? "Объявление удалено, автор уведомлён"
-            : b.deleted
+            : mode === "unhide"
+              ? "Книга возвращена в каталог, автор уведомлён"
+              : b.deleted
               ? "Объявление восстановлено, автор уведомлён"
               : "Объявление опубликовано, автор уведомлён",
       );
@@ -136,12 +141,13 @@ export default function BooksPanel() {
       </div>
 
       <div className="mt-4 overflow-x-auto rounded-2xl bg-white ring-1 ring-stone-200">
-        <table className="w-full min-w-[640px] text-left text-sm">
+        <table className="w-full min-w-[760px] text-left text-sm">
           <thead className="border-b bg-stone-50 text-xs uppercase text-stone-500">
             <tr>
               <th className="p-3">Название</th>
               <th className="p-3">Автор</th>
               <th className="p-3">Жанры</th>
+              <th className="p-3">Дата выхода</th>
               <th className="p-3">Статус</th>
               <th className="p-3"></th>
             </tr>
@@ -165,6 +171,7 @@ export default function BooksPanel() {
                     {b.owner && b.owner !== b.author && <p className="text-xs text-stone-400">добавил: {b.owner}</p>}
                   </td>
                   <td className="p-3 text-stone-600">{genresOf(b).join(", ") || "—"}</td>
+                  <td className="whitespace-nowrap p-3 text-stone-600">{fmtDateTime(b.createdAt, APP_TZ)}</td>
                   <td className="p-3">
                     <span
                       className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset ${STATE_STYLE[state]}`}
@@ -194,10 +201,10 @@ export default function BooksPanel() {
                       {state === "hidden" ? (
                         <button
                           type="button"
-                          onClick={() => setDlg({ mode: "restore", book: b })}
-                          className="rounded border px-2 py-1 text-xs"
+                          onClick={() => setDlg({ mode: "unhide", book: b })}
+                          className="rounded bg-emerald-600 px-2 py-1 text-xs font-semibold text-white hover:bg-emerald-700"
                         >
-                          Показать
+                          Вернуть в каталог
                         </button>
                       ) : (
                         state !== "deleted" && (
@@ -234,14 +241,14 @@ export default function BooksPanel() {
             })}
             {loaded && books.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-4 py-10 text-center text-stone-500">
+                <td colSpan={6} className="px-4 py-10 text-center text-stone-500">
                   Объявлений нет
                 </td>
               </tr>
             )}
             {!loaded && (
               <tr>
-                <td colSpan={5} className="px-4 py-10 text-center text-stone-500">
+                <td colSpan={6} className="px-4 py-10 text-center text-stone-500">
                   Загрузка…
                 </td>
               </tr>

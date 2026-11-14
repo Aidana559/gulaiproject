@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { REASON_MIN } from "@/lib/moderation-shared";
 
-export type ModerationMode = "hide" | "delete" | "restore";
+export type ModerationMode = "hide" | "delete" | "restore" | "unhide";
 
 export type ModerationPayload = {
   reason: string;
@@ -34,6 +34,7 @@ const TITLES: Record<ModerationMode, string> = {
   hide: "Скрыть книгу",
   delete: "Удалить книгу",
   restore: "Восстановить книгу",
+  unhide: "Вернуть книгу в каталог",
 };
 
 const HINTS: Record<ModerationMode, string> = {
@@ -41,6 +42,7 @@ const HINTS: Record<ModerationMode, string> = {
   delete:
     "Книга исчезнет с сайта, но останется в базе вместе с историей — её можно будет восстановить. Автор получит уведомление.",
   restore: "Книга снова станет доступной в каталоге. Автор получит уведомление.",
+  unhide: "Скрытие будет снято, книга сразу появится в каталоге. Автор получит уведомление.",
 };
 
 const dayInput = (d: Date) =>
@@ -66,7 +68,7 @@ export default function ModerationDialog({
   const [date, setDate] = useState("");
 
   const reason = [preset, custom.trim()].filter(Boolean).join(". ");
-  const needReason = mode !== "restore";
+  const needReason = mode !== "restore" && mode !== "unhide";
   const tomorrow = dayInput(new Date(Date.now() + 86_400_000));
   const maxDate = dayInput(new Date(Date.now() + 730 * 86_400_000));
   const dateOk = term !== "custom" || (!!date && date >= tomorrow && date <= maxDate);
@@ -152,11 +154,11 @@ export default function ModerationDialog({
         <div className="mq-reject-btns">
           <button
             type="button"
-            className={`mq-btn ${mode === "restore" ? "mq-btn-ok" : "mq-btn-danger"}`}
+            className={`mq-btn ${mode === "restore" || mode === "unhide" ? "mq-btn-ok" : "mq-btn-danger"}`}
             disabled={busy || !valid}
             onClick={submit}
           >
-            {mode === "hide" ? "Скрыть" : mode === "delete" ? "Удалить" : "Восстановить"}
+            {mode === "hide" ? "Скрыть" : mode === "delete" ? "Удалить" : mode === "unhide" ? "Вернуть в каталог" : "Восстановить"}
           </button>
           <button type="button" className="mq-btn" onClick={onClose}>
             Отмена
