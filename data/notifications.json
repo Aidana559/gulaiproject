@@ -159,5 +159,41 @@
     },
     "read": true,
     "createdAt": "2026-11-14T18:59:05.344Z"
+  },
+  {
+    "id": "3b83eca7-1e05-4239-8672-7a6c90ad36df",
+    "userId": "5a5ca32f-3441-46c5-864c-8e85858e2674",
+    "type": "booking",
+    "text": "Kio забронировал(а) вашу книгу «Madness. A Jeff The Killer's story».",
+    "href": "/transactions",
+    "read": false,
+    "createdAt": "2026-11-14T20:28:42.421Z"
+  },
+  {
+    "id": "f8190434-c021-4aeb-a822-36c70caeb338",
+    "userId": "5a5ca32f-3441-46c5-864c-8e85858e2674",
+    "type": "booking",
+    "text": "Kio отменил(а) бронь книги «Madness. A Jeff The Killer's story».",
+    "href": "/transactions",
+    "read": false,
+    "createdAt": "2026-11-14T20:28:53.233Z"
+  },
+  {
+    "id": "1d61f951-6f98-4710-9f4b-8e731a86f548",
+    "userId": "5a5ca32f-3441-46c5-864c-8e85858e2674",
+    "type": "booking",
+    "text": "Kio забронировал(а) вашу книгу «Madness. A Jeff The Killer's story».",
+    "href": "/transactions",
+    "read": false,
+    "createdAt": "2026-11-14T20:40:18.969Z"
+  },
+  {
+    "id": "0cf1473f-7d97-48a0-9f4f-7e5852100418",
+    "userId": "5a5ca32f-3441-46c5-864c-8e85858e2674",
+    "type": "booking",
+    "text": "Kio отменил(а) бронь книги «Madness. A Jeff The Killer's story».",
+    "href": "/transactions",
+    "read": false,
+    "createdAt": "2026-11-14T20:40:27.658Z"
   }
 ]
