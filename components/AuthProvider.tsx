@@ -2,6 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
+import { clearChatSession, refreshChatSession } from "@/lib/chatStore";
 
 export type User = {
   id?: string | number;
@@ -33,6 +34,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   const refresh = useCallback(async () => {
+    void refreshChatSession(); // роль для чатов определяется отдельно, по серверной сессии
     try {
       const res = await fetch("/api/auth/me", { cache: "no-store" });
       const data = res.ok ? await res.json() : null;
@@ -59,10 +61,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     refresh();
   }, [refresh]);
 
+  // Роль могла измениться (или сессия истечь) пока вкладка была в фоне — перепроверяем доступ к чатам
+  useEffect(() => {
+    const onFocus = () => void refreshChatSession();
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, []);
+
   const logout = useCallback(async () => {
     try {
       await fetch("/api/auth/logout", { method: "POST" });
     } catch {}
+    clearChatSession();
     setServerUser(null);
     setExtra({});
     router.push("/");

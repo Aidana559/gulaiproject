@@ -3,15 +3,15 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { FiMessageCircle } from "react-icons/fi";
-import { useAuth } from "@/components/AuthProvider";
-import { useUnreadTotal } from "@/lib/chatStore";
+import { useChatSession, useUnreadTotal } from "@/lib/chatStore";
 
 /** Иконка чата рядом с колокольчиком: ведёт в «Сообщения», со счётчиком непрочитанных. */
 export default function MessagesIcon() {
-  const { user } = useAuth();
   const pathname = usePathname();
-  const unread = useUnreadTotal(user ? { id: String(user.id), name: user.name } : null);
-  if (!user) return null;
+  const chat = useChatSession();
+  const unread = useUnreadTotal();
+  // Уровень 1 (интерфейс): иконка только у вошедшего пользователя с ролью user
+  if (chat.status !== "ok") return null;
 
   return (
     <Link

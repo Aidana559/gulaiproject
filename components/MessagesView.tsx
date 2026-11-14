@@ -3,18 +3,20 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { FiArrowLeft, FiMessageCircle, FiSearch, FiSend } from "react-icons/fi";
+import { FiArrowLeft, FiCheck, FiMessageCircle, FiMoreVertical, FiSearch, FiSend, FiTrash2, FiX } from "react-icons/fi";
 import Avatar from "@/components/Avatar";
 import { Button, LinkButton } from "@/components/Button";
 import { useAuth } from "@/components/AuthProvider";
 import {
+  ChatAccessError,
   MESSAGE_MAX,
-  conversationId,
+  deleteConversations,
   markSeen,
   newConversation,
   roleIn,
   sendMessage,
   unreadIn,
+  useChatSession,
   useMyChats,
   type ChatRole,
   type Conversation,
@@ -58,14 +60,33 @@ export default function MessagesView() {
       </div>
     );
   }
+  // Уровень 1: роль и id берём из серверной сессии (chatStore), а не из useAuth()
+  // (там профиль смешан с данными из localStorage)
+  return <Gate />;
+}
+
+function Gate() {
+  const chat = useChatSession();
+  if (chat.status === "loading") return <p className="text-stone-500">Загрузка…</p>;
+  if (chat.status === "denied") {
+    return (
+      <div className="rounded-2xl bg-white p-8 text-center ring-1 ring-stone-200">
+        <p className="font-semibold text-stone-800">Раздел недоступен</p>
+        <p className="mt-1 text-stone-600">Сообщения доступны только обычным пользователям.</p>
+        <div className="mt-4 flex justify-center">
+          <LinkButton href="/" variant="outline">На главную</LinkButton>
+        </div>
+      </div>
+    );
+  }
+  if (chat.status !== "ok" || !chat.me) return null;
   // key: при смене аккаунта состояние сбрасывается
-  const me: Me = { id: String(user.id), name: user.name };
-  return <Inner key={me.id} me={me} />;
+  return <Inner key={chat.me.id} me={chat.me} />;
 }
 
 function Inner({ me }: { me: Me }) {
   const bookParam = useSearchParams().get("book");
-  const mine = useMyChats(me);
+  const mine = useMyChats();
   const [selected, setSelected] = useState<string | null>(null);
   const [draft, setDraft] = useState<Conversation | null>(null);
   const [status, setStatus] = useState<"idle" | "loading" | "own" | "error">(
@@ -73,6 +94,28 @@ function Inner({ me }: { me: Me }) {
   );
   const [error, setError] = useState("");
   const [query, setQuery] = useState("");
+  // режим выбора чатов (меню «⋮» → «Выбрать»)
+  const [selecting, setSelecting] = useState(false);
+  const [picked, setPicked] = useState<Set<string>>(new Set());
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [confirmDel, setConfirmDel] = useState(false);
+  const [listError, setListError] = useState("");
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const close = (e: MouseEvent | KeyboardEvent) => {
+      if (e instanceof KeyboardEvent ? e.key === "Escape" : !menuRef.current?.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", close);
+    document.addEventListener("keydown", close);
+    return () => {
+      document.removeEventListener("mousedown", close);
+      document.removeEventListener("keydown", close);
+    };
+  }, [menuOpen]);
 
   // Владелец определяется по книге: сервер отдаёт ownerId / owner
   useEffect(() => {
@@ -90,10 +133,11 @@ function Inner({ me }: { me: Me }) {
         const isOwn =
           (b.ownerId != null && String(b.ownerId) === me.id) || (!!b.owner && b.owner === me.name);
         if (isOwn) return setStatus("own");
-        const owner = { id: b.ownerId != null ? String(b.ownerId) : undefined, name: b.owner || "Владелец" };
         const book = { id: String(b.id), title: b.title, author: b.author };
-        setDraft(newConversation(book, me, owner));
-        setSelected(conversationId(book.id, me.id, owner)); // уже есть — откроется существующий
+        // проверка прав внутри: оба участника должны быть user
+        const d = newConversation(book, String(b.ownerId));
+        setDraft(d);
+        setSelected(d.id); // уже есть — откроется существующий
         setStatus("idle");
       })
       .catch((e: Error) => {
@@ -117,6 +161,43 @@ function Inner({ me }: { me: Me }) {
         : mine,
     [mine, q, me],
   );
+
+  const mineIds = useMemo(() => new Set(mine.map((c) => c.id)), [mine]);
+  const pickedCount = [...picked].filter((id) => mineIds.has(id)).length;
+  const allShownPicked = shown.length > 0 && shown.every((c) => picked.has(c.id));
+
+  const exitSelect = () => {
+    setSelecting(false);
+    setPicked(new Set());
+    setConfirmDel(false);
+    setListError("");
+  };
+  const toggle = (id: string) => {
+    setConfirmDel(false);
+    setPicked((p) => {
+      const n = new Set(p);
+      if (!n.delete(id)) n.add(id);
+      return n;
+    });
+  };
+  const toggleAll = () => {
+    setConfirmDel(false);
+    setPicked(allShownPicked ? new Set() : new Set(shown.map((c) => c.id)));
+  };
+  function removePicked() {
+    const ids = [...picked].filter((id) => mineIds.has(id));
+    try {
+      deleteConversations(ids); // проверка прав внутри; при отказе ничего не удалено
+    } catch (e) {
+      if (!(e instanceof ChatAccessError)) throw e;
+      setConfirmDel(false);
+      setListError(e.message);
+      return;
+    }
+    if (selected && ids.includes(selected)) setSelected(null);
+    if (draft && ids.includes(draft.id)) setDraft(null);
+    exitSelect();
+  }
 
   const conv = mine.find((c) => c.id === selected) ?? (draft?.id === selected ? draft : null);
 
@@ -161,8 +242,8 @@ function Inner({ me }: { me: Me }) {
   return (
     <div className="chat-shell rounded-2xl bg-white ring-1 ring-stone-200" data-open={selected ? "1" : "0"}>
       <aside className="chat-list flex-col border-stone-200 md:border-r">
-        <div className="border-b border-stone-200 p-3">
-          <div className="relative">
+        <div className="flex items-center gap-2 border-b border-stone-200 p-3">
+          <div className="relative min-w-0 flex-1">
             <FiSearch className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" />
             <input
               type="search"
@@ -173,6 +254,49 @@ function Inner({ me }: { me: Me }) {
               className="w-full rounded-full border border-stone-300 py-2 pl-9 pr-3 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
             />
           </div>
+          {selecting ? (
+            <button
+              type="button"
+              onClick={exitSelect}
+              aria-label="Отменить выбор"
+              title="Отменить выбор"
+              className="shrink-0 rounded-full p-2 text-stone-600 hover:bg-stone-100"
+            >
+              <FiX className="size-5" />
+            </button>
+          ) : (
+            <div ref={menuRef} className="relative shrink-0">
+              <button
+                type="button"
+                onClick={() => setMenuOpen((o) => !o)}
+                aria-label="Меню чатов"
+                aria-haspopup="menu"
+                aria-expanded={menuOpen}
+                className="rounded-full p-2 text-stone-600 hover:bg-stone-100"
+              >
+                <FiMoreVertical className="size-5" />
+              </button>
+              {menuOpen && (
+                <div
+                  role="menu"
+                  className="absolute right-0 z-20 mt-1 w-44 overflow-hidden rounded-xl bg-white py-1 shadow-lg ring-1 ring-stone-200"
+                >
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      setSelecting(true);
+                    }}
+                    disabled={mine.length === 0}
+                    className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-stone-800 hover:bg-stone-50 disabled:text-stone-400"
+                  >
+                    <FiCheck className="size-4" /> Выбрать
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
         <ul className="min-h-0 flex-1 overflow-y-auto">
           {mine.length > 0 && shown.length === 0 && (
@@ -188,11 +312,23 @@ function Inner({ me }: { me: Me }) {
               <li key={c.id}>
                 <button
                   type="button"
-                  onClick={() => setSelected(c.id)}
+                  onClick={() => (selecting ? toggle(c.id) : setSelected(c.id))}
+                  role={selecting ? "checkbox" : undefined}
+                  aria-checked={selecting ? picked.has(c.id) : undefined}
                   className={`flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-stone-50 ${
-                    c.id === selected ? "bg-indigo-50" : ""
+                    (selecting ? picked.has(c.id) : c.id === selected) ? "bg-indigo-50" : ""
                   }`}
                 >
+                  {selecting && (
+                    <span
+                      aria-hidden
+                      className={`flex size-5 shrink-0 items-center justify-center rounded border ${
+                        picked.has(c.id) ? "border-indigo-600 bg-indigo-600 text-white" : "border-stone-400 bg-white"
+                      }`}
+                    >
+                      {picked.has(c.id) && <FiCheck className="size-3.5" strokeWidth={3} />}
+                    </span>
+                  )}
                   <Avatar name={other} src={avatarOf(otherP.id)} className="size-10 shrink-0 text-base" />
                   <span className="min-w-0 flex-1">
                     <span className="flex items-baseline justify-between gap-2">
@@ -212,6 +348,38 @@ function Inner({ me }: { me: Me }) {
             );
           })}
         </ul>
+        {selecting && (
+          <div className="border-t border-stone-200 p-3">
+            {listError && <p role="alert" className="mb-2 text-xs text-rose-600">{listError}</p>}
+            <p className="mb-2 text-sm text-stone-600" aria-live="polite">
+              {pickedCount > 0 ? `Выбрано чатов: ${pickedCount}` : "Выберите чаты"}
+            </p>
+            {confirmDel ? (
+              <div className="flex flex-wrap items-center gap-2">
+                <Button onClick={removePicked} className="!bg-rose-600 !px-3 !py-1.5 text-sm hover:!bg-rose-700">
+                  Да, удалить
+                </Button>
+                <Button variant="outline" onClick={() => setConfirmDel(false)} className="!px-3 !py-1.5 text-sm">
+                  Отмена
+                </Button>
+                <span className="text-xs text-stone-500">Удалится только у вас</span>
+              </div>
+            ) : (
+              <div className="flex items-center justify-between gap-2">
+                <Button variant="outline" onClick={toggleAll} disabled={shown.length === 0} className="!px-3 !py-1.5 text-sm">
+                  {allShownPicked ? "Снять выделение" : "Выбрать все"}
+                </Button>
+                <Button
+                  onClick={() => setConfirmDel(true)}
+                  disabled={pickedCount === 0}
+                  className="!bg-rose-600 !px-3 !py-1.5 text-sm hover:!bg-rose-700 disabled:!opacity-50"
+                >
+                  <FiTrash2 /> Удалить
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
       </aside>
 
       <section className="chat-pane flex-col">
@@ -229,13 +397,18 @@ function Inner({ me }: { me: Me }) {
 
 function ChatPane({ conv, role, onBack }: { conv: Conversation; role: ChatRole; onBack: () => void }) {
   const [text, setText] = useState("");
+  const [sendError, setSendError] = useState("");
   const endRef = useRef<HTMLDivElement>(null);
   const otherP = role === "buyer" ? conv.owner : conv.buyer;
   const other = otherP.name;
   const count = conv.messages.length;
 
   useEffect(() => {
-    markSeen(conv.id, role);
+    try {
+      markSeen(conv.id);
+    } catch {
+      /* нет доступа — ничего не меняем */
+    }
     endRef.current?.scrollIntoView({ block: "end" });
   }, [conv.id, role, count]);
 
@@ -250,8 +423,14 @@ function ChatPane({ conv, role, onBack }: { conv: Conversation; role: ChatRole; 
 
   function submit() {
     if (!text.trim()) return;
-    sendMessage(conv, role, text);
-    setText("");
+    try {
+      sendMessage(conv, text);
+      setText("");
+      setSendError("");
+    } catch (e) {
+      if (!(e instanceof ChatAccessError)) throw e;
+      setSendError(e.message); // сообщение не отправлено, данные не изменены
+    }
   }
 
   return (
@@ -331,6 +510,9 @@ function ChatPane({ conv, role, onBack }: { conv: Conversation; role: ChatRole; 
             <FiSend />
           </Button>
         </div>
+        {sendError && (
+          <p role="alert" className="mt-2 text-xs text-rose-600">{sendError}</p>
+        )}
         <p className="mt-2 text-[11px] text-stone-400">
           Сообщения хранятся только в этом браузере.
         </p>
