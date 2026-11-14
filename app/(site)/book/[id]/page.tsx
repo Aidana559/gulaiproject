@@ -15,6 +15,7 @@ import ReportButton from "@/components/ReportButton";
 import ReviewsSection from "@/components/ReviewsSection";
 import BookGuard from "@/components/BookGuard";
 import UserLink from "@/components/UserLink";
+import { LIBRARY, isLibraryBook } from "@/lib/library-config";
 import { listBooks } from "@/lib/books-store";
 import BookBorrowers from "@/components/BookBorrowers";
 import BookTabs from "@/components/BookTabs";
@@ -32,6 +33,7 @@ export default async function BookPage({ params }: { params: Promise<{ id: strin
   // скрытые отдаём только через API с правами; на SSR для простоты 404 гостю
   if (isHiddenNow(book)) notFound();
 
+  const libraryBook = isLibraryBook(book);
   const ownerKey = String(book.ownerId ?? book.owner);
 
   const similarRes = await listBooks({
@@ -85,7 +87,7 @@ export default async function BookPage({ params }: { params: Promise<{ id: strin
           </p>
           {book.description && <p className="mt-6 text-stone-700">{book.description}</p>}
 
-          <dl className="mt-6 grid grid-cols-2 gap-4 rounded-2xl bg-white p-5 ring-1 ring-stone-200 sm:grid-cols-3 lg:grid-cols-4">
+          <dl className="book-detail-serif mt-6 grid grid-cols-2 gap-4 rounded-2xl bg-white p-5 ring-1 ring-stone-200 sm:grid-cols-3 lg:grid-cols-4">
             <div>
               <dt className="text-xs text-stone-400">Категория</dt>
               <dd className="font-medium">{categoryLabels[book.category]}</dd>
@@ -148,7 +150,13 @@ export default async function BookPage({ params }: { params: Promise<{ id: strin
             </div>
           </dl>
 
-          <div className="mt-6 flex items-center gap-3 text-sm text-stone-600">
+          {libraryBook ? (
+            <div className="mt-6 rounded-2xl bg-white p-5 text-sm text-stone-700 ring-1 ring-stone-200">
+              <p className="font-semibold text-stone-900">{LIBRARY.name}</p>
+              <p className="mt-1">Место получения после бронирования будет указано ниже.</p>
+            </div>
+          ) : (
+          <div className="book-detail-serif mt-6 flex items-center gap-3 text-sm text-stone-600">
             <UserLink userId={book.ownerId} className="shrink-0 rounded-full">
               <span className="flex size-10 items-center justify-center rounded-full bg-indigo-100 font-bold text-indigo-700">
                 {(book.owner || "?")[0]}
@@ -175,21 +183,23 @@ export default async function BookPage({ params }: { params: Promise<{ id: strin
             </div>
           </div>
 
-          <div className="mt-8 flex flex-wrap items-center gap-3">
-            <ReserveButton book={book as Book} ownerKey={ownerKey} hasOwnerAccount={book.ownerId != null} />
+          )}
+
+          <div className="book-detail-serif mt-8 flex flex-wrap items-center gap-3">
+            <ReserveButton book={book as Book} ownerKey={ownerKey} isLibrary={libraryBook} />
             <LinkButton href="/catalog" variant="outline" size="lg">
               <FiArrowLeft /> К каталогу
             </LinkButton>
           </div>
 
-          <div className="mt-4 flex flex-wrap items-center gap-4">
+          <div className="book-detail-serif mt-4 flex flex-wrap items-center gap-4">
             <BookActions bookId={book.id} ownerId={ownerKey} />
             <ReportButton bookId={book.id} />
           </div>
         </div>
       </div>
 
-      <div className="mt-12 grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_21rem] xl:grid-cols-[minmax(0,1fr)_23rem]">
+      <div className="book-detail-serif mt-12 grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_21rem] xl:grid-cols-[minmax(0,1fr)_23rem]">
         <BookTabs
           borrowersCount={borrowers.length}
           reviewsCount={reviewsCount}
@@ -202,7 +212,7 @@ export default async function BookPage({ params }: { params: Promise<{ id: strin
       </div>
 
       {similar.length > 0 && (
-        <section className="mt-16">
+        <section className="book-detail-serif mt-16">
           <h2 className="text-xl font-bold text-stone-900">Похожие издания</h2>
           <div className="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
             {similar.map((b) => (

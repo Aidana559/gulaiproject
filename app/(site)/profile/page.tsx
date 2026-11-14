@@ -9,6 +9,7 @@ import Avatar from "@/components/Avatar";
 import { Button } from "@/components/Button";
 import { announceBookingsChanged } from "@/lib/bookings-sync";
 import MyListings from "@/components/MyListings";
+import { LIBRARY } from "@/lib/library-config";
 import { books } from "@/data/books";
 import { formatDate, txLabels, txStyles, type TxStatus } from "@/data/transactions";
 
@@ -33,6 +34,8 @@ type Booking = {
   dueDate: string;
   coverUrl?: string | null;
   gradient?: string;
+  isLibrary?: boolean;
+  ownerId?: string | null;
 };
 
 type Draft = { name: string; email: string; telegram: string; bio: string; avatar: string | null };
@@ -433,6 +436,13 @@ export default function ProfilePage() {
                         <p className="font-semibold text-stone-900">{b.bookTitle}</p>
                       )}
                       <p className="text-sm text-stone-500">{b.bookAuthor || "Автор не указан"}</p>
+                      {b.isLibrary && ["reserved", "borrowed", "overdue"].includes(b.status) && (
+                        <div className="mt-2 text-sm text-stone-700">
+                          <p className="font-semibold">{LIBRARY.name}</p>
+                          <p>Забрать по адресу: {LIBRARY.address}</p>
+                          <a href={LIBRARY.mapUrl} target="_blank" rel="noopener noreferrer" className="font-semibold text-indigo-700 underline">Открыть в 2ГИС</a>
+                        </div>
+                      )}
                       <p className="mt-1 text-sm text-stone-700">
                         {b.status === "reserved" || b.status === "cancelled"
                           ? "Хочет взять: "

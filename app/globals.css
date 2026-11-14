@@ -735,3 +735,10 @@ h2 {
     display: flex;
   }
 }
+
+/* Book details: use the same serif family as the book title, without changing sizes. */
+.book-detail-serif,
+.book-detail-serif :is(button, input, textarea, select),
+.book-detail-serif *:not(svg):not(path) {
+  font-family: var(--font-serif) !important;
+}
