@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { books } from "@/data/books";
 import { formatDate, txLabels, txStyles, type TxStatus } from "@/data/transactions";
+import { announceBookingsChanged } from "@/lib/bookings-sync";
 import { Button } from "./Button";
 
 type Booking = {
@@ -48,6 +49,7 @@ export default function ProfileBookings() {
       body: JSON.stringify({ action: "cancel" }),
     });
     await load();
+    announceBookingsChanged(); // статус книги в профиле владельца и каталоге обновится сразу
   }
 
   const cancelled = bookings.filter((b) => b.status === "cancelled");

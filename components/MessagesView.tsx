@@ -7,6 +7,8 @@ import { FiArrowLeft, FiBook, FiCheck, FiMessageCircle, FiMoreVertical, FiSearch
 import Avatar from "@/components/Avatar";
 import { Button, LinkButton } from "@/components/Button";
 import { useAuth } from "@/components/AuthProvider";
+import UserLink from "@/components/UserLink";
+import { localAvatarOf as avatarOf } from "@/lib/localAvatar";
 import {
   ChatAccessError,
   MESSAGE_MAX,
@@ -14,6 +16,7 @@ import {
   isBookRef,
   markSeen,
   openChatWithBook,
+  openChatWithUser,
   otherOf,
   previewOf,
   sendMessage,
@@ -35,16 +38,6 @@ function dayLabel(iso: string) {
   if (diff === 0) return "Сегодня";
   if (diff === 1) return "Вчера";
   return d.toLocaleDateString("ru-RU", { day: "numeric", month: "long", year: "numeric" });
-}
-
-/** Аватар собеседника из его профиля в этом браузере (если задан), иначе заглушка. */
-function avatarOf(id?: string): string | null {
-  if (!id) return null;
-  try {
-    return JSON.parse(localStorage.getItem(`profile-extra:${id}`) ?? "{}").avatar ?? null;
-  } catch {
-    return null;
-  }
 }
 
 const dayKey = (iso: string) => new Date(iso).toDateString();
@@ -87,9 +80,15 @@ function Gate() {
 }
 
 function Inner({ me }: { me: Me }) {
-  const bookParam = useSearchParams().get("book");
+  const params = useSearchParams();
+  const bookParam = params.get("book");
+  // «Написать» из публичного профиля: /messages?with=<id собеседника>
+  const withParam = bookParam ? null : params.get("with");
   const mine = useMyChats();
+  const session = useChatSession();
   const [selected, setSelected] = useState<string | null>(null);
+  // пока в чате с этим человеком нет сообщений, в списках его нет — показываем пустую переписку пары
+  const [draft, setDraft] = useState<Conversation | null>(null);
   const [status, setStatus] = useState<"idle" | "loading" | "own" | "error">(
     bookParam ? "loading" : "idle",
   );
@@ -159,6 +158,27 @@ function Inner({ me }: { me: Me }) {
     };
   }, [bookParam, meId, meName]);
 
+  // «Написать» из профиля: открывается существующий чат пары, а если его нет — пустой (без дубликатов)
+  useEffect(() => {
+    if (!withParam) return;
+    try {
+      const chatId = openChatWithUser(withParam); // проверка прав внутри: оба участника — user, не self
+      const peer = { id: withParam, name: session.peers?.get(withParam) ?? "" };
+      const parties: Conversation["participants"] =
+        meId <= peer.id ? [{ id: meId, name: meName }, peer] : [peer, { id: meId, name: meName }];
+      // выбор чата при открытии страницы по ссылке
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setDraft({ id: chatId, participants: parties, messages: [], createdAt: new Date().toISOString() });
+      setSelected(chatId);
+      setStatus("idle");
+    } catch (e) {
+      setError(e instanceof ChatAccessError ? e.message : "Не удалось открыть чат");
+      setStatus("error");
+    }
+    // peers нужны только для имени собеседника; чат открывается один раз на ссылку
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [withParam, meId, meName]);
+
   const q = query.trim().toLowerCase();
   const shown = useMemo(
     () =>
@@ -208,7 +228,9 @@ function Inner({ me }: { me: Me }) {
     exitSelect();
   }
 
-  const conv = mine.find((c) => c.id === selected) ?? null;
+  // настоящий чат (когда в нём есть сообщения) важнее черновика — id у них один и тот же
+  const conv =
+    mine.find((c) => c.id === selected) ?? (draft && draft.id === selected ? draft : null);
 
   if (status === "loading") return <p className="text-stone-500">Открываем чат…</p>;
   if (status === "own") {
@@ -478,10 +500,12 @@ function ChatPane({ conv, meId, onBack }: { conv: Conversation; meId: string; on
         >
           <FiArrowLeft className="size-5" />
         </button>
-        <Avatar name={other} src={avatarOf(otherP.id)} className="size-10 shrink-0 text-base" />
-        <div className="min-w-0">
-          <p className="truncate font-semibold text-stone-900">{other}</p>
-        </div>
+        <UserLink userId={otherP.id} className="flex min-w-0 items-center gap-3">
+          <Avatar name={other} src={avatarOf(otherP.id)} className="size-10 shrink-0 text-base" />
+          <div className="min-w-0">
+            <p className="truncate font-semibold text-stone-900">{other}</p>
+          </div>
+        </UserLink>
       </header>
 
       <div className="min-h-0 flex-1 space-y-2 overflow-y-auto overflow-x-hidden bg-stone-50 px-3 py-4 sm:px-4">

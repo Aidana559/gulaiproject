@@ -238,6 +238,27 @@ export async function getBookStates() {
   return states;
 }
 
+/**
+ * Живой статус КАЖДОЙ книги, у которой он не «Доступна»: reserved / given / returned.
+ * Берётся из броней (data/bookings.json) и демо-транзакций — теми же правилами, что и в каталоге
+ * (getBookStates), поэтому профиль, каталог и «Транзакции» всегда совпадают и обновляются сами
+ * при бронировании, выдаче, возврате и отмене. «returned» — когда последняя бронь книги завершена
+ * возвратом и новой активной нет. Отдаёт только статусы: без имён читателей и дат.
+ */
+export async function getBookLiveStatuses(): Promise<Record<string, "reserved" | "given" | "returned">> {
+  const out: Record<string, "reserved" | "given" | "returned"> = { ...(await getBookStates()) };
+  const latest = new Map<string, Booking>();
+  for (const b of await readAll()) {
+    const k = String(b.bookId);
+    const cur = latest.get(k);
+    if (!cur || b.createdAt > cur.createdAt) latest.set(k, b);
+  }
+  for (const [k, b] of latest) {
+    if (!(k in out) && b.status === "returned") out[k] = "returned";
+  }
+  return out;
+}
+
 export async function createBooking(input: {
   userId: string;
   userName?: string;

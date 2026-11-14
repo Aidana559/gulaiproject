@@ -8,6 +8,7 @@ import { FiCheckCircle, FiFlag } from "react-icons/fi";
 import { Button } from "./Button";
 import { Stars } from "./Stars";
 import ReportModal from "./ReportModal";
+import UserLink from "./UserLink";
 
 type Review = {
   id: string;
@@ -97,7 +98,9 @@ export default function ReviewsSection({
             {reviews.map((r) => (
               <li key={r.id} className="rounded-xl bg-stone-50 p-4 ring-1 ring-stone-200/70">
                 <div className="flex items-center justify-between gap-3">
-                  <p className="min-w-0 truncate font-medium text-stone-900">{r.authorName}</p>
+                  <p className="min-w-0 truncate font-medium text-stone-900">
+                    <UserLink userId={r.authorId}>{r.authorName}</UserLink>
+                  </p>
                   <Stars value={r.rating} />
                 </div>
                 {r.text && (

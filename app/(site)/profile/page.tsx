@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
 import Avatar from "@/components/Avatar";
 import { Button } from "@/components/Button";
+import { announceBookingsChanged } from "@/lib/bookings-sync";
 import MyListings from "@/components/MyListings";
 import { books } from "@/data/books";
 import { formatDate, txLabels, txStyles, type TxStatus } from "@/data/transactions";
@@ -151,6 +152,7 @@ export default function ProfilePage() {
   async function cancel(id: string) {
     await fetch(`/api/bookings/${id}`, { method: "PATCH" });
     await loadBookings();
+    announceBookingsChanged(); // статус книги в профиле владельца и каталоге обновится сразу
   }
 
   if (!user) {

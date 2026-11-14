@@ -7,6 +7,7 @@ import { FiArrowRight, FiCheck, FiInfo } from "react-icons/fi";
 import type { Book } from "@/data/books";
 import { useAuth } from "@/components/AuthProvider";
 import { refreshBookStates, useBookStatus } from "@/components/BookStatusBadge";
+import { announceBookingsChanged } from "@/lib/bookings-sync";
 
 export default function ReserveButton({ book, ownerKey }: { book: Book; ownerKey?: string }) {
   const router = useRouter();
@@ -33,6 +34,7 @@ export default function ReserveButton({ book, ownerKey }: { book: Book; ownerKey
 
       const json = await res.json().catch(() => ({}));
       await refreshBookStates(true); // метки везде обновляются сразу
+      if (res.ok) announceBookingsChanged(); // и в других открытых вкладках (профиль владельца, каталог)
 
       if (!res.ok) {
         setError(json.error ?? "Не удалось забронировать");

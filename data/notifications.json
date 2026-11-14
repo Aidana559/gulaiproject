@@ -113,5 +113,51 @@
     },
     "read": true,
     "createdAt": "2026-11-14T13:36:02.506Z"
+  },
+  {
+    "id": "2671bfc5-d7c1-4475-a7f8-7459099961c4",
+    "userId": "5a5ca32f-3441-46c5-864c-8e85858e2674",
+    "type": "moderation",
+    "text": "Книга одобрена модератором: «The Return of Sherlock Holmes». Выполнил: Модератор Gulbanu.",
+    "href": "/book/2060/info",
+    "key": "mod:8dcf2842-5f1f-4b15-b345-da1a00a4a574",
+    "moderation": {
+      "id": "8dcf2842-5f1f-4b15-b345-da1a00a4a574",
+      "bookId": "2060",
+      "bookTitle": "The Return of Sherlock Holmes",
+      "authorId": "5a5ca32f-3441-46c5-864c-8e85858e2674",
+      "authorName": "Хуан",
+      "action": "approved",
+      "actorId": "79d7d016-d9b4-4268-ac07-5d7443632a45",
+      "actorName": "Gulbanu",
+      "actorRole": "moderator",
+      "stateAfter": "published",
+      "createdAt": "2026-11-14T18:59:01.503Z"
+    },
+    "read": true,
+    "createdAt": "2026-11-14T18:59:01.518Z"
+  },
+  {
+    "id": "893170cf-a72b-4b60-a30c-77199af24e27",
+    "userId": "5a5ca32f-3441-46c5-864c-8e85858e2674",
+    "type": "moderation",
+    "text": "Книга одобрена модератором: «Madness. A Jeff The Killer's story». Выполнил: Модератор Gulbanu.",
+    "href": "/book/2059/info",
+    "key": "mod:488649aa-a7c4-41d2-8634-efee6d80ed96",
+    "moderation": {
+      "id": "488649aa-a7c4-41d2-8634-efee6d80ed96",
+      "bookId": "2059",
+      "bookTitle": "Madness. A Jeff The Killer's story",
+      "authorId": "5a5ca32f-3441-46c5-864c-8e85858e2674",
+      "authorName": "Хуан",
+      "action": "approved",
+      "actorId": "79d7d016-d9b4-4268-ac07-5d7443632a45",
+      "actorName": "Gulbanu",
+      "actorRole": "moderator",
+      "stateAfter": "published",
+      "createdAt": "2026-11-14T18:59:05.331Z"
+    },
+    "read": true,
+    "createdAt": "2026-11-14T18:59:05.344Z"
   }
 ]

@@ -18,6 +18,7 @@ import {
   markSeen as markSeenIn,
   migrateLegacy,
   openBook,
+  openPair,
   pairId,
   parseDb,
   parseLegacy,
@@ -261,6 +262,22 @@ export function openChatWithBook(
     now: new Date().toISOString(),
     newId: () => crypto.randomUUID(),
   });
+  if (r.db !== db) write(r.db);
+  return r.chatId;
+}
+
+/**
+ * «Написать» из публичного профиля: находит существующий чат с этим пользователем (один на пару)
+ * или готовит новый пустой; дубликатов не создаёт. Возвращает id чата.
+ * Собеседник обязан быть `user` из серверного справочника, писать самому себе нельзя.
+ */
+export function openChatWithUser(peerId: string): string {
+  const me = guard() && session.me!;
+  const peerName = session.peers?.get(peerId) ?? "";
+  const probe = { participants: [{ id: me.id }, { id: peerId }] as const };
+  guard({ conversation: probe, write: true }); // оба участника — user, не self
+  const db = snapshot();
+  const r = openPair(db, { me, peer: { id: peerId, name: peerName }, now: new Date().toISOString() });
   if (r.db !== db) write(r.db);
   return r.chatId;
 }

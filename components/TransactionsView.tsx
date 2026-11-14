@@ -12,6 +12,7 @@ import {
 } from "@/data/transactions";
 import { books, type Book } from "@/data/books";
 import { useAuth } from "@/components/AuthProvider";
+import { announceBookingsChanged } from "@/lib/bookings-sync";
 import { Button } from "./Button";
 import { inputClass } from "./FormField";
 import {
@@ -215,6 +216,7 @@ async function act(t: Row, action: Action) {
 
   if (res.ok) {
     await loadServer();
+    announceBookingsChanged(); // профиль владельца и каталог в других вкладках обновятся сразу
   }
 }
 

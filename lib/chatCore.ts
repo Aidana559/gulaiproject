@@ -132,6 +132,20 @@ export function openBook(
   return { db: put(db, { ...chat, messages: [...chat.messages, card] }), chatId: chat.id, added: true };
 }
 
+/**
+ * «Написать» из профиля: находит чат пары (один на двух пользователей) или готовит пустой.
+ * Если чат пары уже есть, второй не создаётся. Пустой чат в списках не виден (viewFor),
+ * пока в нём нет сообщений; переписка пары всегда одна и та же запись.
+ */
+export function openPair(
+  db: ChatDb,
+  args: { me: Party; peer: Party; now: string },
+): { db: ChatDb; chatId: string } {
+  const chat = findOrNew(db, args.me, args.peer, args.now);
+  const stored = db.chats.find((c) => c.id === chat.id);
+  return { db: chat === stored ? db : put(db, chat), chatId: chat.id };
+}
+
 export function addText(
   db: ChatDb,
   args: { chatId: string; meId: string; text: string; now: string; id: string },

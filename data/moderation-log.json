@@ -81,5 +81,44 @@
     "actorRole": "user",
     "stateAfter": "pending",
     "createdAt": "2026-11-14T18:25:33.890Z"
+  },
+  {
+    "id": "8dcf2842-5f1f-4b15-b345-da1a00a4a574",
+    "bookId": "2060",
+    "bookTitle": "The Return of Sherlock Holmes",
+    "authorId": "5a5ca32f-3441-46c5-864c-8e85858e2674",
+    "authorName": "Хуан",
+    "action": "approved",
+    "actorId": "79d7d016-d9b4-4268-ac07-5d7443632a45",
+    "actorName": "Gulbanu",
+    "actorRole": "moderator",
+    "stateAfter": "published",
+    "createdAt": "2026-11-14T18:59:01.503Z"
+  },
+  {
+    "id": "488649aa-a7c4-41d2-8634-efee6d80ed96",
+    "bookId": "2059",
+    "bookTitle": "Madness. A Jeff The Killer's story",
+    "authorId": "5a5ca32f-3441-46c5-864c-8e85858e2674",
+    "authorName": "Хуан",
+    "action": "approved",
+    "actorId": "79d7d016-d9b4-4268-ac07-5d7443632a45",
+    "actorName": "Gulbanu",
+    "actorRole": "moderator",
+    "stateAfter": "published",
+    "createdAt": "2026-11-14T18:59:05.331Z"
+  },
+  {
+    "id": "7545592b-6413-4fe0-93ce-f4d15a956b26",
+    "bookId": "2060",
+    "bookTitle": "The Return of Sherlock Holmes",
+    "authorId": "5a5ca32f-3441-46c5-864c-8e85858e2674",
+    "authorName": "Хуан",
+    "action": "hidden_by_owner",
+    "actorId": "5a5ca32f-3441-46c5-864c-8e85858e2674",
+    "actorName": "Хуан",
+    "actorRole": "user",
+    "stateAfter": "published",
+    "createdAt": "2026-11-14T19:03:44.221Z"
   }
 ]

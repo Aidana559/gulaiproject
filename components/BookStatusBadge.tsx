@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import type { Book, Status } from "@/data/books";
 import { statusLabels, statusStyles } from "@/data/books";
+import { subscribeBookingsChanged } from "@/lib/bookings-sync";
 
 type ServerMap = Record<string, "reserved" | "given">;
 
@@ -47,8 +48,11 @@ export function useServerStates(): ServerMap | null {
   useEffect(() => {
     listeners.add(setServer);
     refreshBookStates();
+    // бронь / выдачу / возврат сделали в другой вкладке — метки обновляются сразу
+    const off = subscribeBookingsChanged(() => void refreshBookStates(true));
     return () => {
       listeners.delete(setServer);
+      off();
     };
   }, []);
 

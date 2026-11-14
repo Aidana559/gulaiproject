@@ -15,6 +15,7 @@ import ReportButton from "@/components/ReportButton";
 import ReviewsSection from "@/components/ReviewsSection";
 import BookGuard from "@/components/BookGuard";
 import ContactOwnerButton from "@/components/ContactOwnerButton";
+import UserLink from "@/components/UserLink";
 import { listBooks } from "@/lib/books-store";
 import BookBorrowers from "@/components/BookBorrowers";
 import BookTabs from "@/components/BookTabs";
@@ -149,11 +150,15 @@ export default async function BookPage({ params }: { params: Promise<{ id: strin
           </dl>
 
           <div className="mt-6 flex items-center gap-3 text-sm text-stone-600">
-            <span className="flex size-10 items-center justify-center rounded-full bg-indigo-100 font-bold text-indigo-700">
-              {(book.owner || "?")[0]}
-            </span>
+            <UserLink userId={book.ownerId} className="shrink-0 rounded-full">
+              <span className="flex size-10 items-center justify-center rounded-full bg-indigo-100 font-bold text-indigo-700">
+                {(book.owner || "?")[0]}
+              </span>
+            </UserLink>
             <div>
-              <p className="font-medium text-stone-900">{book.owner}</p>
+              <p className="font-medium text-stone-900">
+                <UserLink userId={book.ownerId}>{book.owner}</UserLink>
+              </p>
               <p className="text-stone-500">
                 {[book.city, book.campus].filter(Boolean).join(" · ")}
               </p>

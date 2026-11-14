@@ -5,6 +5,7 @@ import { formatDate, txLabels, txStyles } from "@/data/transactions";
 import type { Review } from "@/lib/types";
 import BorrowerReview from "./BorrowerReview";
 import ReportButton from "./ReportButton";
+import UserLink from "./UserLink";
 
 function reliabilityStyle(r: Reliability) {
   if (r.percent == null) return "bg-stone-100 text-stone-600 ring-stone-500/20";
@@ -52,11 +53,15 @@ export default async function BookBorrowers({
           <li key={b.key} className="flex flex-col gap-3 p-4">
             <div className="flex items-start justify-between gap-3">
               <div className="flex min-w-0 items-center gap-3">
-                <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-indigo-100 font-bold text-indigo-700">
-                  {(b.name || "?")[0]}
-                </span>
+                <UserLink userId={b.userId} className="shrink-0 rounded-full">
+                  <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-indigo-100 font-bold text-indigo-700">
+                    {(b.name || "?")[0]}
+                  </span>
+                </UserLink>
                 <div className="min-w-0">
-                  <p className="truncate font-medium text-stone-900">{b.name}</p>
+                  <p className="truncate font-medium text-stone-900">
+                    <UserLink userId={b.userId}>{b.name}</UserLink>
+                  </p>
                   <p className="flex flex-wrap items-center gap-x-2 text-xs text-stone-500">
                     <span>
                       {formatDate(b.startDate)} – {formatDate(b.returnedAt ?? b.dueDate)}
