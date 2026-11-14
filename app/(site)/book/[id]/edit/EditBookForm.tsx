@@ -1,6 +1,6 @@
 "use client";
 
-import GenreSelect from "@/components/GenreSelect";
+import GenreMultiSelect from "@/components/GenreMultiSelect";
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
@@ -10,7 +10,7 @@ type Form = {
   title?: string;
   author?: string;
   description?: string;
-  genre?: string;
+  genres?: string[];
   category?: string;
   status?: string;
   city?: string;
@@ -43,7 +43,12 @@ export default function EditBookForm() {
           title: b.title,
           author: b.author,
           description: b.description,
-          genre: b.genre,
+          genres:
+            Array.isArray(b.genres) && b.genres.length
+              ? b.genres
+              : b.genre && b.genre !== "—"
+                ? [b.genre]
+                : [],
           category: b.category,
           status: b.status,
           city: b.city,
@@ -74,6 +79,7 @@ export default function EditBookForm() {
   if (!allowed) return <p className="p-6">Нет прав на редактирование.</p>;
 
   const set = (k: keyof Form, v: string) => setForm({ ...form, [k]: v });
+  const setGenres = (genres: string[]) => setForm({ ...form, genres });
 
   async function save(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -84,7 +90,10 @@ export default function EditBookForm() {
       fd.set("title", form!.title ?? "");
       fd.set("author", form!.author ?? "");
       fd.set("description", form!.description ?? "");
-      fd.set("genre", form!.genre ?? "");
+      // жанры: берём из состояния формы (можно добавлять и удалять, повторы отсекает сервер)
+      fd.delete("genres");
+      for (const g of form!.genres ?? []) fd.append("genres", g);
+      fd.set("genresPresent", "1");
       fd.set("category", form!.category ?? "book");
       fd.set("city", form!.city ?? "");
       fd.set("campus", form!.campus ?? "");
@@ -176,12 +185,8 @@ export default function EditBookForm() {
       </div>
 
       <div className={label}>
-        <label htmlFor="genre">Жанр / предмет</label>
-        <GenreSelect
-          className={input}
-          value={form.genre ?? ""}
-          onChange={(v) => set("genre", v)}
-        />
+        <label htmlFor="genres">Жанры / предметы (можно несколько)</label>
+        <GenreMultiSelect className={input} value={form.genres ?? []} onChange={setGenres} />
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">

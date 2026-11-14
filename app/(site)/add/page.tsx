@@ -5,10 +5,11 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
 import { Button } from "@/components/Button";
 import { inputClass } from "@/components/FormField";
-import GenreSelect from "@/components/GenreSelect";
+import GenreMultiSelect from "@/components/GenreMultiSelect";
 import GoogleBookSearch, { type GoogleBookHit } from "@/components/GoogleBookSearch";
 import { FiCheckCircle } from "react-icons/fi";
 import type { Category } from "@/data/books";
+import { categoryFromGoogle, genresFromGoogle, genresFromText } from "@/lib/google-genres";
 
 export default function AddPage() {
   const router = useRouter();
@@ -17,13 +18,14 @@ export default function AddPage() {
   const [error, setError] = useState("");
   const [done, setDone] = useState(false);
   const [createdId, setCreatedId] = useState<number | string | null>(null);
-  const [genre, setGenre] = useState("");
+  const [genres, setGenres] = useState<string[]>([]);
   const [title, setTitle] = useState("");
   const [author, setAuthor] = useState("");
   const [year, setYear] = useState("");
   const [pages, setPages] = useState("");
   const [description, setDescription] = useState("");
   const [coverUrl, setCoverUrl] = useState("");
+  const [category, setCategory] = useState<Category>("book");
 
   function fillFromGoogle(b: GoogleBookHit) {
     setTitle(b.title);
@@ -32,6 +34,14 @@ export default function AddPage() {
     setPages(b.pages ? String(b.pages) : "");
     setDescription(b.description.slice(0, 1000));
     setCoverUrl(b.cover);
+
+    // Жанры и категория подставляются сразу из данных Google Books
+    const cats = b.categories?.length ? b.categories : b.category ? [b.category] : [];
+    let found = genresFromGoogle(cats);
+    if (!found.length) found = genresFromText(`${b.title} ${b.description}`);
+    setGenres(found);
+    const cat = categoryFromGoogle(cats);
+    if (cat) setCategory(cat);
   }
 
   if (!authLoading && !user) {
@@ -134,24 +144,29 @@ export default function AddPage() {
           />
         </div>
 
-        <div className="grid gap-5 sm:grid-cols-2">
-          <div>
-            <label htmlFor="category" className="mb-1.5 block text-sm font-medium text-stone-700">
-              Категория
-            </label>
-            <select id="category" name="category" className={inputClass} defaultValue="book">
-              <option value="book">Книга</option>
-              <option value="textbook">Учебник</option>
-              <option value="guide">Методичка</option>
-              <option value="manga">Манга</option>
-            </select>
-          </div>
-          <div>
-            <label htmlFor="genre" className="mb-1.5 block text-sm font-medium text-stone-700">
-              Жанр / предмет
-            </label>
-            <GenreSelect value={genre} onChange={setGenre} />
-          </div>
+        <div>
+          <label htmlFor="category" className="mb-1.5 block text-sm font-medium text-stone-700">
+            Категория
+          </label>
+          <select
+            id="category"
+            name="category"
+            className={inputClass}
+            value={category}
+            onChange={(e) => setCategory(e.target.value as Category)}
+          >
+            <option value="book">Книга</option>
+            <option value="textbook">Учебник</option>
+            <option value="guide">Методичка</option>
+            <option value="manga">Манга</option>
+          </select>
+        </div>
+
+        <div>
+          <label htmlFor="genres" className="mb-1.5 block text-sm font-medium text-stone-700">
+            Жанры / предметы <span className="font-normal text-stone-400">(можно выбрать несколько)</span>
+          </label>
+          <GenreMultiSelect value={genres} onChange={setGenres} />
         </div>
 
         <div className="grid gap-5 sm:grid-cols-2">

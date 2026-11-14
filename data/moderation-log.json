@@ -1,0 +1,31 @@
+[
+  {
+    "id": "6b43ca58-d9b4-4563-82f2-daeb0b6e0bd8",
+    "bookId": "1002",
+    "bookTitle": "Махаббат пен романтикалық қарым-қатынастағы эмоционалды интеллект",
+    "authorId": "b7418835-56e3-44ef-b866-f57a78c2dbd2",
+    "authorName": "asd",
+    "action": "hidden",
+    "actorId": "c9d66741-f31e-41a2-9dba-71847b76d865",
+    "actorName": "айдана",
+    "actorRole": "admin",
+    "reason": "Некорректная информация о книге",
+    "until": "2026-11-21T12:30:06.642Z",
+    "stateAfter": "hidden",
+    "createdAt": "2026-11-14T12:30:06.664Z"
+  },
+  {
+    "id": "0f27fe3c-ad73-4633-9523-83245f56b305",
+    "bookId": "1001",
+    "bookTitle": "Махаббат, қызық мол жылдар",
+    "authorId": "b7418835-56e3-44ef-b866-f57a78c2dbd2",
+    "authorName": "asd",
+    "action": "deleted",
+    "actorId": "c9d66741-f31e-41a2-9dba-71847b76d865",
+    "actorName": "айдана",
+    "actorRole": "admin",
+    "reason": "Некорректная информация о книге",
+    "stateAfter": "deleted",
+    "createdAt": "2026-11-14T12:30:26.157Z"
+  }
+]

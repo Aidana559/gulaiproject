@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
 import Avatar from "@/components/Avatar";
 import { Button } from "@/components/Button";
+import MyListings from "@/components/MyListings";
 import { books } from "@/data/books";
 import { formatDate, txLabels, txStyles, type TxStatus } from "@/data/transactions";
 
@@ -355,6 +356,9 @@ export default function ProfilePage() {
           )
         )}
       </section>
+
+      {/* Мои объявления: статус, жанры, причины скрытия/удаления и ссылка на историю */}
+      <MyListings />
 
       {/* Брони — только у обычных пользователей (админ и модератор не бронируют) */}
       {user.role === "user" && (

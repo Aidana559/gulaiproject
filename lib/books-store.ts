@@ -1,7 +1,9 @@
 import { promises as fs } from "fs";
 import path from "path";
 import type { Book, Category, Status } from "@/data/books";
-import { readJson, writeJson, uid } from "./db";
+import { readJson, writeJson, uid, withLock } from "./db";
+import { MAX_GENRES, bookState } from "./moderation-shared";
+import { genresOf } from "./genres";
 
 export type Condition = "new" | "used" | "annotated";
 
@@ -21,6 +23,17 @@ export type ServerBook = Book & {
   createdAt?: string;
   hidden?: boolean;
   deleted?: boolean;
+  updatedAt?: string;
+  reviewed?: boolean;
+  moderationNote?: string;
+  /** до какого момента книга скрыта администрацией; пусто — бессрочно */
+  hiddenUntil?: string | null;
+  hiddenReason?: string;
+  hiddenAt?: string;
+  hiddenBy?: { id: string; name: string; role: string };
+  deletedAt?: string;
+  deletedReason?: string;
+  deletedBy?: { id: string; name: string; role: string };
 };
 
 const USER_FILE = "user-books.json";
@@ -42,11 +55,37 @@ async function readCatalog(): Promise<ServerBook[]> {
   return readJson<ServerBook[]>(CATALOG_FILE, []);
 }
 
-/** Все жанры книги (для старых записей без genres — единственный genre) */
-export function genresOf(b: { genre?: string; genres?: string[] }): string[] {
-  const list = (b.genres ?? []).filter((x) => x && x !== "—");
-  if (list.length) return list;
-  return b.genre && b.genre !== "—" ? [b.genre] : [];
+export { genresOf };
+
+/**
+ * Приводит список жанров к чистому виду: без пустых, «—» и повторов (без учёта регистра),
+ * не больше MAX_GENRES. Книга ↔ жанры — связь «многие ко многим»: у книги список жанров,
+ * одна и та же запись жанра может быть у любого числа книг.
+ */
+export function normalizeGenres(input: unknown): string[] {
+  const raw = Array.isArray(input) ? input : typeof input === "string" ? [input] : [];
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const x of raw) {
+    const g = String(x ?? "").trim().replace(/\s+/g, " ").slice(0, 60);
+    if (!g || g === "—") continue;
+    const k = g.toLowerCase();
+    if (seen.has(k)) continue;
+    seen.add(k);
+    out.push(g);
+    if (out.length >= MAX_GENRES) break;
+  }
+  return out;
+}
+
+/** Скрыта ли книга сейчас: учитывается срок временного скрытия (по истечении книга снова видна). */
+export function isHiddenNow(
+  b: { hidden?: boolean; hiddenUntil?: string | null },
+  now = Date.now(),
+): boolean {
+  if (!b.hidden) return false;
+  if (!b.hiddenUntil) return true;
+  return new Date(b.hiddenUntil).getTime() > now;
 }
 
 async function readUserBooks(): Promise<ServerBook[]> {
@@ -57,7 +96,9 @@ async function writeUserBooks(list: ServerBook[]) {
   await writeJson(USER_FILE, list);
 }
 
-export async function getAllBooks(opts: { includeHidden?: boolean } = {}): Promise<ServerBook[]> {
+export async function getAllBooks(
+  opts: { includeHidden?: boolean; includeDeleted?: boolean } = {},
+): Promise<ServerBook[]> {
   const user = await readUserBooks();
   const staticMapped: ServerBook[] = (await readCatalog()).map((b) => ({
     ...b,
@@ -71,33 +112,42 @@ export async function getAllBooks(opts: { includeHidden?: boolean } = {}): Promi
   for (const b of staticMapped) byId.set(String(b.id), b);
   for (const b of user) byId.set(String(b.id), b);
 
+  const now = Date.now();
   return Array.from(byId.values()).filter(
-    (b) => !b.deleted && (opts.includeHidden || !b.hidden),
+    (b) =>
+      (opts.includeDeleted || !b.deleted) && (opts.includeHidden || !isHiddenNow(b, now)),
   );
 }
 
 export async function getBook(
   id: string,
-  opts: { includeHidden?: boolean } = {},
+  opts: { includeHidden?: boolean; includeDeleted?: boolean } = {},
 ): Promise<ServerBook | undefined> {
-  const all = await getAllBooks({ includeHidden: true });
+  const all = await getAllBooks({ includeHidden: true, includeDeleted: true });
   const book = all.find((b) => String(b.id) === String(id));
-  if (!book || book.deleted) return undefined;
-  if (book.hidden && !opts.includeHidden) return undefined;
+  if (!book) return undefined;
+  if (book.deleted && !opts.includeDeleted) return undefined;
+  if (isHiddenNow(book) && !opts.includeHidden) return undefined;
   return book;
 }
 
 export type ListQuery = {
   q?: string;
   category?: string;
-  genre?: string;
+  /** один жанр или несколько: книга должна относиться ко ВСЕМ выбранным жанрам */
+  genre?: string | string[];
   author?: string;
   year?: number;
   status?: string;
+  /** фильтр по состоянию модерации (для панелей администрации и «Моих объявлений») */
+  state?: "published" | "pending" | "hidden" | "deleted" | "all";
+  /** только книги этого владельца (id или имя) */
+  owner?: { id: string; name?: string };
   sort?: "title" | "new" | "popular";
   page?: number;
   limit?: number;
   includeHidden?: boolean;
+  includeDeleted?: boolean;
 };
 
 export type ListResult = {
@@ -111,14 +161,32 @@ export type ListResult = {
 };
 
 export async function listBooks(query: ListQuery): Promise<ListResult> {
-  let list = await getAllBooks({ includeHidden: query.includeHidden });
+  let list = await getAllBooks({
+    includeHidden: query.includeHidden,
+    includeDeleted: query.includeDeleted,
+  });
+
+  if (query.owner) {
+    const { id: oid, name: oname } = query.owner;
+    list = list.filter(
+      (b) =>
+        (b.ownerId != null && String(b.ownerId) === String(oid)) ||
+        (!!oname && b.owner === oname),
+    );
+  }
+  if (query.state && query.state !== "all") {
+    const want = query.state;
+    list = list.filter((b) => bookState(b) === want);
+  }
 
   const q = (query.q ?? "").trim().toLowerCase();
   if (q) {
+    // поиск по названию, автору и по любому из жанров книги
     list = list.filter(
       (b) =>
         b.title.toLowerCase().includes(q) ||
-        b.author.toLowerCase().includes(q),
+        b.author.toLowerCase().includes(q) ||
+        genresOf(b).some((g) => g.toLowerCase().includes(q)),
     );
   }
   if (query.category && query.category !== "all") {
@@ -140,9 +208,15 @@ export async function listBooks(query: ListQuery): Promise<ListResult> {
     a.localeCompare(b, "ru"),
   );
 
-  if (query.genre && query.genre !== "all") {
-    const wanted = query.genre;
-    list = list.filter((b) => genresOf(b).includes(wanted));
+  const wantedGenres = (Array.isArray(query.genre) ? query.genre : [query.genre ?? ""])
+    .map((g) => g.trim())
+    .filter((g) => g && g !== "all");
+  if (wantedGenres.length) {
+    // книга попадает в выдачу, если у неё есть каждый из выбранных жанров
+    list = list.filter((b) => {
+      const have = genresOf(b).map((g) => g.toLowerCase());
+      return wantedGenres.every((w) => have.includes(w.toLowerCase()));
+    });
   }
 
   const sort = query.sort ?? "title";
@@ -173,7 +247,9 @@ export type CreateBookInput = {
   title: string;
   author: string;
   category: Category;
+  /** устаревший одиночный жанр — используется, если genres не передан */
   genre?: string;
+  genres?: string[];
   year?: number;
   pages?: number;
   city?: string;
@@ -185,22 +261,29 @@ export type CreateBookInput = {
   ownerName: string;
 };
 
-export async function createBook(input: CreateBookInput): Promise<ServerBook> {
+export function createBook(input: CreateBookInput): Promise<ServerBook> {
+  return withLock("user-books", () => createBookUnlocked(input));
+}
+
+async function createBookUnlocked(input: CreateBookInput): Promise<ServerBook> {
   const user = await readUserBooks();
-  const all = await getAllBooks({ includeHidden: true });
+  // удалённые тоже учитываем, чтобы id никогда не повторялся
+  const all = await getAllBooks({ includeHidden: true, includeDeleted: true });
   const maxNum = all.reduce((m, b) => {
     const n = Number(b.id);
     return Number.isFinite(n) ? Math.max(m, n) : m;
   }, 1000);
   const id = maxNum + 1;
+  const genres = normalizeGenres(input.genres ?? input.genre);
+  const now = new Date().toISOString();
 
   const book: ServerBook = {
     id,
     title: input.title.trim(),
     author: input.author.trim(),
     category: input.category,
-    genre: (input.genre ?? "").trim() || "—",
-    genres: (input.genre ?? "").trim() ? [(input.genre ?? "").trim()] : [],
+    genre: genres[0] ?? "—",
+    genres,
     year: input.year || new Date().getFullYear(),
     pages: input.pages || 0,
     city: (input.city ?? "").trim() || "—",
@@ -213,9 +296,11 @@ export async function createBook(input: CreateBookInput): Promise<ServerBook> {
     gradient: GRADIENTS[id % GRADIENTS.length],
     coverUrl: input.coverUrl ?? null,
     views: 0,
-    createdAt: new Date().toISOString(),
+    createdAt: now,
+    updatedAt: now,
     hidden: false,
     deleted: false,
+    reviewed: false,
   };
 
   user.unshift(book);
@@ -225,7 +310,11 @@ export async function createBook(input: CreateBookInput): Promise<ServerBook> {
 
 /** Если сменили основной жанр — список жанров подстраиваем, не теряя остальные */
 function withGenres(current: ServerBook, patch: Partial<ServerBook>): Partial<ServerBook> {
-  if (typeof patch.genre !== "string" || patch.genres) return patch;
+  if (Array.isArray(patch.genres)) {
+    const list = normalizeGenres(patch.genres);
+    return { ...patch, genres: list, genre: list[0] ?? "—" };
+  }
+  if (typeof patch.genre !== "string") return patch;
   const list = genresOf(current);
   if (list.includes(patch.genre)) {
     return { ...patch, genres: [patch.genre, ...list.filter((g) => g !== patch.genre)] };
@@ -233,7 +322,15 @@ function withGenres(current: ServerBook, patch: Partial<ServerBook>): Partial<Se
   return { ...patch, genres: patch.genre && patch.genre !== "—" ? [patch.genre] : [] };
 }
 
-export async function patchBook(
+export function patchBook(
+  id: string,
+  patch: Partial<ServerBook>,
+): Promise<ServerBook | undefined> {
+  // файловое хранилище не атомарно: сериализуем чтение-изменение-запись
+  return withLock("user-books", () => patchBookUnlocked(id, patch));
+}
+
+async function patchBookUnlocked(
   id: string,
   patch: Partial<ServerBook>,
 ): Promise<ServerBook | undefined> {
@@ -241,7 +338,7 @@ export async function patchBook(
   const idx = user.findIndex((b) => String(b.id) === String(id));
 
   if (idx >= 0) {
-    user[idx] = { ...user[idx], ...withGenres(user[idx], patch) };
+    user[idx] = { ...user[idx], ...withGenres(user[idx], patch), updatedAt: new Date().toISOString() };
     await writeUserBooks(user);
     return user[idx];
   }
@@ -254,6 +351,7 @@ export async function patchBook(
     views: base.views ?? 0,
     createdAt: base.createdAt ?? "2026-01-01T00:00:00.000Z",
     ...withGenres(base, patch),
+    updatedAt: new Date().toISOString(),
   };
   user.unshift(merged);
   await writeUserBooks(user);
@@ -265,9 +363,24 @@ export async function softDeleteBook(id: string) {
 }
 
 export async function incrementViews(id: string) {
-  const book = await getBook(id, { includeHidden: true });
-  if (!book) return;
-  await patchBook(id, { views: (book.views ?? 0) + 1 });
+  // счётчик просмотров не считается правкой книги — updatedAt не трогаем
+  await withLock("user-books", async () => {
+    const user = await readUserBooks();
+    const idx = user.findIndex((b) => String(b.id) === String(id));
+    if (idx >= 0) {
+      user[idx] = { ...user[idx], views: (user[idx].views ?? 0) + 1 };
+      await writeUserBooks(user);
+      return;
+    }
+    const base = (await readCatalog()).find((b) => String(b.id) === String(id));
+    if (!base) return;
+    user.unshift({
+      ...base,
+      views: (base.views ?? 0) + 1,
+      createdAt: base.createdAt ?? "2026-01-01T00:00:00.000Z",
+    });
+    await writeUserBooks(user);
+  });
 }
 
 

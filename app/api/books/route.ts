@@ -2,10 +2,12 @@ import { NextResponse } from "next/server";
 import {
   createBook,
   listBooks,
+  normalizeGenres,
   saveCoverFile,
   type Condition,
 } from "@/lib/books-store";
 import { bad, getActor, isStaff, unauthorized } from "@/lib/server-auth";
+import { sweepExpiredHides } from "@/lib/moderation";
 import { isMutedNow, muteLabel } from "@/lib/mute";
 import type { Category } from "@/data/books";
 import { ensureCatalog } from "@/lib/catalog-loader";
@@ -15,14 +17,28 @@ export async function GET(req: Request) {
   // Когда каталог полный, вызов мгновенный и в сеть не ходит.
   await Promise.race([ensureCatalog(), new Promise((r) => setTimeout(r, 25000))]);
 
+  // книги с истёкшим сроком скрытия возвращаются в каталог (и автору уходит уведомление)
+  await sweepExpiredHides().catch(() => 0);
+
   const sp = new URL(req.url).searchParams;
   const actor = await getActor(req);
-  const includeHidden = sp.get("all") === "1" && !!actor && isStaff(actor);
+  const staffAll = sp.get("all") === "1" && !!actor && isStaff(actor);
+  // mine=1 — «Мои объявления»: свои книги в любом состоянии (скрытые и удалённые тоже)
+  const mine = sp.get("mine") === "1" && !!actor;
+  const includeHidden = staffAll || mine;
+  const stateParam = sp.get("state") ?? undefined;
+  const state = (["published", "pending", "hidden", "deleted", "all"] as const).find((x) => x === stateParam);
+  // удалённые отдаём только по явному запросу администрации (state=deleted|all) или автору (mine=1)
+  const includeDeleted = mine || (staffAll && (state === "deleted" || state === "all"));
 
   const result = await listBooks({
     q: sp.get("q") ?? undefined,
     category: sp.get("category") ?? undefined,
-    genre: sp.get("genre") ?? undefined,
+    // жанр можно повторять: ?genre=Фэнтези&genre=Романтика — нужны книги со всеми жанрами
+    genre: sp.getAll("genre"),
+    state: includeHidden ? state : undefined,
+    owner: mine && actor ? { id: String(actor.id), name: actor.name } : undefined,
+    includeDeleted,
     author: sp.get("author") ?? undefined,
     year: Number(sp.get("year")) || undefined,
     status: sp.get("status") ?? undefined,
@@ -52,7 +68,7 @@ export async function POST(req: Request) {
     let title = "";
     let author = "";
     let category: Category = "book";
-    let genre = "";
+    let genres: string[] = [];
     let year: number | undefined;
     let pages: number | undefined;
     let city = "";
@@ -66,7 +82,7 @@ export async function POST(req: Request) {
       title = String(fd.get("title") ?? "").trim();
       author = String(fd.get("author") ?? "").trim();
       category = (String(fd.get("category") ?? "book") as Category) || "book";
-      genre = String(fd.get("genre") ?? "").trim();
+      genres = normalizeGenres([...fd.getAll("genres"), ...(fd.has("genres") ? [] : fd.getAll("genre"))].map(String));
       const yearRaw = String(fd.get("year") ?? "");
       const pagesRaw = String(fd.get("pages") ?? "");
       year = yearRaw ? Number(yearRaw) : undefined;
@@ -87,7 +103,7 @@ export async function POST(req: Request) {
       title = String(body.title ?? "").trim();
       author = String(body.author ?? "").trim();
       category = (body.category as Category) || "book";
-      genre = String(body.genre ?? "").trim();
+      genres = normalizeGenres(body.genres ?? body.genre);
       year = body.year ? Number(body.year) : undefined;
       pages = body.pages ? Number(body.pages) : undefined;
       city = String(body.city ?? "").trim();
@@ -110,7 +126,7 @@ export async function POST(req: Request) {
       title,
       author,
       category,
-      genre,
+      genres,
       year,
       pages,
       city,

@@ -2,10 +2,10 @@ import { NextResponse } from "next/server";
 import {
   getBook,
   incrementViews,
+  isHiddenNow,
+  normalizeGenres,
   patchBook,
   saveCoverFile,
-  softDeleteBook,
-  type Condition,
 } from "@/lib/books-store";
 import { readJson, writeJson } from "@/lib/db";
 import {
@@ -16,8 +16,17 @@ import {
   isStaff,
   unauthorized,
 } from "@/lib/server-auth";
-import { notify, resolveUserId } from "@/lib/notifications";
-import type { Report, Review } from "@/lib/types";
+import {
+  approveBook,
+  deleteBook,
+  hideBook,
+  restoreBook,
+  sweepExpiredHides,
+  unhideBook,
+  type Actor,
+} from "@/lib/moderation";
+import { REASON_MAX, REASON_MIN } from "@/lib/moderation-shared";
+import type { Report, Review, User } from "@/lib/types";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -25,7 +34,6 @@ const EDITABLE = [
   "title",
   "author",
   "description",
-  "genre",
   "category",
   "condition",
   "status",
@@ -36,17 +44,50 @@ const EDITABLE = [
   "pages",
 ] as const;
 
+const MAX_HIDE_DAYS = 730;
+
+const toActor = (u: User): Actor => ({
+  id: String(u.id),
+  name: u.name,
+  role: u.role,
+});
+
+/** Срок скрытия: hiddenUntil (ISO-дата) или hideDays. Пусто/null — бессрочно. */
+function parseUntil(body: { hiddenUntil?: unknown; hideDays?: unknown }): {
+  until: string | null;
+  error?: string;
+} {
+  if (body.hiddenUntil != null && body.hiddenUntil !== "") {
+    const t = new Date(String(body.hiddenUntil)).getTime();
+    if (Number.isNaN(t)) return { until: null, error: "Неверная дата окончания скрытия" };
+    if (t <= Date.now()) return { until: null, error: "Дата окончания скрытия должна быть в будущем" };
+    if (t - Date.now() > MAX_HIDE_DAYS * 86_400_000) {
+      return { until: null, error: `Скрыть можно не более чем на ${MAX_HIDE_DAYS} дней` };
+    }
+    return { until: new Date(t).toISOString() };
+  }
+  const days = Number(body.hideDays);
+  if (body.hideDays != null && body.hideDays !== "" && Number.isFinite(days) && days > 0) {
+    if (days > MAX_HIDE_DAYS) return { until: null, error: `Скрыть можно не более чем на ${MAX_HIDE_DAYS} дней` };
+    return { until: new Date(Date.now() + days * 86_400_000).toISOString() };
+  }
+  return { until: null };
+}
+
+const asBool = (v: unknown) => v === true || v === "true" || v === "1" || v === 1;
+
 export async function GET(req: Request, { params }: Ctx) {
   const { id } = await params;
   const sp = new URL(req.url).searchParams;
   const countView = sp.get("view") !== "0";
 
+  await sweepExpiredHides().catch(() => 0);
   const actor = await getActor(req);
   const book = await getBook(id, { includeHidden: true });
   if (!book || book.deleted) {
     return NextResponse.json({ error: "Не найдено" }, { status: 404 });
   }
-  if (book.hidden) {
+  if (isHiddenNow(book)) {
     if (!actor || (!isStaff(actor) && !isOwner(book, actor))) {
       return NextResponse.json({ error: "Не найдено" }, { status: 404 });
     }
@@ -65,15 +106,25 @@ export async function PATCH(req: Request, { params }: Ctx) {
   const actor = await getActor(req);
   if (!actor) return unauthorized();
 
-  const book = await getBook(id, { includeHidden: true });
-  if (!book || book.deleted) {
-    return NextResponse.json({ error: "Не найдено" }, { status: 404 });
-  }
-  if (!isOwner(book, actor) && !isStaff(actor)) return forbidden();
+  const book = await getBook(id, { includeHidden: true, includeDeleted: true });
+  if (!book) return NextResponse.json({ error: "Не найдено" }, { status: 404 });
+  const staff = isStaff(actor);
+  if (!isOwner(book, actor) && !staff) return forbidden();
+  // удалённую книгу можно только восстановить, и только администрации
+  if (book.deleted && !staff) return NextResponse.json({ error: "Не найдено" }, { status: 404 });
 
   try {
     const contentType = req.headers.get("content-type") ?? "";
     const patch: Record<string, unknown> = {};
+    // действия администрации — отдельно от обычной правки полей
+    const mod: {
+      hidden?: boolean;
+      hiddenUntil?: unknown;
+      hideDays?: unknown;
+      reason?: string;
+      reviewed?: boolean;
+      restore?: boolean;
+    } = {};
 
     if (contentType.includes("multipart/form-data")) {
       const fd = await req.formData();
@@ -83,8 +134,15 @@ export async function PATCH(req: Request, { params }: Ctx) {
           patch[k] = typeof v === "string" ? v.trim().slice(0, 2000) : v;
         }
       }
-      if (fd.has("hidden") && isStaff(actor)) {
-        patch.hidden = String(fd.get("hidden")) === "true" || fd.get("hidden") === "1";
+      // жанры: несколько значений genres (+ признак, что список отправлен, даже если он пуст)
+      if (fd.has("genresPresent") || fd.has("genres")) {
+        patch.genres = normalizeGenres(fd.getAll("genres").map(String));
+      } else if (fd.has("genre")) {
+        patch.genres = normalizeGenres(String(fd.get("genre") ?? ""));
+      }
+      if (fd.has("hidden")) {
+        if (!staff) return forbidden();
+        mod.hidden = asBool(fd.get("hidden"));
       }
       const file = fd.get("cover");
       if (file && file instanceof File && file.size > 0) {
@@ -99,18 +157,19 @@ export async function PATCH(req: Request, { params }: Ctx) {
             typeof body[k] === "string" ? body[k].trim().slice(0, 2000) : body[k];
         }
       }
-      if ("hidden" in body) {
-        if (!isStaff(actor)) return forbidden();
-        patch.hidden = !!body.hidden;
-      }
-      if ("reviewed" in body) {
-        if (!isStaff(actor)) return forbidden();
-        patch.reviewed = !!body.reviewed;
-      }
-      if ("moderationNote" in body) {
-        if (!isStaff(actor)) return forbidden();
-        patch.moderationNote = String(body.moderationNote ?? "").trim().slice(0, 500) || undefined;
-      }
+      if ("genres" in body) patch.genres = normalizeGenres(body.genres);
+      else if ("genre" in body) patch.genres = normalizeGenres(body.genre);
+
+      const staffOnly = ["hidden", "reviewed", "moderationNote", "restore", "reason", "hiddenUntil", "hideDays"];
+      if (staffOnly.some((k) => k in body) && !staff) return forbidden();
+      if ("hidden" in body) mod.hidden = asBool(body.hidden);
+      if ("reviewed" in body) mod.reviewed = asBool(body.reviewed);
+      if ("restore" in body) mod.restore = asBool(body.restore);
+      mod.hiddenUntil = body.hiddenUntil;
+      mod.hideDays = body.hideDays;
+      // moderationNote — прежнее имя поля причины (очередь модератора)
+      const rawReason = body.reason ?? body.moderationNote;
+      if (rawReason != null) mod.reason = String(rawReason).trim().slice(0, REASON_MAX);
       if ("coverUrl" in body) patch.coverUrl = body.coverUrl;
     }
 
@@ -126,21 +185,42 @@ export async function PATCH(req: Request, { params }: Ctx) {
       return bad("Название не может быть пустым");
     }
 
-    const updated = await patchBook(id, patch as Partial<typeof book>);
+    const who = toActor(actor);
 
-    if (typeof patch.hidden === "boolean" && patch.hidden !== !!book.hidden && !isOwner(book, actor)) {
-      const ownerUserId = await resolveUserId({ ownerId: book.ownerId, ownerName: book.owner });
-      const note = typeof patch.moderationNote === "string" && patch.moderationNote ? ` Причина: ${patch.moderationNote}.` : "";
-      await notify(ownerUserId, {
-        type: "moderation",
-        text: patch.hidden
-          ? `Модератор скрыл ваше объявление «${book.title}».${note}`
-          : `Ваше объявление «${book.title}» снова опубликовано.`,
-        href: patch.hidden ? "/profile" : `/book/${id}`,
-      });
+    // удалённая книга: единственное допустимое действие — восстановление
+    if (book.deleted) {
+      if (!mod.restore) return NextResponse.json({ error: "Книга удалена" }, { status: 409 });
+      await restoreBook(book, who, { reason: mod.reason });
+      return NextResponse.json(await getBook(id, { includeHidden: true }));
+    }
+    if (mod.restore) return bad("Книга не удалена");
+
+    // валидация действий администрации — до любых изменений
+    let until: string | null = null;
+    if (mod.hidden === true) {
+      if (!mod.reason || mod.reason.length < REASON_MIN) {
+        return bad(`Укажите причину скрытия (не короче ${REASON_MIN} символов)`);
+      }
+      const u = parseUntil(mod);
+      if (u.error) return bad(u.error);
+      until = u.until;
     }
 
-    return NextResponse.json(updated);
+    if (Object.keys(patch).length) await patchBook(id, patch as Partial<typeof book>);
+
+    if (mod.hidden === true) {
+      await hideBook(book, who, { reason: mod.reason, until });
+      if (mod.reviewed === true && !book.reviewed) await patchBook(id, { reviewed: true });
+    } else if (mod.hidden === false) {
+      await unhideBook(book, who, { reason: mod.reason });
+      if (mod.reviewed === true && !book.reviewed) await approveBook(book, who);
+    } else if (mod.reviewed === true) {
+      await approveBook(book, who);
+    } else if (mod.reviewed === false) {
+      await patchBook(id, { reviewed: false });
+    }
+
+    return NextResponse.json(await getBook(id, { includeHidden: true }));
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : "Ошибка";
     return bad(msg);
@@ -154,27 +234,31 @@ export async function DELETE(req: Request, { params }: Ctx) {
 
   const book = await getBook(id, { includeHidden: true });
   if (!book) return NextResponse.json({ error: "Не найдено" }, { status: 404 });
-  if (!isOwner(book, actor) && !isStaff(actor)) return forbidden();
+  const mine = isOwner(book, actor);
+  if (!mine && !isStaff(actor)) return forbidden();
 
-  await softDeleteBook(id);
-
-  if (!isOwner(book, actor)) {
-    await notify(await resolveUserId({ ownerId: book.ownerId, ownerName: book.owner }), {
-      type: "moderation",
-      text: `Модератор удалил ваше объявление «${book.title}».`,
-    });
+  const body = (await req.json().catch(() => ({}))) as { reason?: unknown };
+  const reason = String(body.reason ?? "").trim().slice(0, REASON_MAX);
+  if (!mine && reason.length < REASON_MIN) {
+    return bad(`Укажите причину удаления (не короче ${REASON_MIN} символов)`);
   }
 
-  const reviews = await readJson<Review[]>("reviews.json", []);
-  await writeJson(
-    "reviews.json",
-    reviews.filter((r) => !(r.targetType === "book" && r.targetId === id)),
-  );
-  const reports = await readJson<Report[]>("reports.json", []);
-  await writeJson(
-    "reports.json",
-    reports.filter((r) => r.bookId !== id),
-  );
+  await deleteBook(book, toActor(actor), { reason });
+
+  // Автор удаляет своё объявление — как раньше, вместе с отзывами и жалобами.
+  // Администрация удаляет «мягко»: отзывы и жалобы остаются, чтобы книгу можно было восстановить.
+  if (mine) {
+    const reviews = await readJson<Review[]>("reviews.json", []);
+    await writeJson(
+      "reviews.json",
+      reviews.filter((r) => !(r.targetType === "book" && r.targetId === id)),
+    );
+    const reports = await readJson<Report[]>("reports.json", []);
+    await writeJson(
+      "reports.json",
+      reports.filter((r) => r.bookId !== id),
+    );
+  }
 
   return NextResponse.json({ ok: true });
 }

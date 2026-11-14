@@ -51,6 +51,7 @@ export async function GET(req: Request) {
           pages: i.pageCount || undefined,
           description: i.description ?? "",
           category: i.categories?.[0] ?? "",
+          categories: i.categories ?? [],
           cover: thumb,
         };
       })

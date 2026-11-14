@@ -51,7 +51,9 @@ export default function CatalogView() {
 
   const query = searchParams.get("q") ?? "";
   const category = (searchParams.get("category") as Category | "all") || "all";
-  const genre = searchParams.get("genre") ?? "all";
+  // жанров можно выбрать несколько (?genre=A&genre=B): показываются книги со всеми выбранными жанрами
+  const selectedGenres = searchParams.getAll("genre").filter((g) => g && g !== "all");
+  const genreKey = selectedGenres.join("\u0001");
   const author = searchParams.get("author") ?? "";
   const year = Number(searchParams.get("year")) || 0;
   const status = (searchParams.get("status") as Status | "all") || "all";
@@ -62,11 +64,12 @@ export default function CatalogView() {
   const [loading, setLoading] = useState(true);
 
   const setParams = useCallback(
-    (patch: Record<string, string | null>) => {
+    (patch: Record<string, string | string[] | null>) => {
       const sp = new URLSearchParams(searchParams.toString());
       for (const [k, v] of Object.entries(patch)) {
-        if (v == null || v === "" || v === "all") sp.delete(k);
-        else sp.set(k, v);
+        sp.delete(k);
+        if (Array.isArray(v)) v.filter(Boolean).forEach((x) => sp.append(k, x));
+        else if (!(v == null || v === "" || v === "all")) sp.set(k, v);
       }
       if (!("page" in patch)) sp.delete("page"); // сброс страницы при смене фильтра
       const qs = sp.toString();
@@ -81,7 +84,7 @@ export default function CatalogView() {
     const sp = new URLSearchParams();
     if (query) sp.set("q", query);
     if (category !== "all") sp.set("category", category);
-    if (genre !== "all") sp.set("genre", genre);
+    for (const g of genreKey ? genreKey.split("\u0001") : []) sp.append("genre", g);
     if (author) sp.set("author", author);
     if (year) sp.set("year", String(year));
     if (status !== "all") sp.set("status", status);
@@ -103,7 +106,7 @@ export default function CatalogView() {
     return () => {
       cancelled = true;
     };
-  }, [query, category, genre, author, year, status, sort, page]);
+  }, [query, category, genreKey, author, year, status, sort, page]);
 
   function reset() {
     router.push(pathname);
@@ -112,9 +115,13 @@ export default function CatalogView() {
   const books = data?.books ?? [];
   // жанры берём из реальных книг выбранной категории; выбранный жанр показываем всегда,
   // чтобы его можно было снять
-  const genres = Array.from(new Set([...(data?.genres ?? []), ...(genre !== "all" ? [genre] : [])])).sort(
-    (a, b) => a.localeCompare(b, "ru"),
+  const genres = Array.from(new Set([...(data?.genres ?? []), ...selectedGenres])).sort((a, b) =>
+    a.localeCompare(b, "ru"),
   );
+  const toggleGenre = (g: string) =>
+    setParams({
+      genre: selectedGenres.includes(g) ? selectedGenres.filter((x) => x !== g) : [...selectedGenres, g],
+    });
   const total = data?.total ?? 0;
   const pages = data?.pages ?? 1;
 
@@ -174,13 +181,15 @@ export default function CatalogView() {
       </div>
 
       <div className="mt-4" role="group" aria-label="Жанр">
-        <p className="mb-2 text-xs font-medium uppercase tracking-wide text-stone-400">Жанр</p>
+        <p className="mb-2 text-xs font-medium uppercase tracking-wide text-stone-400">
+          Жанр <span className="normal-case tracking-normal">· можно выбрать несколько</span>
+        </p>
         <div className="flex flex-wrap gap-2">
           <button
             type="button"
             onClick={() => setParams({ genre: null })}
-            aria-pressed={genre === "all"}
-            className={chipClass(genre === "all")}
+            aria-pressed={selectedGenres.length === 0}
+            className={chipClass(selectedGenres.length === 0)}
           >
             Все жанры
           </button>
@@ -188,9 +197,9 @@ export default function CatalogView() {
             <button
               key={g}
               type="button"
-              onClick={() => setParams({ genre: genre === g ? null : g })}
-              aria-pressed={genre === g}
-              className={chipClass(genre === g)}
+              onClick={() => toggleGenre(g)}
+              aria-pressed={selectedGenres.includes(g)}
+              className={chipClass(selectedGenres.includes(g))}
             >
               {g}
             </button>

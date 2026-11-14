@@ -1,7 +1,10 @@
 import { readJson, uid, writeJson } from "@/lib/db";
 import { listUsers } from "@/lib/auth";
+import type { ModerationEntry } from "@/lib/moderation-shared";
 
 const FILE = "notifications.json";
+// Лимит хранения касается только обычных уведомлений (брони, напоминания).
+// Уведомления о модерации — это история действий над книгами автора, они не удаляются.
 const MAX_PER_USER = 50;
 
 export type NotificationType = "booking" | "return" | "moderation" | "info";
@@ -15,6 +18,8 @@ export type Notification = {
   read: boolean;
   createdAt: string;
   key?: string;
+  /** для type = "moderation": полная запись о действии администрации */
+  moderation?: ModerationEntry;
 };
 
 let lock: Promise<unknown> = Promise.resolve();
@@ -26,7 +31,13 @@ function withLock<T>(fn: () => Promise<T>): Promise<T> {
 
 export async function notify(
   userId: string | undefined | null,
-  n: { type: NotificationType; text: string; href?: string; key?: string },
+  n: {
+    type: NotificationType;
+    text: string;
+    href?: string;
+    key?: string;
+    moderation?: ModerationEntry;
+  },
 ) {
   if (!userId) return;
   try {
@@ -40,10 +51,11 @@ export async function notify(
         text: n.text,
         href: n.href,
         key: n.key,
+        moderation: n.moderation,
         read: false,
         createdAt: new Date().toISOString(),
       });
-      const mine = all.filter((x) => x.userId === String(userId));
+      const mine = all.filter((x) => x.userId === String(userId) && x.type !== "moderation");
       const drop = new Set(
         mine
           .sort((a, b) => b.createdAt.localeCompare(a.createdAt))

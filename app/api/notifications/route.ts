@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getBookingsByUser } from "@/lib/bookings";
 import { listFor, markRead, notify } from "@/lib/notifications";
 import { bad, getActor, unauthorized } from "@/lib/server-auth";
+import { sweepExpiredHides } from "@/lib/moderation";
 
 const dayStr = (d: Date) => d.toISOString().slice(0, 10);
 
@@ -40,10 +41,13 @@ export async function GET(req: Request) {
   const actor = await getActor(req);
   if (!actor) return unauthorized();
 
+  await sweepExpiredHides().catch(() => 0);
   await ensureDueReminders(String(actor.id));
   const items = await listFor(String(actor.id));
+  // all=1 — полная история уведомлений (страница /notifications); колокольчик берёт последние 30
+  const all = new URL(req.url).searchParams.get("all") === "1";
   return NextResponse.json(
-    { items: items.slice(0, 30), unread: items.filter((n) => !n.read).length },
+    { items: all ? items : items.slice(0, 30), unread: items.filter((n) => !n.read).length, total: items.length },
     { headers: { "Cache-Control": "no-store" } },
   );
 }

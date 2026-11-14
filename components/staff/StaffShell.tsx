@@ -7,6 +7,7 @@ import {
   FiAlertTriangle,
   FiArrowLeft,
   FiBook,
+  FiClock,
   FiGrid,
   FiHome,
   FiInbox,
@@ -31,6 +32,7 @@ const MENUS: Record<StaffRole, { title: string; base: string; items: MenuItem[] 
       { slug: "reports", label: "Жалобы", Icon: FiAlertTriangle },
       { slug: "users", label: "Пользователи", Icon: FiUsers },
       { slug: "books", label: "Объявления", Icon: FiBook },
+      { slug: "log", label: "Журнал действий", Icon: FiClock },
       { slug: "categories", label: "Категории", Icon: FiGrid },
       { slug: "genres", label: "Жанры", Icon: FiTag },
     ],
@@ -43,6 +45,7 @@ const MENUS: Record<StaffRole, { title: string; base: string; items: MenuItem[] 
       { slug: "reports", label: "Жалобы", Icon: FiAlertTriangle },
       { slug: "users", label: "Пользователи (mute)", Icon: FiUsers },
       { slug: "books", label: "Объявления", Icon: FiBook },
+      { slug: "log", label: "Журнал действий", Icon: FiClock },
     ],
   },
 };

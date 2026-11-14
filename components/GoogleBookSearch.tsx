@@ -11,6 +11,7 @@ export type GoogleBookHit = {
   pages?: number;
   description: string;
   category: string;
+  categories?: string[];
   cover: string;
 };
 

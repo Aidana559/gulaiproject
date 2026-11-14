@@ -3,7 +3,7 @@ export const instant = false;
 import Link from "next/link";
 import PageTitle from "@/components/staff/PageTitle";
 import { categoryLabels, type Category } from "@/data/books";
-import { getAllBooks } from "@/lib/books-store";
+import { getAllBooks, isHiddenNow } from "@/lib/books-store";
 import { readJson } from "@/lib/db";
 import { TARGET_LABEL } from "@/lib/reports";
 import type { Report } from "@/lib/types";
@@ -45,7 +45,7 @@ export default async function AdminOverviewPage() {
       value: users.length,
       sub: `заблокировано: ${users.filter((u) => u.blocked).length} · mute: ${users.filter((u) => u.muted).length}`,
     },
-    { label: "Объявления", value: books.length, sub: `скрыто: ${books.filter((b) => b.hidden).length}` },
+    { label: "Объявления", value: books.length, sub: `скрыто: ${books.filter((b) => isHiddenNow(b)).length}` },
     { label: "Открытые жалобы", value: openReports.length, sub: `всего жалоб: ${reports.length}`, accent: true },
     { label: "Брони", value: reserved, sub: "ждут выдачи" },
     { label: "На руках", value: onHands, sub: "книги выданы" },

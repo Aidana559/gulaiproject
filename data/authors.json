@@ -34,5 +34,31 @@
       "url": "https://ru.wikipedia.org/wiki/%D0%9C%D0%B8%D1%83%D1%80%D0%B0%2C_%D0%9A%D1%8D%D0%BD%D1%82%D0%B0%D1%80%D0%BE",
       "source": "wikipedia"
     }
+  },
+  {
+    "key": "оксана растопчина",
+    "status": "none",
+    "fetchedAt": "2026-11-10T11:36:56.142Z"
+  },
+  {
+    "key": "әзілхан нұршайықов",
+    "status": "ok",
+    "fetchedAt": "2026-11-14T12:16:03.121Z",
+    "info": {
+      "name": "Нуршаихов, Азильхан",
+      "description": "советско-казахский писатель, поэт, очеркист, журналист, мемуарист, лауреат Госпремий КазССР, общественный деятель",
+      "extract": "Азильха́н Нуршаи́хов — поэт-фронтовик, ветеран Великой Отечественной войны, журналист, писатель, литературовед. Народный писатель Казахской ССР (1990).",
+      "born": "15 декабря 1922",
+      "died": "2011",
+      "birthPlace": "Жарминский район",
+      "photo": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3d/Azilkhan_Nurshaikhov_2022_stamp_of_Kazakhstan.jpg/330px-Azilkhan_Nurshaikhov_2022_stamp_of_Kazakhstan.jpg?utm_source=ru.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "url": "https://ru.wikipedia.org/wiki/%D0%9D%D1%83%D1%80%D1%88%D0%B0%D0%B8%D1%85%D0%BE%D0%B2%2C_%D0%90%D0%B7%D0%B8%D0%BB%D1%8C%D1%85%D0%B0%D0%BD",
+      "source": "wikipedia"
+    }
+  },
+  {
+    "key": "adriano leonel",
+    "status": "none",
+    "fetchedAt": "2026-11-14T12:21:06.334Z"
   }
 ]

@@ -4,7 +4,7 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { categoryLabels, type Book } from "@/data/books";
-import { conditionLabels, getBook, type ServerBook } from "@/lib/books-store";
+import { conditionLabels, getBook, isHiddenNow, type ServerBook } from "@/lib/books-store";
 import BookCover from "@/components/BookCover";
 import BookCard from "@/components/BookCard";
 import BookStatusBadge from "@/components/BookStatusBadge";
@@ -31,7 +31,7 @@ export default async function BookPage({ params }: { params: Promise<{ id: strin
   const book = (await getBook(id, { includeHidden: true })) as ServerBook | undefined;
   if (!book || book.deleted) notFound();
   // скрытые отдаём только через API с правами; на SSR для простоты 404 гостю
-  if (book.hidden) notFound();
+  if (isHiddenNow(book)) notFound();
 
   const ownerKey = String(book.ownerId ?? book.owner);
 

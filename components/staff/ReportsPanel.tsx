@@ -10,6 +10,7 @@ import {
   TARGET_LABEL,
 } from "@/lib/reports";
 import type { ReportStatus, ReportTargetType } from "@/lib/types";
+import ModerationDialog, { type ModerationMode, type ModerationPayload } from "./ModerationDialog";
 import { useToast } from "./useToast";
 
 type ReportRow = {
@@ -37,6 +38,8 @@ export default function ReportsPanel() {
   const [loaded, setLoaded] = useState(false);
   const [statusFilter, setStatusFilter] = useState<ReportStatus | "all">("all");
   const [typeFilter, setTypeFilter] = useState<ReportTargetType | "all">("all");
+  const [dlg, setDlg] = useState<{ mode: ModerationMode; bookId: string; title: string } | null>(null);
+  const [busy, setBusy] = useState(false);
   const { toast, toastNode } = useToast();
 
   const load = useCallback(async () => {
@@ -83,13 +86,29 @@ export default function ReportsPanel() {
     return send("/api/reports", "PATCH", { id, deleteReview: true }, "Отзыв удалён");
   };
 
-  const hideBook = (bookId: string) =>
-    send(`/api/books/${bookId}`, "PATCH", { hidden: true }, "Книга скрыта");
+  // скрытие и удаление книги — с причиной (и сроком), автор получит уведомление
+  async function moderate(p: ModerationPayload) {
+    if (!dlg) return;
+    setBusy(true);
+    try {
+      if (dlg.mode === "delete") {
+        await send(`/api/books/${dlg.bookId}`, "DELETE", { reason: p.reason }, "Объявление удалено, автор уведомлён");
+      } else {
+        await send(
+          `/api/books/${dlg.bookId}`,
+          "PATCH",
+          { hidden: true, reason: p.reason, hideDays: p.hideDays, hiddenUntil: p.hiddenUntil },
+          "Книга скрыта, автор уведомлён",
+        );
+      }
+      setDlg(null);
+    } finally {
+      setBusy(false);
+    }
+  }
 
-  const deleteBook = (bookId: string) => {
-    if (!confirm("Удалить объявление?")) return;
-    return send(`/api/books/${bookId}`, "DELETE", undefined, "Объявление удалено");
-  };
+  const hideBook = (bookId: string, title = "") => setDlg({ mode: "hide", bookId, title });
+  const deleteBook = (bookId: string, title = "") => setDlg({ mode: "delete", bookId, title });
 
   const newCount = reports.filter((r) => r.status === "new").length;
   const visible = reports.filter(
@@ -238,10 +257,10 @@ export default function ReportsPanel() {
                 )}
                 {r.targetType === "book" && r.targetExists && (
                   <>
-                    <Button size="sm" variant="outline" onClick={() => hideBook(r.targetId)}>
+                    <Button size="sm" variant="outline" onClick={() => hideBook(r.targetId, r.bookTitle)}>
                       Скрыть книгу
                     </Button>
-                    <Button size="sm" variant="danger" onClick={() => deleteBook(r.targetId)}>
+                    <Button size="sm" variant="danger" onClick={() => deleteBook(r.targetId, r.bookTitle)}>
                       Удалить книгу
                     </Button>
                   </>
@@ -252,6 +271,15 @@ export default function ReportsPanel() {
         ))}
       </ul>
 
+      {dlg && (
+        <ModerationDialog
+          mode={dlg.mode}
+          bookTitle={dlg.title || "книга"}
+          busy={busy}
+          onSubmit={moderate}
+          onClose={() => setDlg(null)}
+        />
+      )}
       {toastNode}
     </>
   );

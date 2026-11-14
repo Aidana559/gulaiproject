@@ -22,10 +22,27 @@ export default function BookActions({
     user.role === "moderator";
   if (!allowed) return null;
 
+  const isOwner = String(user.id) === String(ownerId) || user.name === String(ownerId);
+
   async function remove() {
-    if (!confirm("Удалить объявление? Отзывы и жалобы тоже будут удалены.")) return;
+    let reason = "";
+    if (isOwner) {
+      if (!confirm("Удалить объявление? Отзывы и жалобы тоже будут удалены.")) return;
+    } else {
+      // администрация удаляет с причиной: автор получит уведомление
+      const r = prompt("Причина удаления (её увидит автор книги):");
+      if (r == null) return;
+      reason = r.trim();
+      if (reason.length < 3) {
+        alert("Укажите причину удаления (не короче 3 символов)");
+        return;
+      }
+    }
     try {
-      await api(`/api/books/${bookId}`, user!.id, { method: "DELETE" });
+      await api(`/api/books/${bookId}`, user!.id, {
+        method: "DELETE",
+        body: JSON.stringify({ reason }),
+      });
       router.push("/catalog");
       router.refresh();
     } catch (e: any) {
@@ -34,7 +51,13 @@ export default function BookActions({
   }
 
   return (
-    <div className="flex gap-2">
+    <div className="flex flex-wrap gap-2">
+      <Link
+        href={`/book/${bookId}/info`}
+        className="rounded-xl px-4 py-2 text-sm font-medium text-stone-700 ring-1 ring-stone-300 hover:bg-stone-50"
+      >
+        Информация
+      </Link>
       <Link
         href={`/book/${bookId}/edit`}
         className="rounded-xl px-4 py-2 text-sm font-medium text-stone-700 ring-1 ring-stone-300 hover:bg-stone-50"

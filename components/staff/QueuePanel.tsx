@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { categoryLabels, type Category } from "@/data/books";
+import { genresOf } from "@/lib/genres";
 import { useToast } from "./useToast";
 
 type QueueBook = {
@@ -11,6 +12,7 @@ type QueueBook = {
   author: string;
   category: Category;
   genre?: string;
+  genres?: string[];
   owner?: string;
   ownerId?: string;
   createdAt?: string;
@@ -121,7 +123,7 @@ export default function QueuePanel() {
                   </Link>
                   <p className="mq-meta">
                     {b.author} · {categoryLabels[b.category] ?? b.category}
-                    {b.genre && b.genre !== "—" ? ` · ${b.genre}` : ""}
+                    {genresOf(b).length ? ` · ${genresOf(b).join(", ")}` : ""}
                   </p>
                   <p className="mq-meta">
                     Добавил: {b.owner ?? "?"}
