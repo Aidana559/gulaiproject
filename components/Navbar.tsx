@@ -3,12 +3,13 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { FiBookOpen } from "react-icons/fi";
-import { useMemo, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
 import { LinkButton } from "./Button";
 import AuthMenu from "@/components/AuthMenu";
 import Avatar from "@/components/Avatar";
 import { useAuth } from "@/components/AuthProvider";
 import NotificationBell from "@/components/NotificationBell";
+import MessagesIcon from "@/components/MessagesIcon";
 
 type NavLink = { href: string; label: string };
 
@@ -37,11 +38,37 @@ function linksFor(loggedIn?: boolean): NavLink[] {
   return userLinks;
 }
 
+function LinkList({ links, pathname }: { links: NavLink[]; pathname: string }) {
+  const isActive = (href: string) => (href === "/" ? pathname === "/" : pathname.startsWith(href));
+  return (
+    <ul className="hidden items-center gap-1 rounded-full bg-white/70 p-1 ring-1 ring-stone-200 md:flex">
+      {links.map((l) => (
+        <li key={l.href}>
+          <Link
+            href={l.href}
+            aria-current={isActive(l.href) ? "page" : undefined}
+            className={`rounded-full px-4 py-2 text-sm font-medium transition ${
+              isActive(l.href)
+                ? "bg-indigo-700 text-white shadow-sm"
+                : "text-stone-600 hover:bg-stone-100 hover:text-stone-900"
+            }`}
+          >
+            {l.label}
+          </Link>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/** Единственное место, где Navbar читает URL: подсветка активного пункта. */
+function ActiveLinkList({ links }: { links: NavLink[] }) {
+  return <LinkList links={links} pathname={usePathname()} />;
+}
+
 export default function Navbar() {
   const [open, setOpen] = useState(false);
-  const pathname = usePathname();
   const { user, loading } = useAuth();
-  const isActive = (href: string) => (href === "/" ? pathname === "/" : pathname.startsWith(href));
 
   const links = useMemo(() => linksFor(!!user), [user]);
   const staffLink = staffLinkFor(user?.role);
@@ -53,23 +80,10 @@ export default function Navbar() {
           <FiBookOpen className="text-2xl text-indigo-700" /> Kitapta
         </Link>
 
-        <ul className="hidden items-center gap-1 rounded-full bg-white/70 p-1 ring-1 ring-stone-200 md:flex">
-          {links.map((l) => (
-            <li key={l.href}>
-              <Link
-                href={l.href}
-                aria-current={isActive(l.href) ? "page" : undefined}
-                className={`rounded-full px-4 py-2 text-sm font-medium transition ${
-                  isActive(l.href)
-                    ? "bg-indigo-700 text-white shadow-sm"
-                    : "text-stone-600 hover:bg-stone-100 hover:text-stone-900"
-                }`}
-              >
-                {l.label}
-              </Link>
-            </li>
-          ))}
-        </ul>
+        {/* URL известен только при запросе: меню рендерится сразу без подсветки, она появляется после загрузки */}
+        <Suspense fallback={<LinkList links={links} pathname="" />}>
+          <ActiveLinkList links={links} />
+        </Suspense>
 
         <div className="hidden items-center gap-2 md:flex">
           {staffLink && (
@@ -77,11 +91,17 @@ export default function Navbar() {
               {staffLink.label}
             </LinkButton>
           )}
+          <Suspense fallback={null}>
+            <MessagesIcon />
+          </Suspense>
           <NotificationBell />
           <AuthMenu />
         </div>
 
         <div className="flex items-center gap-1 md:hidden">
+          <Suspense fallback={null}>
+            <MessagesIcon />
+          </Suspense>
           <NotificationBell />
         <button
           type="button"
@@ -116,7 +136,7 @@ export default function Navbar() {
                   className="block rounded-full px-4 py-2 text-base font-medium text-stone-700 hover:bg-stone-100"
                 >
                   {l.label}
-                </Link>
+                  </Link>
               </li>
             ))}
             {staffLink && (
