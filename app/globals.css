@@ -1,24 +1,101 @@
+@import url("https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap");
 @import "tailwindcss";
 
 @theme {
-  --font-sans: ui-sans-serif, system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-sans: "Inter", ui-sans-serif, system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-serif: "Cormorant Garamond", "Playfair Display", Georgia, "Times New Roman", serif;
+
+  /* Палитра: тёплый крем + оливково-зелёный (вместо indigo/teal/purple) */
+  --color-white: #fffcf6;
+  --color-indigo-50: #f3f5ea;
+  --color-indigo-100: #e4e9d2;
+  --color-indigo-200: #ccd5ac;
+  --color-indigo-300: #adb985;
+  --color-indigo-400: #8c9c5f;
+  --color-indigo-500: #6f8047;
+  --color-indigo-600: #5a6a3a;
+  --color-indigo-700: #485530;
+  --color-indigo-800: #3a4527;
+  --color-indigo-900: #2c351d;
+  --color-indigo-950: #181e0f;
+  --color-teal-50: #f3f5ea;
+  --color-teal-100: #e4e9d2;
+  --color-teal-200: #ccd5ac;
+  --color-teal-300: #adb985;
+  --color-teal-400: #8c9c5f;
+  --color-teal-500: #6f8047;
+  --color-teal-600: #5a6a3a;
+  --color-teal-700: #485530;
+  --color-teal-800: #3a4527;
+  --color-teal-900: #2c351d;
+  --color-teal-950: #181e0f;
+  --color-purple-50: #f3f5ea;
+  --color-purple-100: #e4e9d2;
+  --color-purple-200: #ccd5ac;
+  --color-purple-300: #adb985;
+  --color-purple-400: #8c9c5f;
+  --color-purple-500: #6f8047;
+  --color-purple-600: #5a6a3a;
+  --color-purple-700: #485530;
+  --color-purple-800: #3a4527;
+  --color-purple-900: #2c351d;
+  --color-purple-950: #181e0f;
+  --color-stone-50: #f8f5ee;
+  --color-stone-100: #f0ebe0;
+  --color-stone-200: #e4dccb;
+  --color-stone-300: #d2c7b0;
+  --color-stone-400: #aa9f8a;
+  --color-stone-500: #7e7460;
+  --color-stone-600: #5f5748;
+  --color-stone-700: #483f33;
+  --color-stone-800: #342d24;
+  --color-stone-900: #231e17;
+  --color-stone-950: #14110d;
+
+  /* Более мягкие, крупные скругления */
+  --radius-xl: 1.25rem;
+  --radius-2xl: 1.75rem;
+  --radius-3xl: 2.25rem;
 }
 
 body {
   @apply bg-stone-50 text-stone-800 antialiased;
 }
 
+/* Заголовки — тонкая антиква, как в макете; остальной текст — Inter */
+h1,
+h2 {
+  font-family: var(--font-serif);
+  font-weight: 500;
+  font-size-adjust: 0.5;
+  letter-spacing: -0.01em;
+}
+
+/* Фон hero-блока: мягкие холмы; свою фотографию можно положить в public/hero.jpg */
+.hero-bg {
+  background-color: #1d2616;
+  background-image:
+    linear-gradient(180deg, rgba(12, 16, 9, 0.2) 0%, rgba(12, 16, 9, 0.55) 100%),
+    url("/hero.jpg"),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 600' preserveAspectRatio='none'%3E%3Cpath d='M0 420 C 200 330 380 330 560 400 S 920 470 1200 340 V600 H0Z' fill='%23324022' fill-opacity='.85'/%3E%3Cpath d='M0 500 C 220 430 420 450 640 500 S 1000 560 1200 470 V600 H0Z' fill='%23222d17'/%3E%3C/svg%3E"),
+    radial-gradient(ellipse at 75% 15%, rgba(140, 156, 95, 0.4), transparent 55%),
+    linear-gradient(135deg, #243019 0%, #324022 50%, #141b0e 100%);
+  background-size: cover, cover, 100% 100%, auto, auto;
+  background-position: center, center, bottom, center, center;
+  background-repeat: no-repeat;
+}
+
 .staff {
-  --bg: #0f172a;
-  --bg-hover: #1e293b;
-  --line: #1e293b;
-  --accent: #6366f1;
-  --accent-soft: rgba(99, 102, 241, 0.2);
-  --accent-ring: rgba(129, 140, 248, 0.4);
+  --bg: #232a18;
+  --bg-hover: #323b24;
+  --line: #323b24;
+  --accent: #6f8047;
+  --accent-soft: rgba(111, 128, 71, 0.22);
+  --accent-ring: rgba(173, 185, 133, 0.45);
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  background: #fafaf9;
+  background: #f8f5ee;
 }
 .staff--moderator {
   --bg: #0b1f1c;
@@ -220,7 +297,7 @@ body {
 .dash-card {
   background: #fff;
   border-radius: 1rem;
-  box-shadow: 0 0 0 1px #e7e5e4;
+  box-shadow: 0 0 0 1px #e4dccb;
 }
 .dash-stat {
   display: block;
@@ -232,25 +309,25 @@ body {
   transition: box-shadow 0.15s;
 }
 .dash-stat-link:hover {
-  box-shadow: 0 0 0 1px #a5b4fc, 0 4px 14px rgba(99, 102, 241, 0.12);
+  box-shadow: 0 0 0 1px #adb985, 0 4px 14px rgba(111, 128, 71, 0.14);
 }
 .dash-stat-label {
   margin: 0;
   font-size: 0.8125rem;
   font-weight: 500;
-  color: #78716c;
+  color: #7e7460;
 }
 .dash-stat-value {
   margin: 0.25rem 0 0;
   font-size: 1.875rem;
   font-weight: 800;
   line-height: 1.1;
-  color: #1c1917;
+  color: #231e17;
 }
 .dash-stat-note {
   margin: 0.375rem 0 0;
   font-size: 0.75rem;
-  color: #a8a29e;
+  color: #aa9f8a;
 }
 .dash-stat-warn {
   background: #fffbeb;
@@ -289,7 +366,7 @@ body {
   margin: 0 0 0.75rem;
   font-size: 0.9375rem;
   font-weight: 700;
-  color: #1c1917;
+  color: #231e17;
 }
 .dash-card-head .dash-card-title {
   margin-bottom: 0.75rem;
@@ -297,7 +374,7 @@ body {
 .dash-more {
   font-size: 0.8125rem;
   font-weight: 500;
-  color: #4f46e5;
+  color: #485530;
   text-decoration: none;
 }
 .dash-more:hover {
@@ -308,7 +385,7 @@ body {
   gap: 1rem;
   margin-bottom: 0.75rem;
   font-size: 0.75rem;
-  color: #78716c;
+  color: #7e7460;
 }
 .dash-dot {
   display: inline-block;
@@ -319,11 +396,11 @@ body {
 }
 .dash-dot-users,
 .dash-bar-users {
-  background: #6366f1;
+  background: #6f8047;
 }
 .dash-dot-books,
 .dash-bar-books {
-  background: #14b8a6;
+  background: #8c9c5f;
 }
 .dash-chart {
   display: flex;
@@ -352,7 +429,7 @@ body {
   height: 1rem;
   font-size: 0.6875rem;
   line-height: 1rem;
-  color: #78716c;
+  color: #7e7460;
 }
 .dash-bar {
   width: 100%;
@@ -361,7 +438,7 @@ body {
 .dash-chart-label {
   margin: 0.375rem 0 0;
   font-size: 0.6875rem;
-  color: #a8a29e;
+  color: #aa9f8a;
 }
 .dash-cats {
   display: grid;
@@ -375,18 +452,18 @@ body {
   justify-content: space-between;
   margin-bottom: 0.25rem;
   font-size: 0.8125rem;
-  color: #44403c;
+  color: #483f33;
 }
 .dash-cat-track {
   height: 0.5rem;
   overflow: hidden;
   border-radius: 9999px;
-  background: #f5f5f4;
+  background: #f0ebe0;
 }
 .dash-cat-fill {
   height: 100%;
   border-radius: 9999px;
-  background: #6366f1;
+  background: #6f8047;
 }
 .dash-list {
   display: grid;
@@ -396,7 +473,7 @@ body {
 }
 .dash-list li {
   padding: 0.625rem 0;
-  border-top: 1px solid #f5f5f4;
+  border-top: 1px solid #f0ebe0;
 }
 .dash-list li:first-child {
   border-top: 0;
@@ -409,24 +486,24 @@ body {
   white-space: nowrap;
   font-size: 0.875rem;
   font-weight: 500;
-  color: #1c1917;
+  color: #231e17;
 }
 .dash-list-sub {
   margin: 0.125rem 0 0;
   font-size: 0.75rem;
-  color: #a8a29e;
+  color: #aa9f8a;
 }
 .dash-empty {
   margin: 0;
   font-size: 0.875rem;
-  color: #a8a29e;
+  color: #aa9f8a;
 }
 
 /* ===== Панель модератора: очередь и mute ===== */
 .mq-count {
   margin: 1.25rem 0 0;
   font-size: 0.875rem;
-  color: #78716c;
+  color: #7e7460;
 }
 .mq-list {
   display: grid;
@@ -439,7 +516,7 @@ body {
   padding: 1rem 1.25rem;
   background: #fff;
   border-radius: 1rem;
-  box-shadow: 0 0 0 1px #e7e5e4;
+  box-shadow: 0 0 0 1px #e4dccb;
 }
 .mq-row {
   display: flex;
@@ -453,7 +530,7 @@ body {
   flex-shrink: 0;
   border-radius: 0.5rem;
   object-fit: cover;
-  background: #f5f5f4;
+  background: #f0ebe0;
 }
 .mq-cover-empty {
   display: flex;
@@ -462,8 +539,8 @@ body {
   padding: 0.25rem;
   font-size: 0.625rem;
   text-align: center;
-  color: #a8a29e;
-  box-shadow: inset 0 0 0 1px #e7e5e4;
+  color: #aa9f8a;
+  box-shadow: inset 0 0 0 1px #e4dccb;
 }
 .mq-info {
   flex: 1;
@@ -472,23 +549,23 @@ body {
 .mq-title {
   font-size: 1rem;
   font-weight: 700;
-  color: #1c1917;
+  color: #231e17;
   text-decoration: none;
 }
 .mq-title:hover {
-  color: #4f46e5;
+  color: #485530;
 }
 .mq-meta {
   margin: 0.125rem 0 0;
   font-size: 0.8125rem;
-  color: #78716c;
+  color: #7e7460;
 }
 .mq-desc {
   display: -webkit-box;
   margin: 0.5rem 0 0;
   overflow: hidden;
   font-size: 0.8125rem;
-  color: #57534e;
+  color: #5f5748;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
 }
@@ -501,16 +578,16 @@ body {
   border: 0;
   border-radius: 0.5rem;
   background: #fff;
-  box-shadow: inset 0 0 0 1px #d6d3d1;
+  box-shadow: inset 0 0 0 1px #d2c7b0;
   font: inherit;
   font-size: 0.8125rem;
   font-weight: 600;
-  color: #292524;
+  color: #342d24;
   cursor: pointer;
   transition: background 0.15s;
 }
 .mq-btn:hover:not(:disabled) {
-  background: #f5f5f4;
+  background: #f0ebe0;
 }
 .mq-btn:disabled {
   opacity: 0.5;
@@ -537,7 +614,7 @@ body {
   gap: 0.5rem;
   margin-top: 0.875rem;
   padding-top: 0.875rem;
-  border-top: 1px solid #f5f5f4;
+  border-top: 1px solid #f0ebe0;
 }
 .mq-reject-btns {
   display: flex;
@@ -550,23 +627,23 @@ body {
   border: 0;
   border-radius: 0.5rem;
   background: #fff;
-  box-shadow: inset 0 0 0 1px #d6d3d1;
+  box-shadow: inset 0 0 0 1px #d2c7b0;
   font: inherit;
   font-size: 0.875rem;
 }
 .mq-input:focus {
   outline: none;
-  box-shadow: inset 0 0 0 2px #6366f1;
+  box-shadow: inset 0 0 0 2px #6f8047;
 }
 .mq-empty {
   margin-top: 1.5rem;
   padding: 2.5rem 1rem;
   background: #fff;
   border-radius: 1rem;
-  box-shadow: 0 0 0 1px #e7e5e4;
+  box-shadow: 0 0 0 1px #e4dccb;
   text-align: center;
   font-size: 0.9375rem;
-  color: #78716c;
+  color: #7e7460;
 }
 .mq-overlay {
   position: fixed;
@@ -576,7 +653,7 @@ body {
   align-items: center;
   justify-content: center;
   padding: 1rem;
-  background: rgba(15, 23, 42, 0.5);
+  background: rgba(20, 17, 13, 0.5);
 }
 .mq-dialog {
   display: grid;
@@ -592,12 +669,12 @@ body {
   margin: 0;
   font-size: 1.125rem;
   font-weight: 800;
-  color: #1c1917;
+  color: #231e17;
 }
 .mq-dialog-hint {
   margin: 0 0 0.5rem;
   font-size: 0.8125rem;
-  color: #78716c;
+  color: #7e7460;
 }
 .mq-label {
   margin-top: 0.25rem;
@@ -605,7 +682,7 @@ body {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: #a8a29e;
+  color: #aa9f8a;
 }
 .mq-terms {
   display: flex;
@@ -617,15 +694,15 @@ body {
   border: 0;
   border-radius: 9999px;
   background: #fff;
-  box-shadow: inset 0 0 0 1px #d6d3d1;
+  box-shadow: inset 0 0 0 1px #d2c7b0;
   font: inherit;
   font-size: 0.8125rem;
   font-weight: 500;
-  color: #44403c;
+  color: #483f33;
   cursor: pointer;
 }
 .mq-term-active {
-  background: #eef2ff;
-  box-shadow: inset 0 0 0 2px #6366f1;
-  color: #4338ca;
+  background: #f3f5ea;
+  box-shadow: inset 0 0 0 2px #6f8047;
+  color: #3a4527;
 }

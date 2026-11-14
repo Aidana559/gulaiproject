@@ -10,6 +10,14 @@ import { LinkButton } from "@/components/Button";
 
 const cats = Object.keys(categoryLabels) as Category[];
 
+// Оттенки карточек категорий (оливковый и тёплый коричневый)
+const tones = [
+  "from-indigo-700 to-indigo-950",
+  "from-stone-700 to-stone-900",
+  "from-indigo-600 to-stone-800",
+  "from-stone-600 to-indigo-900",
+];
+
 const steps = [
   { n: "1", title: "Зарегистрируйтесь", text: "Создайте профиль за минуту." },
   { n: "2", title: "Найдите или добавьте книгу", text: "Ищите по названию, автору и жанру или выложите свою." },
@@ -32,62 +40,74 @@ async function HomeContent() {
 
   return (
     <>
-      { }
-      <section className="bg-gradient-to-br from-indigo-600 via-indigo-700 to-purple-800 text-white">
-        <div className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8 lg:py-28">
-          <p className="inline-flex items-center gap-2 rounded-full bg-white/15 px-4 py-1 text-sm font-medium">
-            <FiBookOpen /> Платформа студенческого буккроссинга
-          </p>
-          <h1 className="mt-6 max-w-3xl text-4xl font-extrabold tracking-tight sm:text-6xl">
-            Читай, обменивайся, делись знаниями
-          </h1>
-          <p className="mt-6 max-w-2xl text-lg text-indigo-100">
-            Книги, учебники, методички и манга — всё это можно взять у других студентов и отдать
-            свои, которые уже прочитаны.
-          </p>
-          <div className="mt-10 flex flex-wrap gap-3">
-            <LinkButton href="/catalog" variant="secondary" size="lg">
-              Открыть каталог
-            </LinkButton>
-            <LinkButton
-              href="/add"
-              variant="outline"
-              size="lg"
-              className="!bg-transparent !text-white !ring-white/50 hover:!bg-white/10"
-            >
-              Добавить книгу
-            </LinkButton>
+      {/* Hero */}
+      <section className="px-3 pt-2 sm:px-6 lg:px-8">
+        <div className="hero-bg relative mx-auto max-w-7xl overflow-hidden rounded-[2rem] text-white">
+          <div className="grid items-center gap-10 px-6 py-16 sm:px-12 lg:grid-cols-[1.5fr_1fr] lg:py-28">
+            <div>
+              <p className="inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-1 text-sm font-medium ring-1 ring-white/20 backdrop-blur">
+                <FiBookOpen /> Платформа студенческого буккроссинга
+              </p>
+              <h1 className="mt-6 max-w-2xl text-5xl leading-[1.05] sm:text-7xl">
+                Читай, обменивайся, делись знаниями
+              </h1>
+              <p className="mt-6 max-w-md text-base text-stone-200">
+                Книги, учебники, методички и манга — всё это можно взять у других студентов и отдать
+                свои, которые уже прочитаны.
+              </p>
+              <div className="mt-10 flex flex-wrap items-center gap-3">
+                <Link
+                  href="/catalog"
+                  className="inline-flex items-center gap-3 rounded-full bg-indigo-600 py-2 pl-6 pr-2 text-base font-semibold text-white transition hover:bg-indigo-500"
+                >
+                  Открыть каталог
+                  <span className="flex size-9 items-center justify-center rounded-full bg-white text-indigo-700">
+                    <FiArrowRight />
+                  </span>
+                </Link>
+                <LinkButton
+                  href="/add"
+                  variant="outline"
+                  size="lg"
+                  className="!bg-transparent !text-white !ring-white/40 hover:!bg-white/10"
+                >
+                  Добавить книгу
+                </LinkButton>
+              </div>
+            </div>
+
+            <dl className="grid grid-cols-3 gap-4 rounded-3xl bg-white/10 p-6 text-center ring-1 ring-white/20 backdrop-blur lg:ml-auto lg:max-w-sm">
+              <div><dd className="font-serif text-4xl">{books.length}</dd><dt className="mt-1 text-xs text-stone-200">Изданий</dt></div>
+              <div><dd className="font-serif text-4xl">{cats.length}</dd><dt className="mt-1 text-xs text-stone-200">Категорий</dt></div>
+              <div><dd className="font-serif text-4xl">5</dd><dt className="mt-1 text-xs text-stone-200">Городов</dt></div>
+            </dl>
           </div>
-          <dl className="mt-14 grid max-w-xl grid-cols-3 gap-6">
-            <div><dt className="text-sm text-indigo-200">Изданий</dt><dd className="text-3xl font-bold">{books.length}</dd></div>
-            <div><dt className="text-sm text-indigo-200">Категорий</dt><dd className="text-3xl font-bold">{cats.length}</dd></div>
-            <div><dt className="text-sm text-indigo-200">Городов</dt><dd className="text-3xl font-bold">5</dd></div>
-          </dl>
         </div>
       </section>
 
-      { }
+      {/* Категории */}
       <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
-        <h2 className="text-2xl font-bold text-stone-900 sm:text-3xl">Категории</h2>
+        <h2 className="text-4xl text-stone-900 sm:text-5xl">Категории</h2>
         <div className="mt-8 grid grid-cols-2 gap-4 lg:grid-cols-4">
-          {cats.map((c) => (
+          {cats.map((c, i) => (
             <Link
               key={c}
               href={`/catalog?category=${c}`}
-              className="rounded-2xl bg-white p-6 text-center shadow-sm ring-1 ring-stone-200 transition hover:-translate-y-1 hover:shadow-lg"
+              className={`group relative flex aspect-[4/5] flex-col justify-end overflow-hidden rounded-3xl bg-gradient-to-br p-5 text-white transition hover:-translate-y-1 hover:shadow-xl ${tones[i % tones.length]}`}
             >
-              <CategoryIcon category={c} className="mx-auto text-4xl text-indigo-600" />
-              <p className="mt-3 font-semibold text-stone-900">{categoryLabels[c]}</p>
-              <p className="text-sm text-stone-500">{books.filter((b) => b.category === c).length} шт.</p>
+              <CategoryIcon category={c} className="absolute right-4 top-4 text-5xl text-white/25 transition group-hover:text-white/40" />
+              <p className="text-sm text-white/70">{String(i + 1).padStart(2, "0")}</p>
+              <p className="mt-1 text-lg font-semibold">{categoryLabels[c]}</p>
+              <p className="text-sm text-white/70">{books.filter((b) => b.category === c).length} шт.</p>
             </Link>
           ))}
         </div>
       </section>
 
-      { }
+      {/* Доступно сейчас */}
       <section className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex items-end justify-between">
-          <h2 className="text-2xl font-bold text-stone-900 sm:text-3xl">Доступно сейчас</h2>
+          <h2 className="text-4xl text-stone-900 sm:text-5xl">Доступно сейчас</h2>
           <LinkButton href="/catalog" variant="ghost">Весь каталог <FiArrowRight /></LinkButton>
         </div>
         <div className="mt-8 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
@@ -97,32 +117,39 @@ async function HomeContent() {
         </div>
       </section>
 
-      { }
-      <section className="mx-auto mt-20 max-w-7xl px-4 sm:px-6 lg:px-8">
-        <h2 className="text-center text-2xl font-bold text-stone-900 sm:text-3xl">Как это работает</h2>
-        <ol className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+      {/* Как это работает */}
+      <section className="mx-auto mt-24 grid max-w-7xl gap-10 px-4 sm:px-6 lg:grid-cols-[1fr_1.6fr] lg:px-8">
+        <h2 className="text-4xl leading-tight text-stone-900 sm:text-5xl">Как это работает</h2>
+        <ol className="border-t border-stone-300">
           {steps.map((s) => (
-            <li key={s.n} className="rounded-2xl bg-white p-6 ring-1 ring-stone-200">
-              <span className="flex size-10 items-center justify-center rounded-full bg-indigo-100 font-bold text-indigo-700">
-                {s.n}
-              </span>
-              <h3 className="mt-4 font-semibold text-stone-900">{s.title}</h3>
-              <p className="mt-1 text-sm text-stone-500">{s.text}</p>
+            <li key={s.n} className="flex items-start gap-6 border-b border-stone-300 py-6">
+              <span className="pt-1 text-sm text-stone-400">{s.n.padStart(2, "0")}</span>
+              <div>
+                <h3 className="font-semibold text-stone-900">{s.title}</h3>
+                <p className="mt-1 text-sm text-stone-500">{s.text}</p>
+              </div>
             </li>
           ))}
         </ol>
       </section>
 
-      { }
-      <section className="mx-auto mt-20 max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="rounded-3xl bg-amber-100 px-6 py-14 text-center">
-          <h2 className="text-2xl font-bold text-stone-900 sm:text-3xl">Есть ненужные книги или конспекты?</h2>
-          <p className="mx-auto mt-3 max-w-xl text-stone-600">
+      {/* Призыв */}
+      <section className="mx-auto mt-24 max-w-7xl px-3 sm:px-6 lg:px-8">
+        <div className="rounded-[2rem] bg-gradient-to-br from-stone-900 via-stone-800 to-indigo-950 px-6 py-16 text-white sm:px-14">
+          <h2 className="max-w-xl text-4xl leading-tight sm:text-5xl">Есть ненужные книги или конспекты?</h2>
+          <p className="mt-4 max-w-md text-stone-300">
             Отдайте их тому, кому они нужны прямо сейчас.
           </p>
-          <div className="mt-8 flex justify-center gap-3">
+          <div className="mt-8 flex flex-wrap gap-3">
             <LinkButton href="/register" size="lg">Присоединиться</LinkButton>
-            <LinkButton href="/add" variant="outline" size="lg">Добавить книгу</LinkButton>
+            <LinkButton
+              href="/add"
+              variant="outline"
+              size="lg"
+              className="!bg-transparent !text-white !ring-white/40 hover:!bg-white/10"
+            >
+              Добавить книгу
+            </LinkButton>
           </div>
         </div>
       </section>

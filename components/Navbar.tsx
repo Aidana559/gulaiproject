@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { FiBookOpen } from "react-icons/fi";
 import { useMemo, useState } from "react";
 import { LinkButton } from "./Button";
@@ -38,24 +39,31 @@ function linksFor(loggedIn?: boolean): NavLink[] {
 
 export default function Navbar() {
   const [open, setOpen] = useState(false);
+  const pathname = usePathname();
   const { user, loading } = useAuth();
+  const isActive = (href: string) => (href === "/" ? pathname === "/" : pathname.startsWith(href));
 
   const links = useMemo(() => linksFor(!!user), [user]);
   const staffLink = staffLinkFor(user?.role);
 
   return (
-    <header className="sticky top-0 z-40 border-b border-stone-200 bg-white/90 backdrop-blur">
-      <nav className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
-        <Link href="/" className="flex items-center gap-2 text-xl font-extrabold text-indigo-700">
-          <FiBookOpen className="text-2xl" /> Page2Page
+    <header className="sticky top-0 z-40 bg-stone-50/85 backdrop-blur">
+      <nav className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
+        <Link href="/" className="flex items-center gap-2 font-serif text-3xl font-semibold tracking-tight text-stone-900">
+          <FiBookOpen className="text-2xl text-indigo-700" /> Page2Page
         </Link>
 
-        <ul className="hidden items-center gap-1 md:flex">
+        <ul className="hidden items-center gap-1 rounded-full bg-white/70 p-1 ring-1 ring-stone-200 md:flex">
           {links.map((l) => (
             <li key={l.href}>
               <Link
                 href={l.href}
-                className="rounded-lg px-3 py-2 text-sm font-medium text-stone-600 hover:bg-stone-100 hover:text-stone-900"
+                aria-current={isActive(l.href) ? "page" : undefined}
+                className={`rounded-full px-4 py-2 text-sm font-medium transition ${
+                  isActive(l.href)
+                    ? "bg-indigo-700 text-white shadow-sm"
+                    : "text-stone-600 hover:bg-stone-100 hover:text-stone-900"
+                }`}
               >
                 {l.label}
               </Link>
@@ -98,14 +106,14 @@ export default function Navbar() {
       </nav>
 
       {open && (
-        <div className="border-t border-stone-200 bg-white px-4 pb-4 md:hidden">
+        <div className="mx-3 rounded-3xl bg-white px-4 pb-4 shadow-sm ring-1 ring-stone-200 md:hidden">
           <ul className="space-y-1 py-3">
             {links.map((l) => (
               <li key={l.href}>
                 <Link
                   href={l.href}
                   onClick={() => setOpen(false)}
-                  className="block rounded-lg px-3 py-2 text-base font-medium text-stone-700 hover:bg-stone-100"
+                  className="block rounded-full px-4 py-2 text-base font-medium text-stone-700 hover:bg-stone-100"
                 >
                   {l.label}
                 </Link>
