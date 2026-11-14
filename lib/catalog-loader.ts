@@ -1,5 +1,5 @@
 import type { Book, Category } from "@/data/books";
-import { readJson, withLock, writeJson } from "./db";
+import { readJson, readJsonShared, withLock, writeJson } from "./db";
 import { CATEGORY_TARGET, ID_POOLS, catalogPlan, type Slot } from "./catalog-seed";
 
 /**
@@ -23,7 +23,10 @@ const SCHEMA = 2; // версия формата каталога (id по ID_PO
 const BOOKINGS_FILE = "bookings.json";
 const OWNER = "Библиотека";
 const API = process.env.GOOGLE_BOOKS_API_URL ?? "https://www.googleapis.com/books/v1/volumes";
-const COOLDOWN_MS = 5 * 60 * 1000;
+const COOLDOWN_MS = 5 * 60 * 1000; // как часто ensureCatalog() вообще заглядывает в каталог (дёшево, без сети)
+// Как часто можно ходить в Google Books за недостающими книгами. Если в категории не хватает книг до
+// CATEGORY_TARGET, а Google их не находит, раньше сеть дёргалась каждые 5 минут (по ~30 запросов подряд).
+const TOPUP_COOLDOWN_MS = Number(process.env.CATALOG_TOPUP_COOLDOWN_MS) || 6 * 60 * 60 * 1000;
 const PAUSE_MS = 250;
 
 export type CatalogBook = Book & {
@@ -406,11 +409,35 @@ async function purgeStaffBookings() {
   });
 }
 
-async function run() {
+type G0 = { __catalogMaintained?: boolean; __catalogTopUpAt?: number };
+const g0 = globalThis as unknown as G0;
+
+/** Разовая чистка данных. Раньше выполнялась каждые 5 минут внутри запроса каталога (6+ чтений и разборов файлов). */
+async function maintainOnce() {
+  if (g0.__catalogMaintained) return;
   await purgeStaffBookings();
   await purgeNonRussian();
   await dedupeCatalog();
-  const existing = await readJson<CatalogBook[]>(CATALOG_FILE, []);
+  g0.__catalogMaintained = true;
+}
+
+async function run() {
+  const firstRun = !g0.__catalogMaintained;
+  await maintainOnce();
+
+  const existing = await readJsonShared<CatalogBook[]>(CATALOG_FILE, []);
+  const cats = Object.keys(catalogPlan) as Category[];
+  const missing = cats
+    .map((cat) => ({ cat, need: CATEGORY_TARGET[cat] - existing.filter((b) => b.category === cat).length }))
+    .filter((x) => x.need > 0);
+
+  const topUpDue = !g0.__catalogTopUpAt || Date.now() - g0.__catalogTopUpAt >= TOPUP_COOLDOWN_MS;
+  if (missing.length === 0 || !topUpDue) {
+    if (firstRun) await syncBookingLabels(); // подписи броней сверяем при старте, дальше — только при изменении каталога
+    return;
+  }
+  g0.__catalogTopUpAt = Date.now();
+
   const userBooks = await readJson<
     { id: number | string; title?: string; author?: string; isbn?: string; googleId?: string; category?: string }[]
   >(USER_FILE, []);
@@ -426,15 +453,6 @@ async function run() {
     }
   }
 
-  const cats = Object.keys(catalogPlan) as Category[];
-  const missing = cats
-    .map((cat) => ({ cat, need: CATEGORY_TARGET[cat] - existing.filter((b) => b.category === cat).length }))
-    .filter((x) => x.need > 0);
-  if (missing.length === 0) {
-    await syncBookingLabels();
-    return;
-  }
-
   await Promise.all(
     missing.map(async ({ cat, need }) => {
       const items = await loadCategory(cat, need, seen);
@@ -442,6 +460,11 @@ async function run() {
     }),
   );
   await syncBookingLabels();
+}
+
+/** true, если каталог пуст (первый запуск): только тогда запрос каталога имеет смысл подождать загрузку. */
+export async function catalogIsEmpty(): Promise<boolean> {
+  return (await readJsonShared<unknown[]>(CATALOG_FILE, [])).length === 0;
 }
 
 /**
@@ -472,8 +495,9 @@ type G = { __catalogJob?: Promise<void>; __catalogLast?: number };
 const g = globalThis as unknown as G;
 
 /**
- * Запускает загрузку, если каталог неполный. Безопасно вызывать сколько угодно раз:
- * параллельные вызовы объединяются, а после неудачи повтор не чаще раза в 5 минут.
+ * Запускает фоновую проверку каталога. Безопасно вызывать сколько угодно раз:
+ * параллельные вызовы объединяются, проверка не чаще раза в 5 минут, а обращение к Google Books —
+ * не чаще TOPUP_COOLDOWN_MS. Обычные запросы каталога результат НЕ ждут (см. app/api/books/route.ts).
  */
 export function ensureCatalog(): Promise<void> {
   if (g.__catalogJob) return g.__catalogJob;
@@ -494,5 +518,6 @@ export function ensureCatalog(): Promise<void> {
 /** Принудительная повторная проверка (без паузы между попытками). */
 export function ensureCatalogNow(): Promise<void> {
   g.__catalogLast = undefined;
+  g0.__catalogTopUpAt = undefined;
   return ensureCatalog();
 }

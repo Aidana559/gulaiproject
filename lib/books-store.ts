@@ -1,7 +1,7 @@
 import { promises as fs } from "fs";
 import path from "path";
 import type { Book, Category, Status } from "@/data/books";
-import { readJson, writeJson, uid, withLock } from "./db";
+import { readJson, readJsonShared, writeJson, uid, withLock } from "./db";
 import { MAX_GENRES, bookState } from "./moderation-shared";
 import { genresOf } from "./genres";
 import { getBookStates } from "./bookings";
@@ -58,8 +58,9 @@ const GRADIENTS = [
   "from-violet-500 to-indigo-700",
 ];
 
+/** Каталог только для чтения (общий экземпляр из кэша, не менять!). */
 async function readCatalog(): Promise<ServerBook[]> {
-  return readJson<ServerBook[]>(CATALOG_FILE, []);
+  return readJsonShared<ServerBook[]>(CATALOG_FILE, []);
 }
 
 export { genresOf };
@@ -110,8 +111,12 @@ async function writeUserBooks(list: ServerBook[]) {
 export async function getAllBooks(
   opts: { includeHidden?: boolean; includeDeleted?: boolean } = {},
 ): Promise<ServerBook[]> {
-  const user = await readUserBooks();
-  const staticMapped: ServerBook[] = (await readCatalog()).map((b) => ({
+  // оба файла читаются параллельно и из кэша; ниже данные только фильтруются (копии объектов создаются через spread)
+  const [user, catalog] = await Promise.all([
+    readJsonShared<ServerBook[]>(USER_FILE, []),
+    readCatalog(),
+  ]);
+  const staticMapped: ServerBook[] = catalog.map((b) => ({
     ...b,
     ownerId: undefined,
     views: b.views ?? 0,
@@ -121,7 +126,7 @@ export async function getAllBooks(
 
   const byId = new Map<string, ServerBook>();
   for (const b of staticMapped) byId.set(String(b.id), b);
-  for (const b of user) byId.set(String(b.id), b);
+  for (const b of user) byId.set(String(b.id), { ...b }); // копия: объект из кэша менять нельзя
 
   const now = Date.now();
   return Array.from(byId.values()).filter(
@@ -186,6 +191,9 @@ function withLiveStatus<T extends { id: number | string; status: Status }>(
   });
 }
 
+// Один экземпляр на процесс: localeCompare("ru") без него создаёт новый коллатор при каждом сравнении
+const RU = new Intl.Collator("ru");
+
 export async function listBooks(query: ListQuery): Promise<ListResult> {
   let list = withLiveStatus(
     await getAllBooks({
@@ -233,9 +241,7 @@ export async function listBooks(query: ListQuery): Promise<ListResult> {
   }
 
   // жанры для фильтра: по книгам выбранной категории/поиска, до применения самого жанра
-  const genreFacet = Array.from(new Set(list.flatMap((b) => genresOf(b)))).sort((a, b) =>
-    a.localeCompare(b, "ru"),
-  );
+  const genreFacet = Array.from(new Set(list.flatMap((b) => genresOf(b)))).sort(RU.compare);
 
   const wantedGenres = (Array.isArray(query.genre) ? query.genre : [query.genre ?? ""])
     .map((g) => g.trim())
@@ -259,7 +265,7 @@ export async function listBooks(query: ListQuery): Promise<ListResult> {
   } else if (sort === "popular") {
     list = [...list].sort((a, b) => (b.views ?? 0) - (a.views ?? 0));
   } else {
-    list = [...list].sort((a, b) => a.title.localeCompare(b.title, "ru"));
+    list = [...list].sort((a, b) => RU.compare(a.title, b.title));
   }
 
   const limit = Math.min(Math.max(query.limit ?? 24, 1), 100);
@@ -391,25 +397,57 @@ export async function softDeleteBook(id: string) {
   return patchBook(id, { deleted: true });
 }
 
+// Счётчик просмотров копится в памяти и записывается пачкой раз в VIEWS_FLUSH_MS.
+// Раньше каждый просмотр книги перезаписывал весь user-books.json (запись + fsync + rename на каждый GET).
+// Если процесс остановится, потеряются просмотры максимум за последние несколько секунд.
+const VIEWS_FLUSH_MS = 5000;
+const pendingViews = new Map<string, number>();
+let viewsTimer: ReturnType<typeof setTimeout> | null = null;
+
+async function flushViews() {
+  if (pendingViews.size === 0) return;
+  const batch = new Map(pendingViews);
+  pendingViews.clear();
+  try {
+    await withLock("user-books", async () => {
+      const user = await readUserBooks();
+      const catalog = await readCatalog();
+      let changed = false;
+      for (const [id, n] of batch) {
+        const idx = user.findIndex((b) => String(b.id) === id);
+        if (idx >= 0) {
+          user[idx] = { ...user[idx], views: (user[idx].views ?? 0) + n };
+          changed = true;
+          continue;
+        }
+        const base = catalog.find((b) => String(b.id) === id);
+        if (!base) continue;
+        user.unshift({
+          ...base,
+          views: (base.views ?? 0) + n,
+          createdAt: base.createdAt ?? "2026-01-01T00:00:00.000Z",
+        });
+        changed = true;
+      }
+      if (changed) await writeUserBooks(user);
+    });
+  } catch {
+    // не получилось записать — возвращаем счётчики, попробуем в следующий раз
+    for (const [id, n] of batch) pendingViews.set(id, (pendingViews.get(id) ?? 0) + n);
+  }
+}
+
 export async function incrementViews(id: string) {
   // счётчик просмотров не считается правкой книги — updatedAt не трогаем
-  await withLock("user-books", async () => {
-    const user = await readUserBooks();
-    const idx = user.findIndex((b) => String(b.id) === String(id));
-    if (idx >= 0) {
-      user[idx] = { ...user[idx], views: (user[idx].views ?? 0) + 1 };
-      await writeUserBooks(user);
-      return;
-    }
-    const base = (await readCatalog()).find((b) => String(b.id) === String(id));
-    if (!base) return;
-    user.unshift({
-      ...base,
-      views: (base.views ?? 0) + 1,
-      createdAt: base.createdAt ?? "2026-01-01T00:00:00.000Z",
-    });
-    await writeUserBooks(user);
-  });
+  const key = String(id);
+  pendingViews.set(key, (pendingViews.get(key) ?? 0) + 1);
+  if (!viewsTimer) {
+    viewsTimer = setTimeout(() => {
+      viewsTimer = null;
+      void flushViews();
+    }, VIEWS_FLUSH_MS);
+    viewsTimer.unref?.();
+  }
 }
 
 

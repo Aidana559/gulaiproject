@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getBookingsByUser } from "@/lib/bookings";
-import { deleteNotifications, listFor, markRead, notify } from "@/lib/notifications";
+import { deleteNotifications, listFor, markRead, notifyMany } from "@/lib/notifications";
 import { bad, getActor, unauthorized } from "@/lib/server-auth";
 import { sweepExpiredHides } from "@/lib/moderation";
 
@@ -12,29 +12,32 @@ async function ensureDueReminders(userId: string) {
   const tomorrow = dayStr(new Date(Date.now() + 86_400_000));
   const mine = await getBookingsByUser(userId);
 
+  // собираем все напоминания и отдаём одним вызовом: одно чтение файла вместо чтения на каждую бронь
+  const due: { type: "return"; href: string; text: string; key: string }[] = [];
   for (const b of mine) {
     if (b.status !== "borrowed" && b.status !== "overdue") continue;
     const base = { type: "return" as const, href: "/transactions" };
     if (b.status === "overdue") {
-      await notify(userId, {
+      due.push({
         ...base,
         text: `Срок возврата книги «${b.bookTitle}» истёк (${b.dueDate}). Верните её владельцу.`,
         key: `due:${b.id}:${b.dueDate}:overdue`,
       });
     } else if (b.dueDate === today) {
-      await notify(userId, {
+      due.push({
         ...base,
         text: `Сегодня последний день, чтобы вернуть «${b.bookTitle}».`,
         key: `due:${b.id}:${b.dueDate}:today`,
       });
     } else if (b.dueDate === tomorrow) {
-      await notify(userId, {
+      due.push({
         ...base,
         text: `Срок возврата книги «${b.bookTitle}» — завтра.`,
         key: `due:${b.id}:${b.dueDate}:tomorrow`,
       });
     }
   }
+  await notifyMany(userId, due);
 }
 
 export async function GET(req: Request) {

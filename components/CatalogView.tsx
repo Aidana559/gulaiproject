@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { FiArrowLeft, FiArrowRight, FiSearch, FiX } from "react-icons/fi";
 import {
   categoryLabels,
@@ -73,7 +73,6 @@ function plural(n: number, one: string, few: string, many: string) {
 }
 
 export default function CatalogView() {
-  const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
@@ -103,13 +102,15 @@ export default function CatalogView() {
       }
       if (!("page" in patch)) sp.delete("page"); // сброс страницы при смене фильтра
       const qs = sp.toString();
-      router.push(qs ? `${pathname}?${qs}` : pathname);
+      // Меняем только адресную строку (useSearchParams подхватывает это сам): router.push вызывал лишний
+      // серверный запрос страницы при каждом клике по фильтру, хотя данные приходят из /api/books.
+      window.history.pushState(null, "", qs ? `${pathname}?${qs}` : pathname);
     },
-    [router, pathname, searchParams],
+    [pathname, searchParams],
   );
 
   useEffect(() => {
-    let cancelled = false;
+    const ctrl = new AbortController();
     setLoading(true);
     const sp = new URLSearchParams();
     if (query) sp.set("q", query);
@@ -122,24 +123,24 @@ export default function CatalogView() {
     sp.set("page", String(page));
     sp.set("limit", "24");
 
-    fetch(`/api/books?${sp}`, { cache: "no-store" })
+    // устаревший запрос отменяется (раньше он продолжал выполняться на сервере впустую)
+    fetch(`/api/books?${sp}`, { cache: "no-store", signal: ctrl.signal })
       .then((r) => r.json())
       .then((json: ApiResult) => {
-        if (!cancelled) setData(json);
+        if (!ctrl.signal.aborted) setData(json);
       })
-      .catch(() => {
-        if (!cancelled) setData({ books: [], genres: [], total: 0, page: 1, limit: 24, pages: 1 });
+      .catch((e) => {
+        if (ctrl.signal.aborted || e?.name === "AbortError") return;
+        setData({ books: [], genres: [], total: 0, page: 1, limit: 24, pages: 1 });
       })
       .finally(() => {
-        if (!cancelled) setLoading(false);
+        if (!ctrl.signal.aborted) setLoading(false);
       });
-    return () => {
-      cancelled = true;
-    };
+    return () => ctrl.abort();
   }, [query, category, genreKey, author, year, status, sort, page]);
 
   function reset() {
-    router.push(pathname);
+    window.history.pushState(null, "", pathname);
   }
 
   const books = data?.books ?? [];

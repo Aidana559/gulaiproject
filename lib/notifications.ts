@@ -69,6 +69,51 @@ export async function notify(
   }
 }
 
+/**
+ * Несколько уведомлений одному пользователю за одно чтение и (при необходимости) одну запись.
+ * Уведомления с уже существующим key пропускаются — как в notify().
+ */
+export async function notifyMany(
+  userId: string | undefined | null,
+  items: { type: NotificationType; text: string; href?: string; key?: string }[],
+) {
+  if (!userId || items.length === 0) return;
+  try {
+    await withLock(async () => {
+      const all = await readJson<Notification[]>(FILE, []);
+      const uidStr = String(userId);
+      const have = new Set(all.filter((x) => x.userId === uidStr && x.key).map((x) => x.key));
+      let added = 0;
+      for (const n of items) {
+        if (n.key && have.has(n.key)) continue;
+        if (n.key) have.add(n.key);
+        all.push({
+          id: uid(),
+          userId: uidStr,
+          type: n.type,
+          text: n.text,
+          href: n.href,
+          key: n.key,
+          read: false,
+          createdAt: new Date().toISOString(),
+        });
+        added++;
+      }
+      if (!added) return; // всё уже было — файл не трогаем
+      const mine = all.filter((x) => x.userId === uidStr && x.type !== "moderation");
+      const drop = new Set(
+        mine
+          .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+          .slice(MAX_PER_USER)
+          .map((x) => x.id),
+      );
+      await writeJson(FILE, drop.size ? all.filter((x) => !drop.has(x.id)) : all);
+    });
+  } catch {
+    /* уведомления не критичны */
+  }
+}
+
 export async function listFor(userId: string): Promise<Notification[]> {
   const all = await readJson<Notification[]>(FILE, []);
   return all

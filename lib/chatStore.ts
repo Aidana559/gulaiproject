@@ -72,28 +72,50 @@ function setSession(next: ChatSession, nextActor: ChatActor | null) {
   listeners.forEach((l) => l());
 }
 
-/** Перечитывает сессию с сервера. Вызывается из AuthProvider при входе, выходе и фокусе окна. */
-export async function refreshChatSession(): Promise<void> {
+// Справочник собеседников почти не меняется: не перезапрашиваем его при каждом фокусе окна
+const PEERS_TTL_MS = 5 * 60_000;
+let peersFor: string | null = null;
+let peersAt = 0;
+
+/**
+ * Перечитывает сессию с сервера. Вызывается из AuthProvider при входе, выходе и фокусе окна.
+ * `known` — уже полученный AuthProvider ответ /api/auth/me (user или null): тогда второй запрос
+ * /api/auth/me не делается. Без аргумента функция сама спрашивает сервер.
+ */
+export async function refreshChatSession(
+  known?: { id?: unknown; name?: unknown; role?: unknown } | null,
+): Promise<void> {
   const seq = ++sessionSeq;
   try {
-    const res = await fetch("/api/auth/me", { cache: "no-store" });
-    const data = res.ok ? await res.json() : null;
-    const u = data?.user;
+    let u: { id?: unknown; name?: unknown; role?: unknown } | null | undefined;
+    if (known !== undefined) {
+      u = known;
+    } else {
+      const res = await fetch("/api/auth/me", { cache: "no-store" });
+      const data = res.ok ? await res.json() : null;
+      u = data?.user;
+    }
     if (seq !== sessionSeq) return;
     if (!u || u.id == null) return setSession(ANON, null);
 
     const a: ChatActor = { id: String(u.id), name: String(u.name), role: String(u.role) };
     if (!canUseChat(a.role)) return setSession({ status: "denied", me: null, peers: null }, a);
 
-    let peers: Map<string, string> | null = null;
-    try {
-      const r = await fetch("/api/chat/directory", { cache: "no-store" });
-      if (r.ok) {
-        const j = await r.json();
-        peers = new Map((j.users as { id: string; name: string }[]).map((p) => [String(p.id), p.name]));
+    let peers: ReadonlyMap<string, string> | null = null;
+    if (session.peers && peersFor === a.id && Date.now() - peersAt < PEERS_TTL_MS) {
+      peers = session.peers; // тот же пользователь, справочник свежий
+    } else {
+      try {
+        const r = await fetch("/api/chat/directory", { cache: "no-store" });
+        if (r.ok) {
+          const j = await r.json();
+          peers = new Map((j.users as { id: string; name: string }[]).map((p) => [String(p.id), p.name]));
+          peersFor = a.id;
+          peersAt = Date.now();
+        }
+      } catch {
+        /* справочника нет — писать нельзя (fail closed), читать свои чаты можно */
       }
-    } catch {
-      /* справочника нет — писать нельзя (fail closed), читать свои чаты можно */
     }
     if (seq !== sessionSeq) return;
     migrateLegacyStorage(peers); // до показа чатов: список сразу полный и без дублей
@@ -106,6 +128,7 @@ export async function refreshChatSession(): Promise<void> {
 /** Сброс при выходе: чаты сразу перестают быть доступными. */
 export function clearChatSession() {
   sessionSeq++;
+  peersFor = null;
   setSession(ANON, null);
 }
 

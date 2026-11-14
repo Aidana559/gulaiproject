@@ -1,12 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { FiBell, FiBook, FiBookmark, FiCheckCircle, FiClock, FiInfo } from "react-icons/fi";
 import { useAuth } from "@/components/AuthProvider";
-import { GROUPS, fmtShort, titleOf, type NotifItem } from "@/lib/notification-ui";
-
-const POLL_MS = 30_000;
+import { GROUPS, fmtShort, titleOf } from "@/lib/notification-ui";
+import { loadNotifications, useNotifications } from "@/lib/notificationsStore";
 
 const ICONS: Record<string, React.ReactNode> = {
   moderation: <FiBook />,
@@ -17,34 +16,12 @@ const ICONS: Record<string, React.ReactNode> = {
 
 export default function NotificationBell() {
   const { user } = useAuth();
-  const [items, setItems] = useState<NotifItem[]>([]);
-  const [unread, setUnread] = useState(0);
-  const [counts, setCounts] = useState<Record<string, number>>({});
+  // данные и опрос общие для всех колокольчиков на странице (см. lib/notificationsStore.ts)
+  const { items, unread, counts } = useNotifications(user ? String(user.id ?? user.email) : null);
   const [filter, setFilter] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
   const boxRef = useRef<HTMLDivElement>(null);
-
-  const load = useCallback(async () => {
-    try {
-      // в выпадающем списке — только непрочитанные; прочитанные остаются на странице «Все оповещения»
-      const res = await fetch("/api/notifications?unread=1", { cache: "no-store" });
-      if (!res.ok) return;
-      const json = await res.json();
-      setItems(Array.isArray(json.items) ? json.items : []);
-      setUnread(Number(json.unread) || 0);
-      setCounts(json.counts && typeof json.counts === "object" ? json.counts : {});
-    } catch {
-      /* сеть недоступна — оставляем прежний список */
-    }
-  }, []);
-
-  useEffect(() => {
-    if (!user) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    void load();
-    const t = setInterval(load, POLL_MS);
-    return () => clearInterval(t);
-  }, [user, load]);
+  const load = loadNotifications;
 
   useEffect(() => {
     function onDoc(e: MouseEvent) {
@@ -60,7 +37,7 @@ export default function NotificationBell() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     }).catch(() => {});
-    await load();
+    await load(true);
   }
 
   if (!user) return null;

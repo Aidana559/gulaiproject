@@ -25,6 +25,9 @@ export default function BookCover({
         <img
           src={book.coverUrl}
           alt={book.title}
+          // ленивая загрузка: обложки ниже экрана не качаются, пока до них не докрутили (крупная — сразу)
+          loading={large ? "eager" : "lazy"}
+          decoding="async"
           className="h-full w-full object-cover"
         />
       </div>

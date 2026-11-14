@@ -1,11 +1,8 @@
 import { randomUUID } from "node:crypto";
-import { promises as fs } from "node:fs";
-import path from "path";
 import { books as staticBooks } from "@/data/books";
 import demoTx from "@/data/transactions.json";
 import { notify, resolveUserId } from "@/lib/notifications";
-import { withLock } from "@/lib/db";
-import { writeFileAtomic } from "@/lib/atomic-file";
+import { readJsonShared, withLock, writeJson } from "@/lib/db";
 
 export type BookingStatus =
   | "reserved"
@@ -37,7 +34,6 @@ export type BookingView = Omit<Booking, "status"> & {
 };
 
 const LOAN_DAYS = 14;
-const FILE = path.join(process.cwd(), "data", "bookings.json");
 
 const day = (d = new Date()) => d.toISOString().slice(0, 10);
 
@@ -83,7 +79,8 @@ const isActive = (b: Booking) =>
 
 async function readAll(): Promise<Booking[]> {
   try {
-    const items = JSON.parse(await fs.readFile(FILE, "utf8")) as unknown[];
+    // файл читается из кэша (перечитывается только после изменения); normalize создаёт новые объекты
+    const items = await readJsonShared<unknown[]>("bookings.json", []);
     const out: Booking[] = [];
     for (const raw of items) {
       const n = normalize(raw as Booking);
@@ -97,7 +94,7 @@ async function readAll(): Promise<Booking[]> {
 }
 
 async function writeAll(items: Booking[]) {
-  await writeFileAtomic(FILE, JSON.stringify(items, null, 2));
+  await writeJson("bookings.json", items); // сбрасывает кэш
 }
 
 export async function resolveBookOwner(bookId: number): Promise<{
@@ -160,16 +157,38 @@ export async function getBookingsByUser(userId: string) {
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
+type Owner = { ownerId?: string; ownerName?: string };
+
+/**
+ * Владельцы всех книг одним проходом. Раньше resolveBookOwner вызывался для КАЖДОЙ брони
+ * и каждый раз перечитывал каталог и статусы (N × несколько файлов).
+ * Правила те же, что у resolveBookOwner: книга из каталога/объявлений, иначе — статические данные.
+ */
+async function ownersIndex(): Promise<(bookId: number) => Owner> {
+  const { getAllBooks } = await import("@/lib/books-store");
+  const byId = new Map<string, Owner>();
+  for (const b of await getAllBooks({ includeHidden: true })) {
+    byId.set(String(b.id), { ownerId: b.ownerId != null ? String(b.ownerId) : undefined, ownerName: b.owner });
+  }
+  return (bookId) => {
+    const hit = byId.get(String(bookId));
+    if (hit) return hit;
+    const s = staticBooks.find((x) => x.id === bookId);
+    return s ? { ownerName: s.owner } : {};
+  };
+}
+
 export async function listBookingsForActor(actor: {
   id: string;
   name: string;
   role?: string;
 }): Promise<BookingView[]> {
   const all = await readAll();
+  const ownerOf = await ownersIndex();
   const result: BookingView[] = [];
   const reliabilityCache = new Map<string, Reliability>();
   for (const b of all) {
-    const owner = await resolveBookOwner(b.bookId);
+    const owner = ownerOf(b.bookId);
     const isBorrower = String(b.userId) === String(actor.id);
     const isMgr = canManageBook(actor, owner);
 
@@ -197,20 +216,16 @@ export async function isBookTaken(bookId: number) {
  * синхронизируется на сервер (data/demo-tx-state.json), чтобы каталог и «Транзакции»
  * считали одно и то же. Если копии ещё нет — берём исходный data/transactions.json.
  */
-const DEMO_FILE = path.join(process.cwd(), "data", "demo-tx-state.json");
 
 export async function readDemoState(): Promise<DemoTx[]> {
-  try {
-    const parsed = JSON.parse(await fs.readFile(DEMO_FILE, "utf8"));
-    if (Array.isArray(parsed)) return parsed as DemoTx[];
-  } catch {
-    /* копии нет — используем исходные данные */
-  }
+  // копия состоит из файла data/demo-tx-state.json; нет файла — исходные данные
+  const parsed = await readJsonShared<unknown>("demo-tx-state.json", null);
+  if (Array.isArray(parsed)) return parsed as DemoTx[];
   return demo;
 }
 
 export async function writeDemoState(items: DemoTx[]) {
-  await writeFileAtomic(DEMO_FILE, JSON.stringify(items, null, 2));
+  await writeJson("demo-tx-state.json", items);
 }
 
 function demoStates(list: DemoTx[]) {

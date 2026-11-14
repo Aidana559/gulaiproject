@@ -11,12 +11,13 @@ import { canManageOwnListings, checkListingAccess } from "@/lib/listing-access";
 import { sweepExpiredHides } from "@/lib/moderation";
 import { isMutedNow, muteLabel } from "@/lib/mute";
 import type { Category } from "@/data/books";
-import { ensureCatalog } from "@/lib/catalog-loader";
+import { catalogIsEmpty, ensureCatalog } from "@/lib/catalog-loader";
 
 export async function GET(req: Request) {
-  // Если каталог ещё не загружен из Google Books — дожидаемся (не дольше 25 с).
-  // Когда каталог полный, вызов мгновенный и в сеть не ходит.
-  await Promise.race([ensureCatalog(), new Promise((r) => setTimeout(r, 25000))]);
+  // Каталог догружается из Google Books В ФОНЕ: запрос его не ждёт.
+  // Ждём (не дольше 8 с) только при самом первом запуске, когда каталог ещё пуст.
+  const loading = ensureCatalog();
+  if (await catalogIsEmpty()) await Promise.race([loading, new Promise((r) => setTimeout(r, 8000))]);
 
   // книги с истёкшим сроком скрытия возвращаются в каталог (и автору уходит уведомление)
   await sweepExpiredHides().catch(() => 0);

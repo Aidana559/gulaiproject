@@ -213,8 +213,15 @@ export async function approveBook(book: ServerBook, actor: Actor): Promise<Serve
  * Безопасно вызывать часто — работает только если есть что восстанавливать.
  */
 let sweeping: Promise<number> | null = null;
+// Проверка вызывается из каждого запроса каталога, книги и уведомлений. Читателям срок скрытия виден сразу
+// (isHiddenNow сравнивает с текущим временем), а сам sweep лишь «записывает» публикацию и шлёт уведомление,
+// поэтому достаточно запускать его не чаще раза в SWEEP_EVERY_MS.
+const SWEEP_EVERY_MS = 30_000;
+let lastSweep = 0;
 export function sweepExpiredHides(): Promise<number> {
   if (sweeping) return sweeping;
+  if (Date.now() - lastSweep < SWEEP_EVERY_MS) return Promise.resolve(0);
+  lastSweep = Date.now();
   const run = (async () => {
     const now = Date.now();
     const all = await getAllBooks({ includeHidden: true, includeDeleted: true });

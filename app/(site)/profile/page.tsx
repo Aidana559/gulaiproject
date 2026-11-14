@@ -85,8 +85,10 @@ function validate(d: Draft): FieldErrors {
 
 export default function ProfilePage() {
   const router = useRouter();
-  const { user: authUser, updateProfile, refresh } = useAuth();
-  const [user, setUser] = useState<Profile | null>(null);
+  const { user: authUser, loading: authLoading, updateProfile, refresh } = useAuth();
+  // пользователь уже загружен AuthProvider — отдельный запрос /api/auth/me не нужен
+  const user = authUser as unknown as Profile | null;
+  const authId = authUser ? String(authUser.id ?? authUser.email) : null;
   const [bookings, setBookings] = useState<Booking[]>([]);
 
   // фильтр броней и поиск книг
@@ -107,14 +109,13 @@ export default function ProfilePage() {
   }, []);
 
   useEffect(() => {
-    fetch("/api/auth/me")
-      .then(async (res) => {
-        if (!res.ok) return router.replace("/login");
-        setUser((await res.json()).user);
-        await loadBookings();
-      })
-      .catch(() => router.replace("/login"));
-  }, [router, loadBookings]);
+    if (authLoading) return;
+    if (!authId) {
+      router.replace("/login");
+      return;
+    }
+    void loadBookings();
+  }, [authLoading, authId, router, loadBookings]);
 
   useEffect(() => {
     if (!toast) return;
