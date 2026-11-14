@@ -201,25 +201,51 @@ const score = (c: Candidate) =>
   (c.pages ? 1 : 0) +
   (c.isbn.length === 13 ? 1 : 0);
 
-const keyOf = (title: string, author: string) => `${norm(title)}|${norm(author)}`;
+/** Фамилия первого автора: «Федор Достоевский» и «Ф. Достоевский» — один и тот же автор. */
+const surname = (author: string) => {
+  const parts = norm(author.split(",")[0] ?? "").split(" ").filter(Boolean);
+  return parts[parts.length - 1] ?? "";
+};
+const keyOf = (title: string, author: string) => `${norm(title)}|${surname(author)}`;
+
+// «Т. 2», «Том III», «Книга 11», «Часть 1» — разные тома одной серии, это не повторы.
+const VOLUME_RE = /(^| )(т|том|книга|кн|часть|ч|выпуск|vol|volume)( [0-9]+| [ivxlc]+)( |$)/;
+
+/**
+ * Ключ «произведения»: название до «:» или «. » + фамилия автора. По нему находятся
+ * разные издания одной книги: «1984» и «1984. Графический роман»,
+ * «Преступление и наказание» и «Преступление и наказание: роман».
+ * Для манги и для томов серий (Т. 1, Книга 2…) ключа нет — у них отдельные тома, а не повторы.
+ */
+function workKey(title: string, author: string, category?: string): string | null {
+  if (category === "manga") return null;
+  if (VOLUME_RE.test(norm(title))) return null;
+  const base = norm(title.split(/:|\.\s/)[0] ?? "");
+  const sn = surname(author);
+  return base && sn ? `${base}|${sn}` : null;
+}
 const isbnKey = (isbn: string) => isbn.replace(/[^0-9Xx]/g, "").toUpperCase();
 
-type Seen = { ids: Set<string>; isbns: Set<string>; titles: Set<string> };
+type Seen = { ids: Set<string>; isbns: Set<string>; titles: Set<string>; works: Set<string> };
 
-function isSeen(c: Candidate, seen: Seen) {
+function isSeen(c: Candidate, seen: Seen, cat: Category) {
+  const work = workKey(c.title, c.authors[0], cat);
   return (
     seen.ids.has(c.googleId) ||
     seen.isbns.has(isbnKey(c.isbn)) ||
-    seen.titles.has(keyOf(c.title, c.authors[0]))
+    seen.titles.has(keyOf(c.title, c.authors[0])) ||
+    (!!work && seen.works.has(work))
   );
 }
-function markSeen(c: Candidate, seen: Seen) {
+function markSeen(c: Candidate, seen: Seen, cat: Category) {
   seen.ids.add(c.googleId);
   seen.isbns.add(isbnKey(c.isbn));
   seen.titles.add(keyOf(c.title, c.authors[0]));
+  const work = workKey(c.title, c.authors[0], cat);
+  if (work) seen.works.add(work);
 }
 
-async function pickForSlot(s: Slot, seen: Seen): Promise<Candidate[]> {
+async function pickForSlot(s: Slot, seen: Seen, cat: Category): Promise<Candidate[]> {
   // всегда только русские издания
   const attempts: { q: string; lang: string }[] = [{ q: s.q, lang: "ru" }];
 
@@ -239,8 +265,8 @@ async function pickForSlot(s: Slot, seen: Seen): Promise<Candidate[]> {
 
     for (const c of found) {
       if (picked.length >= take) break;
-      if (isSeen(c, seen)) continue;
-      markSeen(c, seen);
+      if (isSeen(c, seen, cat)) continue;
+      markSeen(c, seen, cat);
       picked.push(c);
     }
     if (picked.length >= take) break;
@@ -256,7 +282,7 @@ async function loadCategory(
   const result: { c: Candidate; genres: string[] }[] = [];
   for (const slot of catalogPlan[cat]) {
     if (result.length >= need) break;
-    const picked = await pickForSlot(slot, seen);
+    const picked = await pickForSlot(slot, seen, cat);
     for (const c of picked) {
       if (result.length >= need) break;
       result.push({ c, genres: slot.genres });
@@ -326,6 +352,48 @@ async function purgeNonRussian() {
   });
 }
 
+/**
+ * Убирает из каталога повторы одной и той же книги: совпадает googleId, ISBN
+ * или «название + фамилия автора», или это другое издание того же произведения
+ * («1984» и «1984. Графический роман»). Остаётся книга, на которую есть брони/транзакции,
+ * иначе — с меньшим id. Копии удалённых книг в user-books.json тоже убираются.
+ */
+async function dedupeCatalog() {
+  await withLock("catalog-file", async () => {
+    const list = await readJson<CatalogBook[]>(CATALOG_FILE, []);
+    if (list.length < 2) return;
+
+    const used = new Set<number>();
+    for (const f of [BOOKINGS_FILE, "transactions.json", "demo-tx-state.json"]) {
+      const rows = await readJson<{ bookId?: number }[]>(f, []);
+      for (const r of rows) if (r.bookId != null) used.add(Number(r.bookId));
+    }
+
+    const priority = [...list].sort(
+      (a, b) => Number(used.has(Number(b.id))) - Number(used.has(Number(a.id))) || Number(a.id) - Number(b.id),
+    );
+    const taken = new Set<string>();
+    const drop = new Set<CatalogBook>();
+    for (const b of priority) {
+      const keys = [
+        b.googleId ? `g:${b.googleId}` : "",
+        b.isbn ? `i:${isbnKey(b.isbn)}` : "",
+        b.title && b.author ? `t:${keyOf(b.title, b.author)}` : "",
+        b.title && b.author && workKey(b.title, b.author, b.category) ? `w:${workKey(b.title, b.author, b.category)}` : "",
+      ].filter(Boolean);
+      if (keys.some((k) => taken.has(k))) drop.add(b);
+      else keys.forEach((k) => taken.add(k));
+    }
+    if (drop.size === 0) return;
+
+    await writeJson(CATALOG_FILE, list.filter((b) => !drop.has(b)));
+    const ids = new Set([...drop].map((b) => String(b.id)));
+    const users = await readJson<{ id: number | string; googleId?: string; ownerId?: string }[]>(USER_FILE, []);
+    const kept = users.filter((u) => !(ids.has(String(u.id)) && u.googleId && !u.ownerId));
+    if (kept.length !== users.length) await writeJson(USER_FILE, kept);
+  });
+}
+
 /** Бронировать могут только обычные пользователи: брони админов и модераторов удаляем */
 async function purgeStaffBookings() {
   const users = await readJson<{ id: string; role?: string }[]>("users.json", []);
@@ -341,16 +409,21 @@ async function purgeStaffBookings() {
 async function run() {
   await purgeStaffBookings();
   await purgeNonRussian();
+  await dedupeCatalog();
   const existing = await readJson<CatalogBook[]>(CATALOG_FILE, []);
   const userBooks = await readJson<
-    { id: number | string; title?: string; author?: string; isbn?: string; googleId?: string }[]
+    { id: number | string; title?: string; author?: string; isbn?: string; googleId?: string; category?: string }[]
   >(USER_FILE, []);
 
-  const seen: Seen = { ids: new Set(), isbns: new Set(), titles: new Set() };
+  const seen: Seen = { ids: new Set(), isbns: new Set(), titles: new Set(), works: new Set() };
   for (const b of [...existing, ...userBooks]) {
     if (b.googleId) seen.ids.add(b.googleId);
     if (b.isbn) seen.isbns.add(isbnKey(b.isbn));
-    if (b.title && b.author) seen.titles.add(keyOf(b.title, b.author));
+    if (b.title && b.author) {
+      seen.titles.add(keyOf(b.title, b.author));
+      const work = workKey(b.title, b.author, b.category);
+      if (work) seen.works.add(work);
+    }
   }
 
   const cats = Object.keys(catalogPlan) as Category[];

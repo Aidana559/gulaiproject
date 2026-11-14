@@ -2,8 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { FiArrowLeft, FiArrowRight, FiGrid, FiSearch, FiX } from "react-icons/fi";
-import CategoryIcon from "./CategoryIcon";
+import { FiArrowLeft, FiArrowRight, FiSearch, FiX } from "react-icons/fi";
 import {
   categoryLabels,
   statusLabels,
@@ -11,9 +10,8 @@ import {
   type Category,
   type Status,
 } from "@/data/books";
-import BookCard from "./BookCard";
+import CatalogBookCard from "./CatalogBookCard";
 import { Button } from "./Button";
-import { inputClass } from "./FormField";
 
 const tabs: { key: Category | "all"; label: string }[] = [
   { key: "all", label: "Все" },
@@ -23,12 +21,34 @@ const tabs: { key: Category | "all"; label: string }[] = [
   { key: "manga", label: categoryLabels.manga },
 ];
 
-const chipClass = (active: boolean) =>
-  `rounded-full px-3 py-1 text-sm font-medium ring-1 ring-inset transition ${
+/** Вариант фильтра: текст с подчёркиванием у выбранного (как в каталогах с рядами фильтров) */
+const optClass = (active: boolean) =>
+  `border-b-2 pb-1 text-[15px] transition ${
     active
-      ? "bg-indigo-600 text-white ring-indigo-600"
-      : "bg-white text-stone-700 ring-stone-300 hover:bg-indigo-50 hover:text-indigo-700"
+      ? "border-indigo-600 font-semibold text-stone-900"
+      : "border-transparent text-stone-600 hover:text-indigo-700"
   }`;
+
+const STATUS_DOT: Record<Status, string> = {
+  available: "bg-emerald-500",
+  reserved: "bg-amber-500",
+  given: "bg-stone-400",
+};
+
+const SORTS: { key: SortKey; label: string }[] = [
+  { key: "title", label: "По названию" },
+  { key: "new", label: "Новые в каталоге" },
+  { key: "popular", label: "Популярные" },
+];
+
+function FilterRow({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex flex-col gap-2 sm:flex-row sm:gap-6">
+      <p className="w-24 shrink-0 pt-0.5 text-xs font-semibold uppercase tracking-wide text-stone-400">{label}</p>
+      <div className="flex min-w-0 flex-1 flex-wrap gap-x-5 gap-y-2.5">{children}</div>
+    </div>
+  );
+}
 
 const activeChip =
   "inline-flex items-center gap-1.5 rounded-full bg-indigo-50 px-3 py-1 font-medium text-indigo-700 ring-1 ring-inset ring-indigo-200 hover:bg-indigo-100";
@@ -43,6 +63,14 @@ type ApiResult = {
   limit: number;
   pages: number;
 };
+
+function plural(n: number, one: string, few: string, many: string) {
+  const m10 = n % 10;
+  const m100 = n % 100;
+  if (m10 === 1 && m100 !== 11) return one;
+  if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return few;
+  return many;
+}
 
 export default function CatalogView() {
   const router = useRouter();
@@ -62,6 +90,8 @@ export default function CatalogView() {
 
   const [data, setData] = useState<ApiResult | null>(null);
   const [loading, setLoading] = useState(true);
+  const [q, setQ] = useState(query);
+  useEffect(() => setQ(query), [query]); // кнопки «Назад/Сбросить» обновляют поле поиска
 
   const setParams = useCallback(
     (patch: Record<string, string | string[] | null>) => {
@@ -127,71 +157,56 @@ export default function CatalogView() {
 
   return (
     <div>
-      <div className="flex flex-wrap gap-2">
-        {tabs.map((t) => (
-          <Button
-            key={t.key}
-            size="sm"
-            variant={category === t.key ? "primary" : "outline"}
-            onClick={() => setParams({ category: t.key === "all" ? null : t.key })}
-          >
-            {t.key === "all" ? <FiGrid /> : <CategoryIcon category={t.key} />} {t.label}
-          </Button>
-        ))}
-      </div>
-
-      <div className="mt-5 grid gap-3 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-stone-200 sm:grid-cols-2 lg:grid-cols-4">
+      {/* Крупный поиск */}
+      <form
+        role="search"
+        onSubmit={(e) => {
+          e.preventDefault();
+          setParams({ q: q.trim() || null });
+        }}
+        className="flex max-w-3xl items-center gap-2 rounded-full bg-white p-1.5 pl-5 shadow-sm ring-2 ring-stone-900/80 focus-within:ring-indigo-600"
+      >
+        <FiSearch className="shrink-0 text-lg text-stone-400" />
         <input
           type="search"
-          defaultValue={query}
-          key={query}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              setParams({ q: (e.target as HTMLInputElement).value || null });
-            }
-          }}
-          onBlur={(e) => setParams({ q: e.target.value || null })}
-          placeholder="Поиск по названию или автору"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="Название, автор или жанр"
           aria-label="Поиск"
-          className={`${inputClass} lg:col-span-2`}
+          className="min-w-0 flex-1 bg-transparent py-2.5 text-lg text-stone-900 outline-none placeholder:text-stone-400"
         />
-        <select
-          value={status}
-          onChange={(e) => setParams({ status: e.target.value })}
-          aria-label="Статус"
-          className={inputClass}
+        <button
+          type="submit"
+          className="rounded-full bg-indigo-600 px-6 py-2.5 font-semibold text-white transition hover:bg-indigo-700"
         >
-          <option value="all">Любой статус</option>
-          {(Object.keys(statusLabels) as Status[]).map((s) => (
-            <option key={s} value={s}>
-              {statusLabels[s]}
-            </option>
-          ))}
-        </select>
-        <select
-          value={sort}
-          onChange={(e) => setParams({ sort: e.target.value })}
-          aria-label="Сортировка"
-          className={inputClass}
-        >
-          <option value="title">По названию</option>
-          <option value="new">Сначала новые</option>
-          <option value="popular">Популярные</option>
-        </select>
-      </div>
+          Найти
+        </button>
+      </form>
 
-      <div className="mt-4" role="group" aria-label="Жанр">
-        <p className="mb-2 text-xs font-medium uppercase tracking-wide text-stone-400">
-          Жанр <span className="normal-case tracking-normal">· можно выбрать несколько</span>
-        </p>
-        <div className="flex flex-wrap gap-2">
+      {/* Ряды фильтров */}
+      <div className="mt-6 space-y-4 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-stone-200 sm:p-6">
+        <FilterRow label="Категория">
+          {tabs.map((t) => (
+            <button
+              key={t.key}
+              type="button"
+              aria-pressed={category === t.key}
+              onClick={() => setParams({ category: t.key === "all" ? null : t.key })}
+              className={optClass(category === t.key)}
+            >
+              {t.label}
+            </button>
+          ))}
+        </FilterRow>
+
+        <FilterRow label="Жанр">
           <button
             type="button"
             onClick={() => setParams({ genre: null })}
             aria-pressed={selectedGenres.length === 0}
-            className={chipClass(selectedGenres.length === 0)}
+            className={optClass(selectedGenres.length === 0)}
           >
-            Все жанры
+            Все
           </button>
           {genres.map((g) => (
             <button
@@ -199,12 +214,49 @@ export default function CatalogView() {
               type="button"
               onClick={() => toggleGenre(g)}
               aria-pressed={selectedGenres.includes(g)}
-              className={chipClass(selectedGenres.includes(g))}
+              className={optClass(selectedGenres.includes(g))}
             >
               {g}
             </button>
           ))}
-        </div>
+        </FilterRow>
+
+        <FilterRow label="Порядок">
+          {SORTS.map((o) => (
+            <button
+              key={o.key}
+              type="button"
+              aria-pressed={sort === o.key}
+              onClick={() => setParams({ sort: o.key === "title" ? null : o.key })}
+              className={optClass(sort === o.key)}
+            >
+              {o.label}
+            </button>
+          ))}
+        </FilterRow>
+
+        <FilterRow label="Статус">
+          <button
+            type="button"
+            aria-pressed={status === "all"}
+            onClick={() => setParams({ status: null })}
+            className={optClass(status === "all")}
+          >
+            Все
+          </button>
+          {(Object.keys(statusLabels) as Status[]).map((st) => (
+            <button
+              key={st}
+              type="button"
+              aria-pressed={status === st}
+              onClick={() => setParams({ status: st })}
+              className={`${optClass(status === st)} inline-flex items-center gap-2`}
+            >
+              <span className={`h-2 w-2 rounded-full ${STATUS_DOT[st]}`} aria-hidden />
+              {statusLabels[st]}
+            </button>
+          ))}
+        </FilterRow>
       </div>
 
       {(author || year > 0) && (
@@ -223,10 +275,10 @@ export default function CatalogView() {
         </div>
       )}
 
-      <div className="mt-6 flex items-center justify-between">
-        <p className="text-sm text-stone-500">
-          Найдено: <b className="text-stone-800">{loading ? "…" : total}</b>
-        </p>
+      <div className="mt-8 flex flex-wrap items-baseline justify-between gap-2">
+        <h2 className="text-2xl font-extrabold text-stone-900">
+          {loading ? "…" : total.toLocaleString("ru-RU")} {plural(total, "книга", "книги", "книг")} в каталоге
+        </h2>
         <Button variant="ghost" size="sm" onClick={reset}>
           Сбросить фильтры
         </Button>
@@ -241,9 +293,9 @@ export default function CatalogView() {
           <p className="mt-1 text-sm text-stone-500">Попробуйте изменить запрос или фильтры.</p>
         </div>
       ) : (
-        <div className="mt-4 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <div className="mt-4 grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
           {books.map((b) => (
-            <BookCard key={b.id} book={b} />
+            <CatalogBookCard key={b.id} book={b} />
           ))}
         </div>
       )}

@@ -4,6 +4,7 @@ import { useMemo, useSyncExternalStore } from "react";
 import raw from "@/data/transactions.json";
 import type { Book, Status } from "@/data/books";
 import { addDays, type Transaction, type TransactionWithBook } from "@/data/transactions";
+import { refreshBookStates } from "@/components/BookStatusBadge";
 
 /**
  * Общее хранилище транзакций на клиенте (пока нет бэкенда).
@@ -11,6 +12,18 @@ import { addDays, type Transaction, type TransactionWithBook } from "@/data/tran
  */
 const KEY = "page2page:transactions:v2";
 export const ME = "Вы";
+
+/** Копия состояния на сервере: каталог считает статусы книг по ней (см. lib/bookings.ts). */
+function syncToServer(list: Transaction[]) {
+  if (typeof window === "undefined") return;
+  fetch("/api/bookings/demo", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ items: list }),
+  })
+    .then(() => refreshBookStates(true))
+    .catch(() => undefined);
+}
 
 const initial = raw as Transaction[];
 let state: Transaction[] = initial;
@@ -22,7 +35,11 @@ function load() {
   loaded = true;
   try {
     const s = localStorage.getItem(KEY);
-    if (s) state = JSON.parse(s) as Transaction[];
+    if (s) {
+      state = JSON.parse(s) as Transaction[];
+      const snapshot = state;
+      setTimeout(() => syncToServer(snapshot), 0); // сервер должен видеть то же, что и пользователь
+    }
   } catch {
     /* localStorage недоступен — работаем в памяти */
   }
@@ -35,6 +52,7 @@ function set(next: Transaction[]) {
   } catch {
     /* ignore */
   }
+  syncToServer(next);
   listeners.forEach((l) => l());
 }
 

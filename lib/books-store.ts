@@ -4,6 +4,7 @@ import type { Book, Category, Status } from "@/data/books";
 import { readJson, writeJson, uid, withLock } from "./db";
 import { MAX_GENRES, bookState } from "./moderation-shared";
 import { genresOf } from "./genres";
+import { getBookStates } from "./bookings";
 
 export type Condition = "new" | "used" | "annotated";
 
@@ -128,7 +129,7 @@ export async function getBook(
   if (!book) return undefined;
   if (book.deleted && !opts.includeDeleted) return undefined;
   if (isHiddenNow(book) && !opts.includeHidden) return undefined;
-  return book;
+  return withLiveStatus([book], await getBookStates())[0];
 }
 
 export type ListQuery = {
@@ -160,11 +161,29 @@ export type ListResult = {
   pages: number;
 };
 
-export async function listBooks(query: ListQuery): Promise<ListResult> {
-  let list = await getAllBooks({
-    includeHidden: query.includeHidden,
-    includeDeleted: query.includeDeleted,
+/**
+ * Реальный статус книги берётся из броней (data/bookings.json), а не из поля book.status:
+ * активная бронь → «Забронирована», выдана/просрочена → «Отдана», иначе «Доступна».
+ * Так фильтр каталога, карточки и бейджи всегда совпадают с транзакциями.
+ */
+function withLiveStatus<T extends { id: number | string; status: Status }>(
+  list: T[],
+  states: Record<string, "reserved" | "given">,
+): T[] {
+  return list.map((b) => {
+    const live: Status = states[String(b.id)] ?? "available";
+    return b.status === live ? b : { ...b, status: live };
   });
+}
+
+export async function listBooks(query: ListQuery): Promise<ListResult> {
+  let list = withLiveStatus(
+    await getAllBooks({
+      includeHidden: query.includeHidden,
+      includeDeleted: query.includeDeleted,
+    }),
+    await getBookStates(),
+  );
 
   if (query.owner) {
     const { id: oid, name: oname } = query.owner;

@@ -36,7 +36,6 @@ const EDITABLE = [
   "description",
   "category",
   "condition",
-  "status",
   "location",
   "city",
   "campus",

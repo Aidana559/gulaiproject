@@ -188,12 +188,47 @@ export async function listBookingsForActor(actor: {
 
 export async function isBookTaken(bookId: number) {
   const all = await readAll();
-  return all.some((b) => isActive(b) && b.bookId === bookId);
+  if (all.some((b) => isActive(b) && b.bookId === bookId)) return true;
+  return String(bookId) in demoStates(await readDemoState());
+}
+
+/**
+ * Демо-транзакции (страница «Транзакции») хранятся на клиенте, но их копия
+ * синхронизируется на сервер (data/demo-tx-state.json), чтобы каталог и «Транзакции»
+ * считали одно и то же. Если копии ещё нет — берём исходный data/transactions.json.
+ */
+const DEMO_FILE = path.join(process.cwd(), "data", "demo-tx-state.json");
+
+export async function readDemoState(): Promise<DemoTx[]> {
+  try {
+    const parsed = JSON.parse(await fs.readFile(DEMO_FILE, "utf8"));
+    if (Array.isArray(parsed)) return parsed as DemoTx[];
+  } catch {
+    /* копии нет — используем исходные данные */
+  }
+  return demo;
+}
+
+export async function writeDemoState(items: DemoTx[]) {
+  await fs.mkdir(path.dirname(DEMO_FILE), { recursive: true });
+  await fs.writeFile(DEMO_FILE, JSON.stringify(items, null, 2), "utf8");
+}
+
+function demoStates(list: DemoTx[]) {
+  const states: Record<string, "reserved" | "given"> = {};
+  for (const t of list) {
+    const key = String(t.bookId);
+    if (t.status === "borrowed" || t.status === "overdue") states[key] = "given";
+    else if ((t.status === "reserved" || t.status === "confirmed") && states[key] !== "given") {
+      states[key] = "reserved";
+    }
+  }
+  return states;
 }
 
 export async function getBookStates() {
   const all = await readAll();
-  const states: Record<string, "reserved" | "given"> = {};
+  const states: Record<string, "reserved" | "given"> = demoStates(await readDemoState());
   for (const b of all) {
     if (!isActive(b)) continue;
     const key = String(b.bookId);
@@ -344,7 +379,7 @@ export type Reliability = {
   percent: number | null;
 };
 
-type DemoTx = {
+export type DemoTx = {
   id: number;
   bookId: number;
   person: string;

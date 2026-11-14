@@ -36,12 +36,12 @@ export type Slot = {
   take?: number;
 };
 
-/** Сколько книг в каждой категории (примерно по 10) */
+/** Сколько книг в каждой категории */
 export const CATEGORY_TARGET: Record<Category, number> = {
-  book: 12,
-  textbook: 10,
+  book: 28,
+  textbook: 32,
   guide: 10,
-  manga: 12,
+  manga: 40,
 };
 
 /**
@@ -187,6 +187,27 @@ export const catalogPlan: Record<Category, Slot[]> = {
       authorAny: ["кинг", "king"],
       genres: ["Хоррор", "Триллер"],
     },
+    // ещё книги
+    { q: 'intitle:"Война и мир" inauthor:Толстой', titleAny: ["война и мир"], authorAny: ["толстой"], genres: ["Классика", "Роман", "История"] },
+    { q: 'intitle:"Анна Каренина" inauthor:Толстой', titleAny: ["анна каренина"], authorAny: ["толстой"], genres: ["Классика", "Роман"] },
+    { q: 'intitle:"Идиот" inauthor:Достоевский', titleAny: ["идиот"], authorAny: ["достоевск"], genres: ["Классика", "Роман"] },
+    { q: 'intitle:"Братья Карамазовы" inauthor:Достоевский', titleAny: ["братья карамазовы"], authorAny: ["достоевск"], genres: ["Классика", "Роман"] },
+    { q: 'intitle:"Мёртвые души" inauthor:Гоголь', titleAny: ["мёртвые души", "мертвые души"], authorAny: ["гоголь"], genres: ["Классика", "Роман"] },
+    { q: 'intitle:"Отцы и дети" inauthor:Тургенев', titleAny: ["отцы и дети"], authorAny: ["тургенев"], genres: ["Классика", "Роман"] },
+    { q: 'intitle:"Евгений Онегин" inauthor:Пушкин', titleAny: ["евгений онегин"], authorAny: ["пушкин"], genres: ["Классика", "Роман"] },
+    { q: 'intitle:"Три товарища" inauthor:Ремарк', titleAny: ["три товарища"], authorAny: ["ремарк"], genres: ["Классика", "Роман"] },
+    { q: 'intitle:"Великий Гэтсби" inauthor:Фицджеральд', titleAny: ["гэтсби"], authorAny: ["фицджеральд"], genres: ["Классика", "Роман"] },
+    { q: 'intitle:"Гордость и предубеждение" inauthor:Остин', titleAny: ["гордость и предубеждение"], authorAny: ["остин"], genres: ["Классика", "Роман"] },
+    { q: 'intitle:"Граф Монте-Кристо" inauthor:Дюма', titleAny: ["монте-кристо", "монте кристо"], authorAny: ["дюма"], genres: ["Приключения", "Классика"] },
+    { q: 'intitle:"Сто лет одиночества" inauthor:Маркес', titleAny: ["сто лет одиночества"], authorAny: ["маркес", "гарсиа"], genres: ["Классика", "Роман"] },
+    { q: 'intitle:"Рассказ служанки" inauthor:Этвуд', titleAny: ["рассказ служанки"], authorAny: ["этвуд", "этвуд", "атвуд"], genres: ["Антиутопия", "Фантастика"] },
+    { q: 'intitle:"Последнее желание" inauthor:Сапковский', titleAny: ["последнее желание"], authorAny: ["сапковск"], genres: ["Фэнтези", "Приключения"] },
+    { q: 'intitle:"Игра престолов" inauthor:Мартин', titleAny: ["игра престолов"], authorAny: ["мартин"], genres: ["Фэнтези", "Приключения"] },
+    { q: 'intitle:"Метро 2033" inauthor:Глуховский', titleAny: ["метро 2033"], authorAny: ["глуховск"], genres: ["Фантастика", "Антиутопия"] },
+    { q: 'intitle:"Алые паруса" inauthor:Грин', titleAny: ["алые паруса"], authorAny: ["грин"], genres: ["Классика", "Роман"] },
+    { q: 'intitle:"Мартин Иден" inauthor:Лондон', titleAny: ["мартин иден"], authorAny: ["лондон"], genres: ["Классика", "Роман"] },
+    { q: 'intitle:"Замок" inauthor:Кафка', titleAny: ["замок"], authorAny: ["кафка"], genres: ["Классика", "Роман"] },
+    { q: 'intitle:"Атлант расправил плечи" inauthor:Рэнд', titleAny: ["атлант расправил"], authorAny: ["рэнд", "ренд"], genres: ["Роман", "Фантастика"] },
   ],
 
   // ───────────────────────── Учебники ─────────────────────────
@@ -309,6 +330,31 @@ export const catalogPlan: Record<Category, Slot[]> = {
       authorAny: ["макконнелл", "брю"],
       genres: ["Экономика"],
     },
+    // ещё учебники
+    { q: 'intitle:"Линейная алгебра" inauthor:Кострикин', titleAny: ["линейная алгебра", "алгебра"], authorAny: ["кострикин", "ильин", "ким", "гельфанд"], genres: ["Математика"] },
+    { q: 'intitle:"Теория вероятностей и математическая статистика" inauthor:Гмурман', titleAny: ["теория вероятностей"], authorAny: ["гмурман"], genres: ["Математика"] },
+    { q: 'intitle:"Дискретная математика" inauthor:Новиков', titleAny: ["дискретная математика"], authorAny: ["новиков", "хаггарти", "яблонский"], genres: ["Математика", "Информатика"] },
+    { q: 'intitle:"Задачи по общему курсу физики" inauthor:Иродов', titleAny: ["общему курсу физики", "физик"], authorAny: ["иродов"], genres: ["Физика"] },
+    { q: 'intitle:"Дифференциальные уравнения" inauthor:Понтрягин', titleAny: ["дифференциальные уравнения"], authorAny: ["понтрягин", "степанов", "филиппов"], genres: ["Математика"] },
+    { q: 'intitle:"Введение в системы баз данных" inauthor:Дейт', titleAny: ["баз данных"], authorAny: ["дейт", "date"], genres: ["Информатика"] },
+    { q: 'intitle:"Операционные системы" inauthor:Столлингс', titleAny: ["операционные системы"], authorAny: ["столлингс", "stallings"], genres: ["Информатика", "Инженерия"] },
+    { q: 'intitle:"Архитектура компьютера" inauthor:Таненбаум', titleAny: ["архитектура компьютера", "структурная организация"], authorAny: ["таненбаум", "остин"], genres: ["Информатика", "Инженерия"] },
+    { q: 'intitle:"Язык программирования C" inauthor:Керниган', titleAny: ["язык программирования c", "язык программирования си"], authorAny: ["керниган", "ритчи"], genres: ["Информатика"] },
+    { q: 'intitle:"Программирование: принципы и практика" inauthor:Страуструп', titleAny: ["программирование", "c++"], authorAny: ["страуструп"], genres: ["Информатика"] },
+    { q: 'intitle:"Грокаем алгоритмы" inauthor:Бхаргава', titleAny: ["грокаем алгоритмы"], authorAny: ["бхаргава"], genres: ["Информатика"] },
+    { q: 'intitle:"Рефакторинг" inauthor:Фаулер', titleAny: ["рефакторинг"], authorAny: ["фаулер"], genres: ["Информатика"] },
+    { q: 'intitle:"Микроэкономика" inauthor:Пиндайк', titleAny: ["микроэкономика"], authorAny: ["пиндайк", "рубинфельд"], genres: ["Экономика"] },
+    { q: 'intitle:"Макроэкономика" inauthor:Мэнкью', titleAny: ["макроэкономика"], authorAny: ["мэнкью", "манкью", "блэнчард"], genres: ["Экономика"] },
+    { q: 'intitle:"Физическая химия" inauthor:Эткинс', titleAny: ["физическая химия"], authorAny: ["эткинс", "стромберг"], genres: ["Химия"] },
+    { q: 'intitle:"Общая химия" inauthor:Глинка', titleAny: ["общая химия"], authorAny: ["глинка", "угай"], genres: ["Химия"] },
+    { q: 'intitle:"Сопротивление материалов" inauthor:Феодосьев', titleAny: ["сопротивление материалов"], authorAny: ["феодосьев", "беляев"], genres: ["Инженерия"] },
+    { q: 'intitle:"Теоретическая механика" inauthor:Тарг', titleAny: ["теоретическая механика", "краткий курс"], authorAny: ["тарг", "яблонский"], genres: ["Физика", "Инженерия"] },
+    { q: 'intitle:"Общая биология" inauthor:Беляев', titleAny: ["биолог"], authorAny: ["беляев", "чебышев", "ярыгин"], genres: ["Биология"] },
+    { q: 'intitle:"Новая история" учебник', titleAny: ["история"], genres: ["История"] },
+    { q: 'intitle:"Английский язык" учебник inauthor:Голицынский', titleAny: ["английск", "грамматика"], authorAny: ["голицынск"], genres: ["Языки"] },
+    { q: 'intitle:"Python" inauthor:Лутц', titleAny: ["python", "питон"], authorAny: ["лутц", "lutz"], genres: ["Информатика"] },
+    { q: 'intitle:"Теория алгоритмов" inauthor:Ахо', titleAny: ["алгоритм", "структуры данных"], authorAny: ["ахо", "хопкрофт", "ульман"], genres: ["Информатика", "Математика"] },
+    { q: 'intitle:"Основы электротехники" inauthor:Бессонов', titleAny: ["электротехник", "электрических цепей"], authorAny: ["бессонов", "зевеке", "атабеков"], genres: ["Инженерия", "Физика"] },
   ],
 
   // ───────────────────────── Методички ─────────────────────────
@@ -333,23 +379,34 @@ export const catalogPlan: Record<Category, Slot[]> = {
 
   // ───────────────────────── Манга (русские издания) ─────────────────────────
   manga: [
-    { q: "intitle:Наруто manga", titleAny: ["наруто"], titleNone: [...MANGA_NONE, "боруто", "ураганные"], genres: ["Сёнэн", "Экшен", "Приключения"] },
-    { q: "intitle:Ван-Пис manga", titleAny: ["ван-пис", "ван пис", "one piece"], titleNone: MANGA_NONE, genres: ["Сёнэн", "Приключения", "Экшен"] },
-    { q: "intitle:Тетрадь смерти manga", titleAny: ["тетрадь смерти", "death note"], titleNone: [...MANGA_NONE, "another note"], genres: ["Сёнэн", "Триллер", "Детектив"] },
-    { q: "intitle:Атака титанов manga", titleAny: ["атака титанов", "attack on titan"], titleNone: [...MANGA_NONE, "before the fall", "junior high", "lost girls"], genres: ["Сёнэн", "Экшен", "Тёмное фэнтези"] },
-    { q: "intitle:Берсерк manga Миура", titleAny: ["берсерк", "berserk"], titleNone: MANGA_NONE, genres: ["Сэйнэн", "Тёмное фэнтези", "Хоррор"] },
-    { q: "intitle:Токийский гуль manga", titleAny: ["токийский гуль", "tokyo ghoul"], titleNone: MANGA_NONE, genres: ["Сэйнэн", "Хоррор", "Тёмное фэнтези"] },
-    { q: "intitle:Моя геройская академия manga", titleAny: ["геройская академия", "my hero academia"], titleNone: MANGA_NONE, genres: ["Сёнэн", "Экшен", "Фантастика"] },
-    { q: "intitle:Блич manga Кубо", titleAny: ["блич", "bleach"], titleNone: MANGA_NONE, genres: ["Сёнэн", "Экшен", "Фэнтези"] },
-    { q: "intitle:Стальной алхимик manga", titleAny: ["стальной алхимик", "fullmetal alchemist"], titleNone: MANGA_NONE, genres: ["Сёнэн", "Фэнтези", "Приключения"] },
-    { q: "intitle:Истребитель демонов manga", titleAny: ["истребитель демонов", "клинок, рассекающий демонов", "kimetsu"], titleNone: MANGA_NONE, genres: ["Сёнэн", "Экшен", "Тёмное фэнтези"] },
+    { q: "intitle:Наруто manga", titleAny: ["наруто"], titleNone: [...MANGA_NONE, "боруто", "ураганные"], genres: ["Сёнэн", "Экшен", "Приключения"], take: 2 },
+    { q: "intitle:Ван-Пис manga", titleAny: ["ван-пис", "ван пис", "one piece"], titleNone: MANGA_NONE, genres: ["Сёнэн", "Приключения", "Экшен"], take: 2 },
+    { q: "intitle:Тетрадь смерти manga", titleAny: ["тетрадь смерти", "death note"], titleNone: [...MANGA_NONE, "another note"], genres: ["Сёнэн", "Триллер", "Детектив"], take: 2 },
+    { q: "intitle:Атака титанов manga", titleAny: ["атака титанов", "attack on titan"], titleNone: [...MANGA_NONE, "before the fall", "junior high", "lost girls"], genres: ["Сёнэн", "Экшен", "Тёмное фэнтези"], take: 2 },
+    { q: "intitle:Берсерк manga Миура", titleAny: ["берсерк", "berserk"], titleNone: MANGA_NONE, genres: ["Сэйнэн", "Тёмное фэнтези", "Хоррор"], take: 2 },
+    { q: "intitle:Токийский гуль manga", titleAny: ["токийский гуль", "tokyo ghoul"], titleNone: MANGA_NONE, genres: ["Сэйнэн", "Хоррор", "Тёмное фэнтези"], take: 2 },
+    { q: "intitle:Моя геройская академия manga", titleAny: ["геройская академия", "my hero academia"], titleNone: MANGA_NONE, genres: ["Сёнэн", "Экшен", "Фантастика"], take: 2 },
+    { q: "intitle:Блич manga Кубо", titleAny: ["блич", "bleach"], titleNone: MANGA_NONE, genres: ["Сёнэн", "Экшен", "Фэнтези"], take: 2 },
+    { q: "intitle:Стальной алхимик manga", titleAny: ["стальной алхимик", "fullmetal alchemist"], titleNone: MANGA_NONE, genres: ["Сёнэн", "Фэнтези", "Приключения"], take: 2 },
+    { q: "intitle:Истребитель демонов manga", titleAny: ["истребитель демонов", "клинок, рассекающий демонов", "kimetsu"], titleNone: MANGA_NONE, genres: ["Сёнэн", "Экшен", "Тёмное фэнтези"], take: 2 },
     // запасные
-    { q: "intitle:Драконий жемчуг manga", titleAny: ["драконий жемчуг", "dragon ball"], titleNone: MANGA_NONE, genres: ["Сёнэн", "Приключения", "Экшен"] },
-    { q: "intitle:Человек-бензопила manga", titleAny: ["человек-бензопила", "chainsaw man"], titleNone: MANGA_NONE, genres: ["Сёнэн", "Экшен", "Хоррор"] },
-    { q: "intitle:Магическая битва manga", titleAny: ["магическая битва", "jujutsu"], titleNone: MANGA_NONE, genres: ["Сёнэн", "Экшен", "Тёмное фэнтези"] },
-    { q: "intitle:Ванпанчмен manga", titleAny: ["ванпанчмен", "ван-панчмен", "onepunch", "one-punch"], titleNone: MANGA_NONE, genres: ["Сёнэн", "Экшен"] },
-    { q: "intitle:Вагабонд manga Иноуэ", titleAny: ["вагабонд", "vagabond"], titleNone: MANGA_NONE, genres: ["Сэйнэн", "Приключения"] },
-    { q: "intitle:Корзинка фруктов manga", titleAny: ["корзинка фруктов", "fruits basket"], titleNone: MANGA_NONE, genres: ["Сёдзё", "Фэнтези"] },
-    { q: "intitle:Монстр manga Урасава", titleAny: ["монстр", "monster"], titleNone: MANGA_NONE, genres: ["Сэйнэн", "Триллер", "Детектив"] },
+    { q: "intitle:Драконий жемчуг manga", titleAny: ["драконий жемчуг", "dragon ball"], titleNone: MANGA_NONE, genres: ["Сёнэн", "Приключения", "Экшен"], take: 2 },
+    { q: "intitle:Человек-бензопила manga", titleAny: ["человек-бензопила", "chainsaw man"], titleNone: MANGA_NONE, genres: ["Сёнэн", "Экшен", "Хоррор"], take: 2 },
+    { q: "intitle:Магическая битва manga", titleAny: ["магическая битва", "jujutsu"], titleNone: MANGA_NONE, genres: ["Сёнэн", "Экшен", "Тёмное фэнтези"], take: 2 },
+    { q: "intitle:Ванпанчмен manga", titleAny: ["ванпанчмен", "ван-панчмен", "onepunch", "one-punch"], titleNone: MANGA_NONE, genres: ["Сёнэн", "Экшен"], take: 2 },
+    { q: "intitle:Вагабонд manga Иноуэ", titleAny: ["вагабонд", "vagabond"], titleNone: MANGA_NONE, genres: ["Сэйнэн", "Приключения"], take: 2 },
+    { q: "intitle:Корзинка фруктов manga", titleAny: ["корзинка фруктов", "fruits basket"], titleNone: MANGA_NONE, genres: ["Сёдзё", "Фэнтези"], take: 2 },
+    { q: "intitle:Монстр manga Урасава", titleAny: ["монстр", "monster"], titleNone: MANGA_NONE, genres: ["Сэйнэн", "Триллер", "Детектив"], take: 2 },
+    // ещё серии
+    { q: "intitle:Хантер х Хантер manga", titleAny: ["хантер", "hunter"], titleNone: MANGA_NONE, genres: ["Сёнэн", "Приключения", "Экшен"], take: 2 },
+    { q: "intitle:Созданный в Бездне manga", titleAny: ["созданный в бездне", "made in abyss"], titleNone: MANGA_NONE, genres: ["Сэйнэн", "Приключения", "Фэнтези"], take: 2 },
+    { q: "intitle:Паразит manga Ивааки", titleAny: ["паразит", "parasyte", "kiseijuu"], titleNone: MANGA_NONE, genres: ["Сэйнэн", "Хоррор", "Фантастика"], take: 2 },
+    { q: "intitle:Слэм-данк manga Иноуэ", titleAny: ["слэм", "slam dunk"], titleNone: MANGA_NONE, genres: ["Сёнэн", "Экшен"], take: 2 },
+    { q: "intitle:Сейлор Мун manga", titleAny: ["сейлор мун", "sailor moon"], titleNone: MANGA_NONE, genres: ["Сёдзё", "Фэнтези"], take: 2 },
+    { q: "intitle:Ходячий замок manga", titleAny: ["ходячий замок", "howl"], titleNone: MANGA_NONE, genres: ["Сёдзё", "Фэнтези"] },
+    { q: "intitle:Форма голоса manga", titleAny: ["форма голоса", "silent voice"], titleNone: MANGA_NONE, genres: ["Сёнэн", "Роман"], take: 2 },
+    { q: "intitle:Эльфийская песнь manga", titleAny: ["эльфийская песнь", "elfen lied"], titleNone: MANGA_NONE, genres: ["Сэйнэн", "Хоррор", "Триллер"], take: 2 },
+    { q: "intitle:Ковбой Бибоп manga", titleAny: ["бибоп", "bebop"], titleNone: MANGA_NONE, genres: ["Сэйнэн", "Фантастика", "Экшен"] },
+    { q: "intitle:Бездомный бог manga Ното", titleAny: ["бездомный бог", "noragami"], titleNone: MANGA_NONE, genres: ["Сёнэн", "Фэнтези", "Экшен"], take: 2 },
   ],
 };
