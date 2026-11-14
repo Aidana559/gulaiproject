@@ -24,7 +24,14 @@ export async function GET(req: Request) {
   if (!user) return NextResponse.json({ error: "Не авторизован" }, { status: 401 });
 
   if (searchParams.get("scope") === "mine") {
-    return NextResponse.json({ bookings: await getBookingsByUser(user.id) });
+    // Добавляем обложку и градиент из каталога — профиль не знает всех книг сам
+    const { getAllBooks } = await import("@/lib/books-store");
+    const byId = new Map((await getAllBooks({ includeHidden: true })).map((b) => [String(b.id), b]));
+    const mine = (await getBookingsByUser(user.id)).map((b) => {
+      const k = byId.get(String(b.bookId));
+      return { ...b, coverUrl: k?.coverUrl ?? null, gradient: k?.gradient };
+    });
+    return NextResponse.json({ bookings: mine });
   }
 
   const actor = toPublic(user);
