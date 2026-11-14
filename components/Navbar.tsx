@@ -10,6 +10,7 @@ import Avatar from "@/components/Avatar";
 import { useAuth } from "@/components/AuthProvider";
 import NotificationBell from "@/components/NotificationBell";
 import MessagesIcon from "@/components/MessagesIcon";
+import { canManageOwnListings } from "@/lib/listing-access";
 
 type NavLink = { href: string; label: string };
 
@@ -19,7 +20,7 @@ function staffLinkFor(role?: string | null): NavLink | null {
   return null;
 }
 
-function linksFor(loggedIn?: boolean): NavLink[] {
+function linksFor(loggedIn?: boolean, role?: string | null): NavLink[] {
   const base: NavLink[] = [
     { href: "/", label: "Главная" },
     { href: "/catalog", label: "Каталог" },
@@ -31,7 +32,8 @@ function linksFor(loggedIn?: boolean): NavLink[] {
     { href: "/", label: "Главная" },
     { href: "/catalog", label: "Каталог" },
     { href: "/transactions", label: "Транзакции" },
-    { href: "/add", label: "Добавить книгу" },
+    // «Добавить книгу» — только для роли user; у admin и moderator пункта нет
+    ...(canManageOwnListings(role) ? [{ href: "/add", label: "Добавить книгу" }] : []),
     { href: "/about", label: "О проекте" },
   ];
 
@@ -70,7 +72,7 @@ export default function Navbar() {
   const [open, setOpen] = useState(false);
   const { user, loading } = useAuth();
 
-  const links = useMemo(() => linksFor(!!user), [user]);
+  const links = useMemo(() => linksFor(!!user, user?.role), [user]);
   const staffLink = staffLinkFor(user?.role);
 
   return (

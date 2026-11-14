@@ -31,6 +31,8 @@ type Info = {
   category: Book["category"];
   genres: string[];
   publishedAt: string | null;
+  /** книгу скрыл сам автор (видимость, не статус модерации) */
+  ownerHidden?: boolean;
   state: BookState;
   stateLabel: string;
   hiddenReason: string | null;
@@ -199,6 +201,7 @@ export default function BookInfoView() {
             <Item label="Категория">{categoryLabels[info.category] ?? info.category}</Item>
             <Item label="Дата публикации">{fmtDate(info.publishedAt)}</Item>
             <Item label="Текущий статус">{stateLabel(info.state, info.hiddenUntil)}</Item>
+            {info.ownerHidden && <Item label="Видимость">Скрыта автором — в каталоге не отображается</Item>}
 
             {info.state === "hidden" && (
               <>

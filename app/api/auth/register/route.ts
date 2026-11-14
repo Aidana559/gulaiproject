@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import {
+  EmailTakenError,
   SESSION_COOKIE,
+  UsersStoreError,
   createSessionToken,
   createUser,
   findUserByEmail,
@@ -22,10 +24,21 @@ export async function POST(req: Request) {
   if (password.length < 6)
     return NextResponse.json({ error: "Пароль должен содержать минимум 6 символов" }, { status: 400 });
 
-  if (await findUserByEmail(email))
-    return NextResponse.json({ error: "Этот email уже зарегистрирован" }, { status: 409 });
+  try {
+    if (await findUserByEmail(email))
+      return NextResponse.json({ error: "Этот email уже зарегистрирован" }, { status: 409 });
 
-  const user = await createUser(name, email, password);
-  (await cookies()).set(SESSION_COOKIE, createSessionToken(user.id), sessionCookieOptions);
-  return NextResponse.json({ user: toPublic(user) }, { status: 201 });
+    // повторная проверка email выполняется внутри createUser под блокировкой (защита от двойной отправки формы)
+    const user = await createUser(name, email, password);
+    (await cookies()).set(SESSION_COOKIE, createSessionToken(user.id), sessionCookieOptions);
+    return NextResponse.json({ user: toPublic(user) }, { status: 201 });
+  } catch (e) {
+    if (e instanceof EmailTakenError)
+      return NextResponse.json({ error: "Этот email уже зарегистрирован" }, { status: 409 });
+    if (e instanceof UsersStoreError) {
+      console.error(e);
+      return NextResponse.json({ error: "Хранилище пользователей временно недоступно" }, { status: 503 });
+    }
+    throw e;
+  }
 }

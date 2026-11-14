@@ -55,5 +55,31 @@
     "actorRole": "admin",
     "stateAfter": "pending",
     "createdAt": "2026-11-14T13:36:02.493Z"
+  },
+  {
+    "id": "6ccf5bfa-55ed-42f5-8f39-8f32f35a116e",
+    "bookId": "2060",
+    "bookTitle": "The Return of Sherlock Holmes",
+    "authorId": "5a5ca32f-3441-46c5-864c-8e85858e2674",
+    "authorName": "Хуан",
+    "action": "hidden_by_owner",
+    "actorId": "5a5ca32f-3441-46c5-864c-8e85858e2674",
+    "actorName": "Хуан",
+    "actorRole": "user",
+    "stateAfter": "pending",
+    "createdAt": "2026-11-14T18:25:32.605Z"
+  },
+  {
+    "id": "31832a16-d2f0-415b-9d9b-6a973bb8999a",
+    "bookId": "2060",
+    "bookTitle": "The Return of Sherlock Holmes",
+    "authorId": "5a5ca32f-3441-46c5-864c-8e85858e2674",
+    "authorName": "Хуан",
+    "action": "shown_by_owner",
+    "actorId": "5a5ca32f-3441-46c5-864c-8e85858e2674",
+    "actorName": "Хуан",
+    "actorRole": "user",
+    "stateAfter": "pending",
+    "createdAt": "2026-11-14T18:25:33.890Z"
   }
 ]

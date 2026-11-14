@@ -6,7 +6,8 @@ import {
   saveCoverFile,
   type Condition,
 } from "@/lib/books-store";
-import { bad, getActor, isStaff, unauthorized } from "@/lib/server-auth";
+import { bad, forbidden, getActor, isStaff, unauthorized } from "@/lib/server-auth";
+import { canManageOwnListings, checkListingAccess } from "@/lib/listing-access";
 import { sweepExpiredHides } from "@/lib/moderation";
 import { isMutedNow, muteLabel } from "@/lib/mute";
 import type { Category } from "@/data/books";
@@ -24,6 +25,8 @@ export async function GET(req: Request) {
   const actor = await getActor(req);
   const staffAll = sp.get("all") === "1" && !!actor && isStaff(actor);
   // mine=1 — «Мои объявления»: свои книги в любом состоянии (скрытые и удалённые тоже)
+  // «Мои объявления» — только для роли user (admin и moderator работают через свои панели)
+  if (sp.get("mine") === "1" && actor && !canManageOwnListings(actor.role)) return forbidden();
   const mine = sp.get("mine") === "1" && !!actor;
   const includeHidden = staffAll || mine;
   const stateParam = sp.get("state") ?? undefined;
@@ -54,6 +57,10 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   const actor = await getActor(req);
   if (!actor) return unauthorized();
+
+  // Добавлять личные книги может только роль user; роль берётся из серверной сессии
+  const access = checkListingAccess(actor);
+  if (!access.ok) return NextResponse.json({ error: access.message }, { status: 403 });
 
   if (isMutedNow(actor)) {
     const why = actor.muteReason ? ` Причина: ${actor.muteReason}.` : "";

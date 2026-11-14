@@ -23,6 +23,12 @@ export type ServerBook = Book & {
   views?: number;
   createdAt?: string;
   hidden?: boolean;
+  /**
+   * Книгу скрыл сам автор. Это ВИДИМОСТЬ, она не связана со статусом модерации:
+   * hidden/reviewed (решения модерации) автор менять не может.
+   */
+  ownerHidden?: boolean;
+  ownerHiddenAt?: string;
   deleted?: boolean;
   updatedAt?: string;
   reviewed?: boolean;
@@ -79,11 +85,15 @@ export function normalizeGenres(input: unknown): string[] {
   return out;
 }
 
-/** Скрыта ли книга сейчас: учитывается срок временного скрытия (по истечении книга снова видна). */
+/**
+ * Скрыта ли книга из каталога сейчас: скрытие автором (ownerHidden) или скрытие модерацией
+ * (учитывается срок временного скрытия — по истечении книга снова видна).
+ */
 export function isHiddenNow(
-  b: { hidden?: boolean; hiddenUntil?: string | null },
+  b: { hidden?: boolean; hiddenUntil?: string | null; ownerHidden?: boolean },
   now = Date.now(),
 ): boolean {
+  if (b.ownerHidden) return true;
   if (!b.hidden) return false;
   if (!b.hiddenUntil) return true;
   return new Date(b.hiddenUntil).getTime() > now;

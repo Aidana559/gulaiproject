@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { FiArrowLeft, FiCheck, FiMessageCircle, FiMoreVertical, FiSearch, FiSend, FiTrash2, FiX } from "react-icons/fi";
+import { FiArrowLeft, FiBook, FiCheck, FiMessageCircle, FiMoreVertical, FiSearch, FiSend, FiTrash2, FiX } from "react-icons/fi";
 import Avatar from "@/components/Avatar";
 import { Button, LinkButton } from "@/components/Button";
 import { useAuth } from "@/components/AuthProvider";
@@ -11,14 +11,16 @@ import {
   ChatAccessError,
   MESSAGE_MAX,
   deleteConversations,
+  isBookRef,
   markSeen,
-  newConversation,
-  roleIn,
+  openChatWithBook,
+  otherOf,
+  previewOf,
   sendMessage,
   unreadIn,
   useChatSession,
   useMyChats,
-  type ChatRole,
+  type BookRefMessage,
   type Conversation,
   type Me,
 } from "@/lib/chatStore";
@@ -88,7 +90,6 @@ function Inner({ me }: { me: Me }) {
   const bookParam = useSearchParams().get("book");
   const mine = useMyChats();
   const [selected, setSelected] = useState<string | null>(null);
-  const [draft, setDraft] = useState<Conversation | null>(null);
   const [status, setStatus] = useState<"idle" | "loading" | "own" | "error">(
     bookParam ? "loading" : "idle",
   );
@@ -117,7 +118,10 @@ function Inner({ me }: { me: Me }) {
     };
   }, [menuOpen]);
 
-  // Владелец определяется по книге: сервер отдаёт ownerId / owner
+  // «Написать владельцу»: владелец определяется по книге; чат с ним один на пару пользователей —
+  // существующий открывается, а карточка выбранной книги добавляется в конец переписки.
+  const meId = me.id;
+  const meName = me.name;
   useEffect(() => {
     if (!bookParam) return;
     let off = false;
@@ -125,19 +129,24 @@ function Inner({ me }: { me: Me }) {
       .then(async (r) => {
         const b = await r.json().catch(() => ({}));
         if (!r.ok) throw new Error(b.error ?? "Книга не найдена");
-        return b as { id: string | number; title: string; author: string; owner?: string; ownerId?: string };
+        return b as {
+          id: string | number;
+          title: string;
+          author: string;
+          coverUrl?: string | null;
+          owner?: string;
+          ownerId?: string;
+        };
       })
       .then((b) => {
         if (off) return;
         if (b.ownerId == null) throw new Error("У этой книги нет владельца-пользователя, писать некому.");
-        const isOwn =
-          (b.ownerId != null && String(b.ownerId) === me.id) || (!!b.owner && b.owner === me.name);
+        const isOwn = (b.ownerId != null && String(b.ownerId) === meId) || (!!b.owner && b.owner === meName);
         if (isOwn) return setStatus("own");
-        const book = { id: String(b.id), title: b.title, author: b.author };
-        // проверка прав внутри: оба участника должны быть user
-        const d = newConversation(book, String(b.ownerId));
-        setDraft(d);
-        setSelected(d.id); // уже есть — откроется существующий
+        const book = { id: String(b.id), title: b.title, author: b.author, coverUrl: b.coverUrl ?? null };
+        // проверка прав внутри: оба участника должны быть user; повторный вызов карточку не дублирует
+        const chatId = openChatWithBook(book, String(b.ownerId));
+        setSelected(chatId);
         setStatus("idle");
       })
       .catch((e: Error) => {
@@ -148,16 +157,17 @@ function Inner({ me }: { me: Me }) {
     return () => {
       off = true;
     };
-  }, [bookParam, me]);
+  }, [bookParam, meId, meName]);
 
   const q = query.trim().toLowerCase();
   const shown = useMemo(
     () =>
       q
-        ? mine.filter((c) => {
-            const other = roleIn(c, me) === "buyer" ? c.owner.name : c.buyer.name;
-            return other.toLowerCase().includes(q) || c.bookTitle.toLowerCase().includes(q);
-          })
+        ? mine.filter(
+            (c) =>
+              otherOf(c, me.id).name.toLowerCase().includes(q) ||
+              c.messages.some((m) => isBookRef(m) && m.book.title.toLowerCase().includes(q)),
+          )
         : mine,
     [mine, q, me],
   );
@@ -195,11 +205,10 @@ function Inner({ me }: { me: Me }) {
       return;
     }
     if (selected && ids.includes(selected)) setSelected(null);
-    if (draft && ids.includes(draft.id)) setDraft(null);
     exitSelect();
   }
 
-  const conv = mine.find((c) => c.id === selected) ?? (draft?.id === selected ? draft : null);
+  const conv = mine.find((c) => c.id === selected) ?? null;
 
   if (status === "loading") return <p className="text-stone-500">Открываем чат…</p>;
   if (status === "own") {
@@ -303,11 +312,10 @@ function Inner({ me }: { me: Me }) {
             <li className="p-4 text-center text-sm text-stone-500">Ничего не найдено</li>
           )}
           {shown.map((c) => {
-            const role = roleIn(c, me)!;
-            const otherP = role === "buyer" ? c.owner : c.buyer;
+            const otherP = otherOf(c, me.id);
             const other = otherP.name;
             const last = c.messages[c.messages.length - 1];
-            const unread = unreadIn(c, role);
+            const unread = unreadIn(c, me.id);
             return (
               <li key={c.id}>
                 <button
@@ -335,8 +343,7 @@ function Inner({ me }: { me: Me }) {
                       <span className="truncate font-medium text-stone-900">{other}</span>
                       {last && <span className="shrink-0 text-xs text-stone-400">{time(last.at)}</span>}
                     </span>
-                    <span className="block truncate text-xs text-indigo-700">«{c.bookTitle}»</span>
-                    <span className="block truncate text-sm text-stone-500">{last?.text ?? "Нет сообщений"}</span>
+                    <span className="block truncate text-sm text-stone-500">{previewOf(last) || "Нет сообщений"}</span>
                   </span>
                   {unread > 0 && (
                     <span className="inline-flex min-w-5 items-center justify-center rounded-full bg-rose-500 px-1.5 text-xs font-bold text-white">
@@ -384,7 +391,7 @@ function Inner({ me }: { me: Me }) {
 
       <section className="chat-pane flex-col">
         {conv ? (
-          <ChatPane key={conv.id} conv={conv} role={roleIn(conv, me) ?? "buyer"} onBack={() => setSelected(null)} />
+          <ChatPane key={conv.id} conv={conv} meId={me.id} onBack={() => setSelected(null)} />
         ) : (
           <div className="flex flex-1 items-center justify-center p-6 text-center text-stone-500">
             Выберите диалог слева
@@ -395,11 +402,38 @@ function Inner({ me }: { me: Me }) {
   );
 }
 
-function ChatPane({ conv, role, onBack }: { conv: Conversation; role: ChatRole; onBack: () => void }) {
+/** Карточка книги внутри переписки: часть истории, хранит название/автора/обложку на момент отправки. */
+function BookRefCard({ m, mine }: { m: BookRefMessage; mine: boolean }) {
+  return (
+    <div className={`w-64 max-w-[85%] ${mine ? "text-right" : "text-left"}`}>
+      <p className="mb-1 text-xs text-stone-500">Интересует эта книга</p>
+      <div className="flex gap-3 rounded-xl bg-white p-2.5 text-left shadow-sm ring-1 ring-stone-200">
+        {m.book.coverUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={m.book.coverUrl} alt="" className="h-16 w-12 shrink-0 rounded object-cover" />
+        ) : (
+          <span className="flex h-16 w-12 shrink-0 items-center justify-center rounded bg-gradient-to-br from-indigo-500 to-indigo-700 text-white">
+            <FiBook className="size-5" />
+          </span>
+        )}
+        <div className="min-w-0 flex-1">
+          <p className="line-clamp-2 text-sm font-semibold leading-snug text-stone-900">{m.book.title}</p>
+          <p className="truncate text-xs text-stone-500">{m.book.author}</p>
+          <Link href={`/book/${m.bookId}`} className="mt-1 inline-block text-xs font-medium text-indigo-700 hover:underline">
+            Посмотреть книгу
+          </Link>
+        </div>
+      </div>
+      <p className="mt-1 text-[11px] text-stone-400">{time(m.at)}</p>
+    </div>
+  );
+}
+
+function ChatPane({ conv, meId, onBack }: { conv: Conversation; meId: string; onBack: () => void }) {
   const [text, setText] = useState("");
   const [sendError, setSendError] = useState("");
   const endRef = useRef<HTMLDivElement>(null);
-  const otherP = role === "buyer" ? conv.owner : conv.buyer;
+  const otherP = otherOf(conv, meId);
   const other = otherP.name;
   const count = conv.messages.length;
 
@@ -410,7 +444,7 @@ function ChatPane({ conv, role, onBack }: { conv: Conversation; role: ChatRole; 
       /* нет доступа — ничего не меняем */
     }
     endRef.current?.scrollIntoView({ block: "end" });
-  }, [conv.id, role, count]);
+  }, [conv.id, count]);
 
   const items = useMemo(
     () =>
@@ -424,7 +458,7 @@ function ChatPane({ conv, role, onBack }: { conv: Conversation; role: ChatRole; 
   function submit() {
     if (!text.trim()) return;
     try {
-      sendMessage(conv, text);
+      sendMessage(conv.id, text);
       setText("");
       setSendError("");
     } catch (e) {
@@ -447,12 +481,6 @@ function ChatPane({ conv, role, onBack }: { conv: Conversation; role: ChatRole; 
         <Avatar name={other} src={avatarOf(otherP.id)} className="size-10 shrink-0 text-base" />
         <div className="min-w-0">
           <p className="truncate font-semibold text-stone-900">{other}</p>
-          <Link
-            href={`/book/${conv.bookId}`}
-            className="block truncate text-xs text-indigo-700 hover:underline"
-          >
-            «{conv.bookTitle}» · {conv.bookAuthor}
-          </Link>
         </div>
       </header>
 
@@ -463,25 +491,29 @@ function ChatPane({ conv, role, onBack }: { conv: Conversation; role: ChatRole; 
           </p>
         )}
         {items.map(({ m, newDay }) => {
-          const mineMsg = m.from === role;
+          const mineMsg = m.from === meId;
           return (
             <div key={m.id}>
               {newDay && (
                 <p className="my-3 text-center text-xs text-stone-400">{dayLabel(m.at)}</p>
               )}
               <div className={`flex ${mineMsg ? "justify-end" : "justify-start"}`}>
-                <div
-                  className={`max-w-[85%] min-w-0 rounded-2xl px-3.5 py-2 text-sm shadow-sm ${
-                    mineMsg
-                      ? "rounded-br-md bg-indigo-600 text-white"
-                      : "rounded-bl-md bg-white text-stone-900 ring-1 ring-stone-200"
-                  }`}
-                >
-                  <p className="whitespace-pre-wrap [overflow-wrap:anywhere]">{m.text}</p>
-                  <p className={`mt-1 text-right text-[11px] ${mineMsg ? "text-indigo-200" : "text-stone-400"}`}>
-                    {time(m.at)}
-                  </p>
-                </div>
+                {isBookRef(m) ? (
+                  <BookRefCard m={m} mine={mineMsg} />
+                ) : (
+                  <div
+                    className={`max-w-[85%] min-w-0 rounded-2xl px-3.5 py-2 text-sm shadow-sm ${
+                      mineMsg
+                        ? "rounded-br-md bg-indigo-600 text-white"
+                        : "rounded-bl-md bg-white text-stone-900 ring-1 ring-stone-200"
+                    }`}
+                  >
+                    <p className="whitespace-pre-wrap [overflow-wrap:anywhere]">{m.text}</p>
+                    <p className={`mt-1 text-right text-[11px] ${mineMsg ? "text-indigo-200" : "text-stone-400"}`}>
+                      {time(m.at)}
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
           );

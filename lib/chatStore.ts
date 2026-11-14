@@ -5,53 +5,46 @@ import {
   ChatAccessError,
   canUseChat,
   checkChatAccess,
-  participantRole,
+  isParticipant,
   type ChatActor,
   type ChatCheck,
-  type ChatParties,
 } from "@/lib/chatAccess";
+import {
+  EMPTY_DB,
+  STORAGE_VERSION,
+  addText,
+  deleteForMe,
+  lastAt,
+  markSeen as markSeenIn,
+  migrateLegacy,
+  openBook,
+  pairId,
+  parseDb,
+  parseLegacy,
+  unreadIn,
+  viewFor,
+  type ChatDb,
+  type Conversation,
+} from "@/lib/chatCore";
 
 export { ChatAccessError } from "@/lib/chatAccess";
+export { MESSAGE_MAX, isBookRef, otherOf, previewOf, unreadIn } from "@/lib/chatCore";
+export type { BookRefMessage, ChatMessage, Conversation, Party, TextMessage } from "@/lib/chatCore";
 
 /**
- * Переписка по книгам. Пока нет сервера и общей БД, история хранится в localStorage
+ * Переписка между пользователями. Пока нет сервера и общей БД, история хранится в localStorage
  * этого браузера (ключ ниже) и не синхронизируется между устройствами.
  * В одном браузере хранилище общее для всех аккаунтов: каждый пользователь видит только
- * переписки, где он покупатель (читатель) или владелец книги, поэтому смена аккаунта работает.
+ * чаты, где он участник, поэтому смена аккаунта работает.
+ *
+ * Модель: ОДНА ПАРА ПОЛЬЗОВАТЕЛЕЙ = ОДИН ЧАТ (id чата = два id участников). Книги в переписке —
+ * сообщения-карточки `book_reference`. Старый ключ v1 (чат = книга + читатель + владелец) не удаляется:
+ * при входе его переписки безопасно вливаются в чаты пар (lib/chatCore.ts → migrateLegacy).
  */
-const KEY = "kitapta:chats:v1";
-export const MESSAGE_MAX = 2000;
+const KEY = `kitapta:chats:v${STORAGE_VERSION}`;
+const LEGACY_KEY = "kitapta:chats:v1";
 
-export type ChatRole = "buyer" | "owner";
-export type Party = { id?: string; name: string };
-export type ChatMessage = { id: string; from: ChatRole; text: string; at: string };
-export type Conversation = {
-  id: string;
-  bookId: string;
-  bookTitle: string;
-  bookAuthor: string;
-  buyer: { id: string; name: string };
-  owner: Party;
-  messages: ChatMessage[];
-  /** сколько сообщений каждая сторона уже видела */
-  seen: Record<ChatRole, number>;
-  createdAt: string;
-  /** id участника → сколько сообщений он удалил у себя вместе с чатом («удалить у меня») */
-  cleared?: Record<string, number>;
-};
 export type Me = { id: string; name: string };
-
-/** Один диалог = одна книга + один читатель + один владелец (дубликатов не создаётся). */
-export const conversationId = (bookId: string, buyerId: string, owner: Party) =>
-  `${bookId}|${buyerId}|${owner.id ?? `name:${owner.name}`}`;
-
-/** Кем является пользователь в диалоге (null — не участник). Только по id. */
-export function roleIn(c: Conversation, me: Me): ChatRole | null {
-  return participantRole(c, me.id);
-}
-
-export const unreadIn = (c: Conversation, role: ChatRole) =>
-  c.messages.slice(c.seen[role] ?? 0).filter((m) => m.from !== role).length;
 
 // ---------- сессия чата ----------
 /**
@@ -102,6 +95,7 @@ export async function refreshChatSession(): Promise<void> {
       /* справочника нет — писать нельзя (fail closed), читать свои чаты можно */
     }
     if (seq !== sessionSeq) return;
+    migrateLegacyStorage(peers); // до показа чатов: список сразу полный и без дублей
     setSession({ status: "ok", me: { id: a.id, name: a.name }, peers }, a);
   } catch {
     if (seq === sessionSeq) setSession(ANON, null);
@@ -127,13 +121,12 @@ function guard(check: Omit<ChatCheck, "eligibleIds"> = {}): ChatActor {
 }
 
 // ---------- хранилище (внутреннее) ----------
-const EMPTY: Conversation[] = [];
 let raw: string | null | undefined;
-let cache: Conversation[] = EMPTY;
+let cache: ChatDb = EMPTY_DB;
 const listeners = new Set<() => void>();
 
-/** Все диалоги браузера. НЕ экспортируется: наружу данные отдаются только через guarded-функции. */
-function snapshot(): Conversation[] {
+/** Все чаты браузера. НЕ экспортируется: наружу данные отдаются только через guarded-функции. */
+function snapshot(): ChatDb {
   let s: string | null = null;
   try {
     s = localStorage.getItem(KEY);
@@ -142,12 +135,7 @@ function snapshot(): Conversation[] {
   }
   if (s !== raw) {
     raw = s;
-    try {
-      const p = s ? JSON.parse(s) : [];
-      cache = Array.isArray(p) ? (p as Conversation[]) : EMPTY;
-    } catch {
-      cache = EMPTY;
-    }
+    cache = parseDb(s);
   }
   return cache;
 }
@@ -162,7 +150,7 @@ function subscribe(cb: () => void) {
   };
 }
 
-function write(next: Conversation[]) {
+function write(next: ChatDb) {
   cache = next;
   try {
     const s = JSON.stringify(next);
@@ -174,34 +162,48 @@ function write(next: Conversation[]) {
   listeners.forEach((l) => l());
 }
 
-const lastAt = (c: Conversation) => c.messages[c.messages.length - 1]?.at ?? c.createdAt;
-
-/** Диалог глазами участника: без сообщений, которые он удалил у себя. null — для него чата нет. */
-function viewFor(c: Conversation, meId: string): Conversation | null {
-  const n = c.cleared?.[meId];
-  if (n === undefined) return c;
-  const messages = c.messages.slice(n);
-  if (messages.length === 0) return null; // удалён, новых сообщений нет
-  return { ...c, messages, seen: { buyer: Math.max(0, c.seen.buyer - n), owner: Math.max(0, c.seen.owner - n) } };
+/** Вливает старые переписки (v1) в чаты пар. Безопасно и повторяемо; старый ключ не трогается. */
+function migrateLegacyStorage(peers: ReadonlyMap<string, string> | null) {
+  try {
+    const legacy = parseLegacy(localStorage.getItem(LEGACY_KEY));
+    const db = snapshot();
+    if (legacy.every((l) => db.migrated.includes(l.id))) return;
+    // старые чаты без id владельца: определяем по имени, только если оно однозначно
+    const byName = new Map<string, string[]>();
+    peers?.forEach((name, id) => byName.set(name.trim().toLowerCase(), [...(byName.get(name.trim().toLowerCase()) ?? []), id]));
+    const resolve = (name: string) => {
+      const ids = byName.get(name.trim().toLowerCase());
+      return ids?.length === 1 ? ids[0] : undefined;
+    };
+    const r = migrateLegacy(db, legacy, resolve);
+    if (r.merged > 0) write(r.db);
+  } catch (e) {
+    console.error("Не удалось объединить старые переписки (данные не изменены):", e);
+  }
 }
 
-/** Только диалоги, где текущий пользователь — участник; без доступа — пусто. */
-function visibleChats(all: Conversation[], s: ChatSession): Conversation[] {
+/** Диалог для показа: свои скрытые сообщения убраны, имена — из серверного справочника, если он есть. */
+function visibleChats(db: ChatDb, s: ChatSession): Conversation[] {
   const me = s.me;
-  if (s.status !== "ok" || !me) return EMPTY;
-  return all
-    .filter((c) => participantRole(c, me.id))
+  if (s.status !== "ok" || !me) return [];
+  return db.chats
+    .filter((c) => isParticipant(c, me.id))
     .map((c) => viewFor(c, me.id))
     .filter((c): c is Conversation => c !== null)
+    .map((c) => {
+      const p = c.participants.map((x) => ({ id: x.id, name: s.peers?.get(x.id) ?? x.name })) as Conversation["participants"];
+      return p[0].name === c.participants[0].name && p[1].name === c.participants[1].name ? c : { ...c, participants: p };
+    })
     .sort((a, b) => lastAt(b).localeCompare(lastAt(a)));
 }
 
 // ---------- хуки для интерфейса (без доступа возвращают пустое значение) ----------
-function useAllRaw(): Conversation[] {
-  return useSyncExternalStore(subscribe, snapshot, () => EMPTY);
+const NONE: ChatDb = EMPTY_DB;
+function useAllRaw(): ChatDb {
+  return useSyncExternalStore(subscribe, snapshot, () => NONE);
 }
 
-/** Диалоги текущего пользователя, новые сверху. admin / moderator всегда получают []. */
+/** Чаты текущего пользователя: каждый собеседник один раз, по времени последней активности. admin / moderator получают []. */
 export function useMyChats(): Conversation[] {
   const all = useAllRaw();
   const s = useChatSession();
@@ -211,10 +213,7 @@ export function useMyChats(): Conversation[] {
 export function useUnreadTotal(): number {
   const mine = useMyChats();
   const s = useChatSession();
-  return useMemo(
-    () => (s.me ? mine.reduce((sum, c) => sum + unreadIn(c, participantRole(c, s.me!.id)!), 0) : 0),
-    [mine, s],
-  );
+  return useMemo(() => (s.me ? mine.reduce((sum, c) => sum + unreadIn(c, s.me!.id), 0) : 0), [mine, s]);
 }
 
 // ---------- операции (каждая проверяет права при каждом вызове) ----------
@@ -227,7 +226,7 @@ export function listChats(): Conversation[] {
 
 /** Один чат; чужой или несуществующий — запрещён. */
 export function getChat(id: string): Conversation {
-  const c = snapshot().find((x) => x.id === id);
+  const c = snapshot().chats.find((x) => x.id === id);
   if (!c) throw new ChatAccessError("not-participant"); // не раскрываем, существует ли чат
   guard({ conversation: c });
   const v = viewFor(c, session.me!.id);
@@ -238,72 +237,53 @@ export function getChat(id: string): Conversation {
 /** Количество непрочитанных сообщений. */
 export function getUnreadCount(): number {
   const me = guard() && session.me!;
-  return listChats().reduce((sum, c) => sum + unreadIn(c, participantRole(c, me.id)!), 0);
+  return listChats().reduce((sum, c) => sum + unreadIn(c, me.id), 0);
 }
 
 /**
- * Черновик диалога с владельцем книги (в хранилище попадает при первом сообщении).
- * Читатель всегда текущий пользователь, имя владельца берётся из серверного справочника.
+ * «Написать владельцу»: находит чат с владельцем книги (один на пару пользователей) или создаёт его
+ * и добавляет в переписку карточку книги. Повторное обращение по той же книге карточку не дублирует.
+ * Возвращает id чата. Читатель — всегда текущий пользователь, имя владельца берётся из серверного справочника.
  */
-export function newConversation(
-  book: { id: string; title: string; author: string },
-  ownerId: string | undefined,
-): Conversation {
+export function openChatWithBook(
+  book: { id: string; title: string; author: string; coverUrl?: string | null },
+  ownerId: string,
+): string {
   const me = guard() && session.me!;
-  const ownerName = ownerId ? session.peers?.get(ownerId) : undefined;
-  const owner: Party = { id: ownerId, name: ownerName ?? "" };
-  const conv: Conversation = {
-    id: conversationId(book.id, me.id, owner),
-    bookId: book.id,
-    bookTitle: book.title,
-    bookAuthor: book.author,
-    buyer: { id: me.id, name: me.name },
-    owner,
-    messages: [],
-    seen: { buyer: 0, owner: 0 },
-    createdAt: new Date().toISOString(),
-  };
-  guard({ conversation: conv, write: true }); // оба участника — user, не self
-  return conv;
+  const ownerName = session.peers?.get(ownerId) ?? "";
+  const probe = { participants: [{ id: me.id }, { id: ownerId }] as const };
+  guard({ conversation: probe, write: true }); // оба участника — user, не self
+  const db = snapshot();
+  const r = openBook(db, {
+    me,
+    owner: { id: ownerId, name: ownerName },
+    book,
+    now: new Date().toISOString(),
+    newId: () => crypto.randomUUID(),
+  });
+  if (r.db !== db) write(r.db);
+  return r.chatId;
 }
 
-/** Добавляет сообщение; диалог создаётся при первом сообщении. Автор — всегда текущий пользователь. */
-export function sendMessage(base: Conversation, text: string) {
+/** Добавляет текстовое сообщение. Автор — всегда текущий пользователь. */
+export function sendMessage(chatId: string, text: string) {
   guard();
-  const clean = text.trim().slice(0, MESSAGE_MAX);
-  const all = snapshot();
-  const found = all.find((c) => c.id === base.id);
-
-  let conv: Conversation;
-  if (found) {
-    guard({ conversation: found, write: true });
-    conv = { ...found, messages: [...found.messages] };
-  } else {
-    // новый диалог: не доверяем переданному объекту, пересобираем его из проверенных данных
-    const fresh = newConversation(
-      { id: base.bookId, title: base.bookTitle, author: base.bookAuthor },
-      base.owner.id,
-    );
-    if (fresh.id !== base.id) throw new ChatAccessError("not-participant");
-    conv = fresh;
-  }
-  if (!clean) return;
-
-  const role = participantRole(conv, session.me!.id)!;
-  conv.messages.push({ id: crypto.randomUUID(), from: role, text: clean, at: new Date().toISOString() });
-  conv.seen = { ...conv.seen, [role]: conv.messages.length };
-  write(found ? all.map((c) => (c.id === conv.id ? conv : c)) : [...all, conv]);
+  const db = snapshot();
+  const c = db.chats.find((x) => x.id === chatId);
+  if (!c) throw new ChatAccessError("not-participant");
+  guard({ conversation: c, write: true });
+  const next = addText(db, { chatId, meId: session.me!.id, text, now: new Date().toISOString(), id: crypto.randomUUID() });
+  if (next !== db) write(next);
 }
 
-/** Отметить сообщения диалога прочитанными (только за себя). */
+/** Отметить сообщения чата прочитанными (только за себя). */
 export function markSeen(id: string) {
-  const all = snapshot();
-  const c = all.find((x) => x.id === id);
+  const db = snapshot();
+  const c = db.chats.find((x) => x.id === id);
   if (!c) return;
   guard({ conversation: c });
-  const role = participantRole(c, session.me!.id)!;
-  if ((c.seen[role] ?? 0) >= c.messages.length) return;
-  write(all.map((x) => (x.id === id ? { ...x, seen: { ...x.seen, [role]: x.messages.length } } : x)));
+  const next = markSeenIn(db, id, session.me!.id);
+  if (next !== db) write(next);
 }
 
 /**
@@ -312,30 +292,20 @@ export function markSeen(id: string) {
  * без удалённой истории. Если хотя бы один чат недоступен — не меняется ничего.
  */
 export function deleteConversations(ids: string[]) {
-  const all = snapshot();
-  const meId = (guard(), session.me!.id);
-  const targets = new Map<string, Conversation>();
+  const db = snapshot();
+  guard();
+  const targets = new Set<string>();
   for (const id of new Set(ids)) {
-    const c = all.find((x) => x.id === id);
+    const c = db.chats.find((x) => x.id === id);
     if (!c) throw new ChatAccessError("not-participant"); // не раскрываем, существует ли чат
     guard({ conversation: c }); // только участник с ролью user
-    targets.set(id, c);
+    targets.add(id);
   }
   if (targets.size === 0) return;
-
-  const drop = new Set<string>();
-  const next = all.map((c) => {
-    if (!targets.has(c.id)) return c;
-    const role = participantRole(c, meId)!;
-    const n = c.messages.length;
-    const upd: Conversation = { ...c, cleared: { ...c.cleared, [meId]: n }, seen: { ...c.seen, [role]: n } };
-    const otherId = role === "buyer" ? c.owner.id : c.buyer.id;
-    if (otherId && (upd.cleared![otherId] ?? -1) >= n) drop.add(c.id);
-    return upd;
-  });
-  write(next.filter((c) => !drop.has(c.id)));
+  write(deleteForMe(db, [...targets], session.me!.id));
 }
 
-// Редактирования сообщений / переписок в приложении нет. Если появятся,
-// они обязаны начинаться с guard({ conversation }) и не должны экспортировать write().
-export type { ChatParties };
+export { pairId };
+
+// Редактирования сообщений в приложении нет. Если появятся, они обязаны начинаться
+// с guard({ conversation }) и не должны экспортировать write().

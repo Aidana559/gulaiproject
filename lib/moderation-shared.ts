@@ -6,6 +6,8 @@ export type ModerationAction =
   | "deleted" // удалена администрацией
   | "deleted_by_owner" // удалена самим автором
   | "restored" // восстановлена после удаления
+  | "hidden_by_owner" // автор скрыл свою книгу из каталога
+  | "shown_by_owner" // автор снова опубликовал скрытую им книгу
   | "approved" // одобрена на проверке
   | "auto_published"; // скрытие истекло — книга возвращена автоматически
 
@@ -37,6 +39,8 @@ export const ACTION_LABEL: Record<ModerationAction, string> = {
   deleted: "Удаление",
   deleted_by_owner: "Удаление автором",
   restored: "Восстановление",
+  hidden_by_owner: "Скрытие автором",
+  shown_by_owner: "Повторная публикация автором",
   approved: "Одобрение",
   auto_published: "Автоматическое восстановление",
 };
@@ -53,6 +57,10 @@ export function actionHeadline(e: Pick<ModerationEntry, "action" | "until">): st
       return "Книга удалена";
     case "restored":
       return "Книга восстановлена";
+    case "hidden_by_owner":
+      return "Автор скрыл книгу из каталога";
+    case "shown_by_owner":
+      return "Автор снова опубликовал книгу";
     case "approved":
       return "Книга одобрена модератором";
     case "auto_published":

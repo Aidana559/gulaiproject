@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { FiArrowRight, FiBookOpen } from "react-icons/fi";
 import CategoryIcon from "@/components/CategoryIcon";
+import UserOnly from "@/components/UserOnly";
 import { categoryLabels, type Category } from "@/data/books";
 import { getAllBooks } from "@/lib/books-store";
 import { getBookStates } from "@/lib/bookings";
@@ -65,14 +66,16 @@ async function HomeContent() {
                     <FiArrowRight />
                   </span>
                 </Link>
-                <LinkButton
-                  href="/add"
-                  variant="outline"
-                  size="lg"
-                  className="!bg-transparent !text-white !ring-white/40 hover:!bg-white/10"
-                >
-                  Добавить книгу
-                </LinkButton>
+                <UserOnly>
+                  <LinkButton
+                    href="/add"
+                    variant="outline"
+                    size="lg"
+                    className="!bg-transparent !text-white !ring-white/40 hover:!bg-white/10"
+                  >
+                    Добавить книгу
+                  </LinkButton>
+                </UserOnly>
               </div>
             </div>
 
@@ -142,14 +145,16 @@ async function HomeContent() {
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
             <LinkButton href="/register" size="lg">Присоединиться</LinkButton>
-            <LinkButton
-              href="/add"
-              variant="outline"
-              size="lg"
-              className="!bg-transparent !text-white !ring-white/40 hover:!bg-white/10"
-            >
-              Добавить книгу
-            </LinkButton>
+            <UserOnly>
+              <LinkButton
+                href="/add"
+                variant="outline"
+                size="lg"
+                className="!bg-transparent !text-white !ring-white/40 hover:!bg-white/10"
+              >
+                Добавить книгу
+              </LinkButton>
+            </UserOnly>
           </div>
         </div>
       </section>

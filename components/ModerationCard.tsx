@@ -18,6 +18,8 @@ const ACCENT: Record<string, string> = {
   restored: "border-emerald-500",
   auto_published: "border-emerald-400",
   approved: "border-sky-500",
+  hidden_by_owner: "border-stone-400",
+  shown_by_owner: "border-emerald-400",
 };
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {

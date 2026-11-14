@@ -1,13 +1,13 @@
 import {
   randomBytes,
-  randomUUID,
   scryptSync,
   timingSafeEqual,
   createHmac,
 } from "node:crypto";
-import { promises as fs } from "node:fs";
-import path from "node:path";
 import { cookies } from "next/headers";
+import { UsersStoreError, findUserById, insertUser } from "./users-store";
+
+export { EmailTakenError, UsersStoreError, deleteUser, findUserByEmail, findUserById, listUsers, updateUser } from "./users-store";
 
 export type Role = "admin" | "moderator" | "user";
 
@@ -29,73 +29,15 @@ export type PublicUser = Omit<User, "passwordHash">;
 export const SESSION_COOKIE = "session";
 export const SESSION_MAX_AGE = 60 * 60 * 24 * 7;
 
-const USERS_FILE = path.join(process.cwd(), "data", "users.json");
 const SECRET =
   process.env.AUTH_SECRET ??
   (process.env.NODE_ENV === "production"
     ? (() => { throw new Error("AUTH_SECRET не задан"); })()
     : "dev-secret-change-me");
 
-async function readUsers(): Promise<User[]> {
-  try {
-    return JSON.parse(await fs.readFile(USERS_FILE, "utf8")) as User[];
-  } catch {
-    return [];
-  }
-}
-
-async function writeUsers(users: User[]) {
-  await fs.mkdir(path.dirname(USERS_FILE), { recursive: true });
-  await fs.writeFile(USERS_FILE, JSON.stringify(users, null, 2), "utf8");
-}
-
-export async function findUserByEmail(email: string) {
-  const users = await readUsers();
-  return users.find((u) => u.email === email.trim().toLowerCase());
-}
-
-export async function findUserById(id: string) {
-  const users = await readUsers();
-  return users.find((u) => u.id === id);
-}
-
-export async function updateUser(
-  id: string,
-  patch: Partial<Pick<User, "role" | "blocked" | "muted" | "mutedUntil" | "muteReason" | "name">>,
-) {
-  const users = await readUsers();
-  const idx = users.findIndex((u) => u.id === id);
-  if (idx === -1) return null;
-  users[idx] = { ...users[idx], ...patch };
-  await writeUsers(users);
-  return users[idx];
-}
-
-export async function deleteUser(id: string) {
-  const users = await readUsers();
-  const next = users.filter((u) => u.id !== id);
-  if (next.length === users.length) return false;
-  await writeUsers(next);
-  return true;
-}
-
-export async function listUsers() {
-  return readUsers();
-}
-
+/** Хранение пользователей — в lib/users-store.ts (атомарная запись, блокировка, уникальный email). */
 export async function createUser(name: string, email: string, password: string) {
-  const users = await readUsers();
-  const user: User = {
-    id: randomUUID(),
-    name: name.trim(),
-    email: email.trim().toLowerCase(),
-    passwordHash: hashPassword(password),
-    role: users.length === 0 ? "admin" : "user",
-    createdAt: new Date().toISOString(),
-  };
-  users.push(user);
-  await writeUsers(users);
-  return user;
+  return insertUser({ name, email, passwordHash: hashPassword(password) });
 }
 
 export function toPublic(user: User): PublicUser {
@@ -157,6 +99,12 @@ export const sessionCookieOptions = {
 export async function getSessionUser() {
   const uid = readSessionToken((await cookies()).get(SESSION_COOKIE)?.value);
   if (!uid) return null;
-  const user = await findUserById(uid);
-  return user && !user.blocked ? user : null;
+  try {
+    const user = await findUserById(uid);
+    return user && !user.blocked ? user : null;
+  } catch (e) {
+    if (!(e instanceof UsersStoreError)) throw e;
+    console.error(e); // хранилище недоступно: считаем гостем, но ничего не меняем и не пишем
+    return null;
+  }
 }

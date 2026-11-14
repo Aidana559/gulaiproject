@@ -7,6 +7,7 @@
  *  1. Чатами пользуются только вошедшие пользователи с ролью `user` (admin и moderator — нет).
  *  2. Читать и менять переписку может только её участник (по id, не по имени).
  *  3. Писать (создавать диалог, отправлять сообщение) можно только если ОБА участника — `user`.
+ *  4. Личный чат принадлежит ПАРЕ пользователей (двум id), а не книге.
  */
 
 export const CHAT_ROLE = "user";
@@ -45,15 +46,16 @@ export class ChatAccessError extends Error {
 /** Роль вообще может пользоваться чатами? Используется и для скрытия интерфейса. */
 export const canUseChat = (role: string | null | undefined): boolean => role === CHAT_ROLE;
 
-/** Минимум, который нужно знать о диалоге для проверки прав. */
-export type ChatParties = { buyer: { id: string }; owner: { id?: string } };
+/** Минимум, который нужно знать о диалоге: личный чат = ровно два участника (по id). */
+export type ChatParties = { participants: readonly [{ id: string }, { id: string }] };
 
-/** Кем является actor в диалоге. Только по id: имя не идентификатор. */
-export function participantRole(c: ChatParties, actorId: string): "buyer" | "owner" | null {
-  if (c.buyer.id === actorId) return "buyer";
-  if (c.owner.id && c.owner.id === actorId) return "owner";
-  return null;
-}
+/** Является ли actor участником. Только по id: имя не идентификатор. */
+export const isParticipant = (c: ChatParties, actorId: string): boolean =>
+  c.participants.some((p) => p.id === actorId);
+
+/** id собеседника (для чата с самим собой вернёт свой же id — такой чат запрещён проверкой `self`). */
+export const peerIdOf = (c: ChatParties, actorId: string): string =>
+  c.participants[0].id === actorId ? c.participants[1].id : c.participants[0].id;
 
 export type ChatCheck = {
   /** Диалог, с которым работает операция (для чтения/изменения существующего или создания нового). */
@@ -84,13 +86,13 @@ export function checkChatAccess(actor: ChatActor | null | undefined, check: Chat
   const c = check.conversation;
   if (!c) return { ok: true };
 
-  const me = participantRole(c, actor.id);
-  if (!me) return deny("not-participant");
+  if (!isParticipant(c, actor.id)) return deny("not-participant");
 
   if (check.write) {
-    const peerId = me === "buyer" ? c.owner.id : c.buyer.id;
-    if (!peerId) return deny("peer-unknown");
-    if (peerId === actor.id) return deny("self");
+    const [x, y] = c.participants;
+    if (!x.id || !y.id) return deny("peer-unknown");
+    if (x.id === y.id) return deny("self");
+    const peerId = peerIdOf(c, actor.id);
     if (!check.eligibleIds) return deny("peer-unknown");
     if (!check.eligibleIds.has(peerId)) return deny("peer-role");
   }

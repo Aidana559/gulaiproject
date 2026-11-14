@@ -128,6 +128,29 @@ export async function unhideBook(
   return updated;
 }
 
+/**
+ * Автор скрывает свою книгу из каталога / публикует её снова. Меняется ТОЛЬКО ownerHidden:
+ * решения модерации (hidden, reviewed) не затрагиваются, поэтому скрытие не обходит модерацию.
+ * Вызывающий код обязан проверить роль `user` и владение (см. lib/listing-access.ts).
+ */
+export async function setOwnerVisibility(
+  book: ServerBook,
+  actor: Actor,
+  hidden: boolean,
+): Promise<ServerBook | undefined> {
+  if (!!book.ownerHidden === hidden) return book;
+  const updated = await patchBook(
+    String(book.id),
+    hidden
+      ? { ownerHidden: true, ownerHiddenAt: new Date().toISOString() }
+      : { ownerHidden: false, ownerHiddenAt: undefined },
+  );
+  await record(book, hidden ? "hidden_by_owner" : "shown_by_owner", actor, {
+    stateAfter: bookState(book),
+  });
+  return updated;
+}
+
 const clearHide = (): Partial<ServerBook> => ({
   hidden: false,
   hiddenUntil: null,
@@ -237,6 +260,7 @@ export async function bookInfo(book: ServerBook, forStaff: boolean) {
     category: book.category,
     genres: book.genres && book.genres.length ? book.genres : book.genre && book.genre !== "—" ? [book.genre] : [],
     publishedAt: book.createdAt ?? null,
+    ownerHidden: !!book.ownerHidden && !book.deleted,
     state,
     stateLabel: stateLabel(state, book.hiddenUntil),
     hiddenReason: state === "hidden" ? (book.hiddenReason ?? book.moderationNote ?? null) : null,

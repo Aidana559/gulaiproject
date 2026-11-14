@@ -9,6 +9,7 @@ import GenreMultiSelect from "@/components/GenreMultiSelect";
 import GoogleBookSearch, { type GoogleBookHit } from "@/components/GoogleBookSearch";
 import { FiCheckCircle } from "react-icons/fi";
 import type { Category } from "@/data/books";
+import { canManageOwnListings, staffHomeFor } from "@/lib/listing-access";
 import { categoryFromGoogle, genresFromGoogle, genresFromText } from "@/lib/google-genres";
 
 export default function AddPage() {
@@ -47,11 +48,18 @@ export default function AddPage() {
   if (!authLoading && !user) {
     if (typeof window !== "undefined") router.replace("/login");
   }
+  // второй рубеж после серверной проверки в add/layout.tsx
+  const forbidden = !authLoading && !!user && !canManageOwnListings(user.role);
+  if (forbidden && typeof window !== "undefined") router.replace(staffHomeFor(user?.role));
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!user) {
       router.push("/login");
+      return;
+    }
+    if (!canManageOwnListings(user.role)) {
+      setError("Добавлять книги могут только обычные пользователи");
       return;
     }
     setError("");
@@ -96,6 +104,8 @@ export default function AddPage() {
       setLoading(false);
     }
   }
+
+  if (forbidden) return <p className="p-10 text-center text-stone-500">Перенаправляем…</p>;
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-10 sm:px-6">

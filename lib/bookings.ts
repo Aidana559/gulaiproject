@@ -5,6 +5,7 @@ import { books as staticBooks } from "@/data/books";
 import demoTx from "@/data/transactions.json";
 import { notify, resolveUserId } from "@/lib/notifications";
 import { withLock } from "@/lib/db";
+import { writeFileAtomic } from "@/lib/atomic-file";
 
 export type BookingStatus =
   | "reserved"
@@ -96,8 +97,7 @@ async function readAll(): Promise<Booking[]> {
 }
 
 async function writeAll(items: Booking[]) {
-  await fs.mkdir(path.dirname(FILE), { recursive: true });
-  await fs.writeFile(FILE, JSON.stringify(items, null, 2), "utf8");
+  await writeFileAtomic(FILE, JSON.stringify(items, null, 2));
 }
 
 export async function resolveBookOwner(bookId: number): Promise<{
@@ -210,8 +210,7 @@ export async function readDemoState(): Promise<DemoTx[]> {
 }
 
 export async function writeDemoState(items: DemoTx[]) {
-  await fs.mkdir(path.dirname(DEMO_FILE), { recursive: true });
-  await fs.writeFile(DEMO_FILE, JSON.stringify(items, null, 2), "utf8");
+  await writeFileAtomic(DEMO_FILE, JSON.stringify(items, null, 2));
 }
 
 function demoStates(list: DemoTx[]) {

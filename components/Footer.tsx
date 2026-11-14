@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { FiBookOpen } from "react-icons/fi";
+import UserOnly from "@/components/UserOnly";
 
 export default function Footer() {
   return (
@@ -18,7 +19,9 @@ export default function Footer() {
           <p className="text-sm font-semibold text-stone-900">Разделы</p>
           <ul className="mt-3 space-y-2 text-sm text-stone-500">
           <li><Link className="hover:text-indigo-600" href="/catalog">Каталог</Link></li>
-          <li><Link className="hover:text-indigo-600" href="/add">Добавить книгу</Link></li>
+          <UserOnly>
+            <li><Link className="hover:text-indigo-600" href="/add">Добавить книгу</Link></li>
+          </UserOnly>
           <li><Link className="hover:text-indigo-600" href="/transactions">Транзакции</Link></li>
           <li><Link className="hover:text-indigo-600" href="/profile">Личный кабинет</Link></li>
           </ul>

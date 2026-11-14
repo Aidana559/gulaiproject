@@ -21,10 +21,13 @@ import {
   deleteBook,
   hideBook,
   restoreBook,
+  setOwnerVisibility,
   sweepExpiredHides,
   unhideBook,
   type Actor,
 } from "@/lib/moderation";
+import { getBookStates } from "@/lib/bookings";
+import { canManageOwnListings, checkListingAccess } from "@/lib/listing-access";
 import { REASON_MAX, REASON_MIN } from "@/lib/moderation-shared";
 import type { Report, Review, User } from "@/lib/types";
 
@@ -150,6 +153,25 @@ export async function PATCH(req: Request, { params }: Ctx) {
       if (fd.get("removeCover") === "1") patch.coverUrl = null;
     } else {
       const body = await req.json();
+
+      // Скрыть / опубликовать снова: только роль user и только владелец. Отдельная операция —
+      // она меняет лишь видимость (ownerHidden) и не трогает решения модерации.
+      if ("ownerHidden" in body) {
+        const access = checkListingAccess(actor, book);
+        if (!access.ok) {
+          return NextResponse.json({ error: access.message }, { status: access.reason === "unauthenticated" ? 401 : 403 });
+        }
+        if (book.deleted) return NextResponse.json({ error: "Книга удалена" }, { status: 409 });
+        if (isHiddenNow({ hidden: book.hidden, hiddenUntil: book.hiddenUntil })) {
+          return NextResponse.json(
+            { error: "Объявление скрыто модерацией — публикацией управляет администрация" },
+            { status: 409 },
+          );
+        }
+        await setOwnerVisibility(book, toActor(actor), asBool(body.ownerHidden));
+        return NextResponse.json(await getBook(id, { includeHidden: true }));
+      }
+
       for (const k of EDITABLE) {
         if (k in body) {
           patch[k] =
@@ -233,8 +255,26 @@ export async function DELETE(req: Request, { params }: Ctx) {
 
   const book = await getBook(id, { includeHidden: true });
   if (!book) return NextResponse.json({ error: "Не найдено" }, { status: 404 });
-  const mine = isOwner(book, actor);
+  // «Моя» книга — только в роли user. Администрация удаляет через служебный путь (с причиной).
+  const mine = isOwner(book, actor) && canManageOwnListings(actor.role);
   if (!mine && !isStaff(actor)) return forbidden();
+
+  // Автор не может удалить книгу, пока по ней есть активная бронь или выдача.
+  // Мягкое удаление сохраняет историю операций (bookings.json не трогаем).
+  if (mine) {
+    const state = (await getBookStates())[String(book.id)];
+    if (state) {
+      return NextResponse.json(
+        {
+          error:
+            state === "given"
+              ? "Нельзя удалить книгу: она сейчас выдана. Дождитесь возврата."
+              : "Нельзя удалить книгу: по ней есть активная бронь. Отмените бронь или дождитесь выдачи и возврата.",
+        },
+        { status: 409 },
+      );
+    }
+  }
 
   const body = (await req.json().catch(() => ({}))) as { reason?: unknown };
   const reason = String(body.reason ?? "").trim().slice(0, REASON_MAX);
