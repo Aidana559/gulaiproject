@@ -48,7 +48,11 @@
     "ownerId": "5a5ca32f-3441-46c5-864c-8e85858e2674",
     "gradient": "from-sky-500 to-blue-700",
     "coverUrl": "https://books.google.com/books/content?id=PT2mywEACAAJ&printsec=frontcover&img=1&zoom=1&source=gbs_api",
+<<<<<<< HEAD
     "views": 13,
+=======
+    "views": 30,
+>>>>>>> cb189e12703a610fcd0b13ced84f48590fecfaba
     "createdAt": "2026-11-14T18:24:13.467Z",
     "updatedAt": "2026-11-14T18:59:05.321Z",
     "hidden": false,
