@@ -76,7 +76,7 @@ export const unreadIn = (c: Conversation, meId: string): number =>
 
 /** Короткий текст сообщения для списка чатов: у карточки книги — её название. */
 export const previewOf = (m: ChatMessage | undefined): string =>
-  !m ? "" : isBookRef(m) ? `📖 «${m.book.title}»` : m.text;
+  !m ? "" : isBookRef(m) ? ` «${m.book.title}»` : m.text;
 
 // ---------- операции (чистые: возвращают новое состояние) ----------
 const sortParties = (a: Party, b: Party): [Party, Party] => (a.id <= b.id ? [a, b] : [b, a]);

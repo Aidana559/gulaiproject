@@ -1,16 +1,18 @@
 "use client";
 
-/**
- * Мгновенное обновление статусов книг между вкладками одного браузера.
- * После бронирования, выдачи, возврата или отмены вызывающий код сообщает `announceBookingsChanged()`,
- * а открытые вкладки (профиль пользователя, каталог) сразу перечитывают статусы с сервера.
- * Сами статусы всегда считаются на сервере по броням (lib/bookings.ts), здесь передаётся только сигнал.
- * Для других устройств и браузеров профиль дополнительно обновляется по таймеру и при возврате на вкладку.
- */
+
 const CHANNEL = "kitapta:bookings";
 const STORAGE_KEY = "kitapta:bookings:changed";
+const WINDOW_EVENT = "kitapta:bookings-changed";
 
 export function announceBookingsChanged(): void {
+  try {
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new Event(WINDOW_EVENT));
+    }
+  } catch {
+
+  }
   try {
     if (typeof BroadcastChannel !== "undefined") {
       const ch = new BroadcastChannel(CHANNEL);
@@ -18,17 +20,16 @@ export function announceBookingsChanged(): void {
       ch.close();
     }
   } catch {
-    /* сигнал не критичен */
+
   }
   try {
-    // запасной путь для браузеров без BroadcastChannel: событие storage приходит в ДРУГИЕ вкладки
+  
     localStorage.setItem(STORAGE_KEY, String(Date.now()));
   } catch {
-    /* localStorage недоступен */
+
   }
 }
 
-/** Подписка на сигнал из других вкладок. Возвращает функцию отписки. */
 export function subscribeBookingsChanged(cb: () => void): () => void {
   let ch: BroadcastChannel | null = null;
   try {
@@ -42,9 +43,12 @@ export function subscribeBookingsChanged(cb: () => void): () => void {
   const onStorage = (e: StorageEvent) => {
     if (e.key === STORAGE_KEY) cb();
   };
+  const onWindow = () => cb();
   window.addEventListener("storage", onStorage);
+  window.addEventListener(WINDOW_EVENT, onWindow);
   return () => {
     ch?.close();
     window.removeEventListener("storage", onStorage);
+    window.removeEventListener(WINDOW_EVENT, onWindow);
   };
 }
