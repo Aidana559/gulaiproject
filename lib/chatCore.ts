@@ -57,6 +57,14 @@ export const pairId = (x: string, y: string): string => [String(x), String(y)].s
 
 export const isBookRef = (m: ChatMessage): m is BookRefMessage => m.type === "book_reference";
 
+/**
+ * Это та же самая книга? Одного id недостаточно: id могут повториться (например, после сброса
+ * файла объявлений новая книга получает номер старой). Поэтому сверяется ещё и название.
+ */
+const sameTitle = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
+export const isSameBook = (m: BookRefMessage, book: { id: string; title: string }): boolean =>
+  m.bookId === book.id && sameTitle(m.book.title, book.title);
+
 const isHiddenFor = (m: ChatMessage, userId: string) => !!m.hiddenFor?.includes(userId);
 
 export const lastAt = (c: Conversation): string => c.messages[c.messages.length - 1]?.at ?? c.createdAt;
@@ -116,7 +124,7 @@ export function openBook(
 ): { db: ChatDb; chatId: string; added: boolean } {
   const { me, owner, book, now, newId } = args;
   const chat = findOrNew(db, me, owner, now);
-  const already = chat.messages.some((m) => isBookRef(m) && m.bookId === book.id && !isHiddenFor(m, me.id));
+  const already = chat.messages.some((m) => isBookRef(m) && isSameBook(m, book) && !isHiddenFor(m, me.id));
   if (already) return { db: chat === db.chats.find((c) => c.id === chat.id) ? db : put(db, chat), chatId: chat.id, added: false };
 
   const card: BookRefMessage = {
@@ -297,7 +305,9 @@ export function migrateLegacy(
     // карточка книги старой переписки
     const cardId = `legacy-book:${L.id}`;
     const bookId = String(L.bookId);
-    const hasCard = chat.messages.some((m) => m.id === cardId || (isBookRef(m) && m.bookId === bookId));
+    const hasCard = chat.messages.some(
+      (m) => m.id === cardId || (isBookRef(m) && isSameBook(m, { id: bookId, title: L.bookTitle })),
+    );
     if (!hasCard) {
       const cardAt =
         created && first ? (time(first) < time(created) ? first : created) : (created ?? first ?? new Date(0).toISOString());

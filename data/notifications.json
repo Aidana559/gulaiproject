@@ -1,153 +1,15 @@
 [
   {
-    "id": "ce84ad9a-ed83-4c5d-a56b-39fa3130a443",
-    "userId": "a9daa4ac-f4a0-40e7-b02e-788f5da119b0",
-    "type": "booking",
-    "text": "Min забронировал(а) вашу книгу «Food Fight! (The SpongeBob Movie: Sponge Out of Water in 3D)».",
-    "href": "/transactions",
-    "read": true,
-    "createdAt": "2026-11-09T14:32:47.683Z"
-  },
-  {
-    "id": "01ff1ad4-33ad-4dce-8ac4-872009632ef0",
-    "userId": "857fb46b-ca21-43d9-a065-1e1e5e7534c7",
-    "type": "booking",
-    "text": "Бронь книги «Food Fight! (The SpongeBob Movie: Sponge Out of Water in 3D)» отменена владельцем.",
-    "href": "/transactions",
-    "read": true,
-    "createdAt": "2026-11-09T14:33:33.062Z"
-  },
-  {
-    "id": "4179a76b-1ab2-418d-b211-7246aef19ccc",
-    "userId": "b7418835-56e3-44ef-b866-f57a78c2dbd2",
-    "type": "moderation",
-    "text": "Книга временно скрыта: «Махаббат пен романтикалық қарым-қатынастағы эмоционалды интеллект». Выполнил: Администратор айдана. Причина: Некорректная информация о книге. Скрыта до 21.11.2026.",
-    "href": "/book/1002/info",
-    "key": "mod:6b43ca58-d9b4-4563-82f2-daeb0b6e0bd8",
-    "moderation": {
-      "id": "6b43ca58-d9b4-4563-82f2-daeb0b6e0bd8",
-      "bookId": "1002",
-      "bookTitle": "Махаббат пен романтикалық қарым-қатынастағы эмоционалды интеллект",
-      "authorId": "b7418835-56e3-44ef-b866-f57a78c2dbd2",
-      "authorName": "asd",
-      "action": "hidden",
-      "actorId": "c9d66741-f31e-41a2-9dba-71847b76d865",
-      "actorName": "айдана",
-      "actorRole": "admin",
-      "reason": "Некорректная информация о книге",
-      "until": "2026-11-21T12:30:06.642Z",
-      "stateAfter": "hidden",
-      "createdAt": "2026-11-14T12:30:06.664Z"
-    },
-    "read": true,
-    "createdAt": "2026-11-14T12:30:06.819Z"
-  },
-  {
-    "id": "1544b4df-e49d-4078-9f03-bbae0553c7f0",
-    "userId": "b7418835-56e3-44ef-b866-f57a78c2dbd2",
-    "type": "moderation",
-    "text": "Книга удалена: «Махаббат, қызық мол жылдар». Выполнил: Администратор айдана. Причина: Некорректная информация о книге.",
-    "href": "/book/1001/info",
-    "key": "mod:0f27fe3c-ad73-4633-9523-83245f56b305",
-    "moderation": {
-      "id": "0f27fe3c-ad73-4633-9523-83245f56b305",
-      "bookId": "1001",
-      "bookTitle": "Махаббат, қызық мол жылдар",
-      "authorId": "b7418835-56e3-44ef-b866-f57a78c2dbd2",
-      "authorName": "asd",
-      "action": "deleted",
-      "actorId": "c9d66741-f31e-41a2-9dba-71847b76d865",
-      "actorName": "айдана",
-      "actorRole": "admin",
-      "reason": "Некорректная информация о книге",
-      "stateAfter": "deleted",
-      "createdAt": "2026-11-14T12:30:26.157Z"
-    },
-    "read": true,
-    "createdAt": "2026-11-14T12:30:26.164Z"
-  },
-  {
-    "id": "7c63ab7d-de35-4648-99ec-2b9177cd7710",
-    "userId": "b7418835-56e3-44ef-b866-f57a78c2dbd2",
-    "type": "moderation",
-    "text": "Книга временно скрыта: «Истории про любовь 30». Выполнил: Администратор айдана. Причина: Некорректная информация о книге. Скрыта до 21.11.2026.",
-    "href": "/book/1001/info",
-    "key": "mod:20d4fd25-87f6-4451-b698-2dae15d4ff8e",
-    "moderation": {
-      "id": "20d4fd25-87f6-4451-b698-2dae15d4ff8e",
-      "bookId": "1001",
-      "bookTitle": "Истории про любовь 30",
-      "authorId": "b7418835-56e3-44ef-b866-f57a78c2dbd2",
-      "authorName": "asd",
-      "action": "hidden",
-      "actorId": "c9d66741-f31e-41a2-9dba-71847b76d865",
-      "actorName": "айдана",
-      "actorRole": "admin",
-      "reason": "Некорректная информация о книге",
-      "until": "2026-11-21T13:08:09.293Z",
-      "stateAfter": "hidden",
-      "createdAt": "2026-11-14T13:08:09.332Z"
-    },
-    "read": true,
-    "createdAt": "2026-11-14T13:08:09.417Z"
-  },
-  {
-    "id": "bc16050a-d3f4-49b5-bba4-17d91a595d1c",
-    "userId": "b7418835-56e3-44ef-b866-f57a78c2dbd2",
-    "type": "moderation",
-    "text": "Книга снова опубликована: «Истории про любовь 30». Выполнил: Администратор айдана.",
-    "href": "/book/1001/info",
-    "key": "mod:c09938fb-3cf1-40e1-9d2a-7e04ada792e7",
-    "moderation": {
-      "id": "c09938fb-3cf1-40e1-9d2a-7e04ada792e7",
-      "bookId": "1001",
-      "bookTitle": "Истории про любовь 30",
-      "authorId": "b7418835-56e3-44ef-b866-f57a78c2dbd2",
-      "authorName": "asd",
-      "action": "published",
-      "actorId": "c9d66741-f31e-41a2-9dba-71847b76d865",
-      "actorName": "айдана",
-      "actorRole": "admin",
-      "stateAfter": "pending",
-      "createdAt": "2026-11-14T13:36:02.493Z"
-    },
-    "read": true,
-    "createdAt": "2026-11-14T13:36:02.506Z"
-  },
-  {
-    "id": "2671bfc5-d7c1-4475-a7f8-7459099961c4",
+    "id": "7691dd4d-2de2-4e15-9f29-9805e4f7bbf5",
     "userId": "5a5ca32f-3441-46c5-864c-8e85858e2674",
     "type": "moderation",
-    "text": "Книга одобрена модератором: «The Return of Sherlock Holmes». Выполнил: Модератор Gulbanu.",
-    "href": "/book/2060/info",
-    "key": "mod:8dcf2842-5f1f-4b15-b345-da1a00a4a574",
-    "moderation": {
-      "id": "8dcf2842-5f1f-4b15-b345-da1a00a4a574",
-      "bookId": "2060",
-      "bookTitle": "The Return of Sherlock Holmes",
-      "authorId": "5a5ca32f-3441-46c5-864c-8e85858e2674",
-      "authorName": "Хуан",
-      "action": "approved",
-      "actorId": "79d7d016-d9b4-4268-ac07-5d7443632a45",
-      "actorName": "Gulbanu",
-      "actorRole": "moderator",
-      "stateAfter": "published",
-      "createdAt": "2026-11-14T18:59:01.503Z"
-    },
-    "read": true,
-    "createdAt": "2026-11-14T18:59:01.518Z"
-  },
-  {
-    "id": "893170cf-a72b-4b60-a30c-77199af24e27",
-    "userId": "5a5ca32f-3441-46c5-864c-8e85858e2674",
-    "type": "moderation",
-    "text": "Книга одобрена модератором: «Madness. A Jeff The Killer's story». Выполнил: Модератор Gulbanu.",
+    "text": "Книга одобрена модератором: «Азбука Морзе». Выполнил: Модератор Gulbanu.",
     "href": "/book/2059/info",
-    "key": "mod:488649aa-a7c4-41d2-8634-efee6d80ed96",
+    "key": "mod:1b88640b-f6b9-4476-b4f3-671fb6047462",
     "moderation": {
-      "id": "488649aa-a7c4-41d2-8634-efee6d80ed96",
+      "id": "1b88640b-f6b9-4476-b4f3-671fb6047462",
       "bookId": "2059",
-      "bookTitle": "Madness. A Jeff The Killer's story",
+      "bookTitle": "Азбука Морзе",
       "authorId": "5a5ca32f-3441-46c5-864c-8e85858e2674",
       "authorName": "Хуан",
       "action": "approved",
@@ -155,118 +17,68 @@
       "actorName": "Gulbanu",
       "actorRole": "moderator",
       "stateAfter": "published",
-      "createdAt": "2026-11-14T18:59:05.331Z"
+      "createdAt": "2026-11-16T08:25:12.299Z"
     },
-    "read": true,
-    "createdAt": "2026-11-14T18:59:05.344Z"
+    "read": false,
+    "createdAt": "2026-11-16T08:25:12.321Z"
   },
   {
-<<<<<<< HEAD
-    "id": "cef62698-5afe-444b-89fa-5559a912b98a",
+    "id": "07059cd8-02ae-4a9c-bc6f-7ab00babb47f",
     "userId": "5a5ca32f-3441-46c5-864c-8e85858e2674",
     "type": "booking",
-    "text": "asd отменил(а) бронь книги «Madness. A Jeff The Killer's story».",
+    "text": "Kio забронировал(а) вашу книгу «Азбука Морзе».",
     "href": "/transactions",
     "read": false,
-    "createdAt": "2026-11-14T21:02:10.618Z"
+    "createdAt": "2026-11-16T08:25:47.094Z"
   },
   {
-    "id": "f39599d1-0f16-444d-a55c-a205d338d62d",
+    "id": "fd221a1b-06e8-4026-bc59-603c7d5f1c30",
     "userId": "5a5ca32f-3441-46c5-864c-8e85858e2674",
     "type": "booking",
-    "text": "asd забронировал(а) вашу книгу «Madness. A Jeff The Killer's story».",
+    "text": "Kio отменил(а) бронь книги «Азбука Морзе».",
     "href": "/transactions",
     "read": false,
-    "createdAt": "2026-11-14T21:02:39.758Z"
+    "createdAt": "2026-11-16T08:41:16.353Z"
   },
   {
-    "id": "2ac8bb67-daf0-45fd-9510-eb2086d180b9",
+    "id": "8601c88f-3445-4466-a975-885474b84bb8",
     "userId": "5a5ca32f-3441-46c5-864c-8e85858e2674",
     "type": "booking",
-    "text": "asd отменил(а) бронь книги «Madness. A Jeff The Killer's story».",
+    "text": "Kio забронировал(а) вашу книгу «Азбука Морзе».",
     "href": "/transactions",
     "read": false,
-    "createdAt": "2026-11-14T21:12:46.521Z"
+    "createdAt": "2026-11-16T08:41:23.292Z"
   },
   {
-    "id": "ef8827be-cbf4-499a-b06e-af1550c68831",
+    "id": "43271aa0-bb22-4013-a400-d4024aa54683",
     "userId": "5a5ca32f-3441-46c5-864c-8e85858e2674",
-    "type": "booking",
-    "text": "asd забронировал(а) вашу книгу «Madness. A Jeff The Killer's story».",
-    "href": "/transactions",
+    "type": "moderation",
+    "text": "Книга одобрена модератором: «Lilo & Stitch». Выполнил: Модератор Gulbanu.",
+    "href": "/book/2061/info",
+    "key": "mod:679dc4be-1b58-4e6d-bad0-f728423932f4",
+    "moderation": {
+      "id": "679dc4be-1b58-4e6d-bad0-f728423932f4",
+      "bookId": "2061",
+      "bookTitle": "Lilo & Stitch",
+      "authorId": "5a5ca32f-3441-46c5-864c-8e85858e2674",
+      "authorName": "Хуан",
+      "action": "approved",
+      "actorId": "79d7d016-d9b4-4268-ac07-5d7443632a45",
+      "actorName": "Gulbanu",
+      "actorRole": "moderator",
+      "stateAfter": "published",
+      "createdAt": "2026-11-16T08:49:15.470Z"
+    },
     "read": false,
-    "createdAt": "2026-11-14T21:13:04.229Z"
-=======
-    "id": "3b83eca7-1e05-4239-8672-7a6c90ad36df",
-    "userId": "5a5ca32f-3441-46c5-864c-8e85858e2674",
-    "type": "booking",
-    "text": "Kio забронировал(а) вашу книгу «Madness. A Jeff The Killer's story».",
-    "href": "/transactions",
-    "read": false,
-    "createdAt": "2026-11-14T20:28:42.421Z"
+    "createdAt": "2026-11-16T08:49:15.479Z"
   },
   {
-    "id": "f8190434-c021-4aeb-a822-36c70caeb338",
+    "id": "966161e5-6e30-49ae-b330-e616e2310c4f",
     "userId": "5a5ca32f-3441-46c5-864c-8e85858e2674",
     "type": "booking",
-    "text": "Kio отменил(а) бронь книги «Madness. A Jeff The Killer's story».",
+    "text": "Kio забронировал(а) вашу книгу «Lilo & Stitch».",
     "href": "/transactions",
     "read": false,
-    "createdAt": "2026-11-14T20:28:53.233Z"
-  },
-  {
-    "id": "1d61f951-6f98-4710-9f4b-8e731a86f548",
-    "userId": "5a5ca32f-3441-46c5-864c-8e85858e2674",
-    "type": "booking",
-    "text": "Kio забронировал(а) вашу книгу «Madness. A Jeff The Killer's story».",
-    "href": "/transactions",
-    "read": false,
-    "createdAt": "2026-11-14T20:40:18.969Z"
-  },
-  {
-    "id": "0cf1473f-7d97-48a0-9f4f-7e5852100418",
-    "userId": "5a5ca32f-3441-46c5-864c-8e85858e2674",
-    "type": "booking",
-    "text": "Kio отменил(а) бронь книги «Madness. A Jeff The Killer's story».",
-    "href": "/transactions",
-    "read": false,
-    "createdAt": "2026-11-14T20:40:27.658Z"
-  },
-  {
-    "id": "f054c820-9942-4439-a0ed-7e16b7e33d6b",
-    "userId": "5a5ca32f-3441-46c5-864c-8e85858e2674",
-    "type": "booking",
-    "text": "Kio забронировал(а) вашу книгу «Madness. A Jeff The Killer's story».",
-    "href": "/transactions",
-    "read": false,
-    "createdAt": "2026-11-14T20:51:51.345Z"
-  },
-  {
-    "id": "056c69d8-3557-4424-8963-dde0b32c2765",
-    "userId": "5a5ca32f-3441-46c5-864c-8e85858e2674",
-    "type": "booking",
-    "text": "Kio отменил(а) бронь книги «Madness. A Jeff The Killer's story».",
-    "href": "/transactions",
-    "read": false,
-    "createdAt": "2026-11-14T20:52:07.424Z"
-  },
-  {
-    "id": "d3ed1bc1-2cb9-48ad-8fda-4c6aa695ab7f",
-    "userId": "5a5ca32f-3441-46c5-864c-8e85858e2674",
-    "type": "booking",
-    "text": "Kio забронировал(а) вашу книгу «Madness. A Jeff The Killer's story».",
-    "href": "/transactions",
-    "read": false,
-    "createdAt": "2026-11-14T21:00:27.511Z"
-  },
-  {
-    "id": "16d3a629-335e-4ded-acf9-ef28c8260ed2",
-    "userId": "5a5ca32f-3441-46c5-864c-8e85858e2674",
-    "type": "booking",
-    "text": "Kio отменил(а) бронь книги «Madness. A Jeff The Killer's story».",
-    "href": "/transactions",
-    "read": false,
-    "createdAt": "2026-11-14T21:01:24.529Z"
->>>>>>> cb189e12703a610fcd0b13ced84f48590fecfaba
+    "createdAt": "2026-11-16T08:50:01.050Z"
   }
 ]

@@ -1,1 +1,14 @@
-[]
+[
+  {
+    "id": "358dbcdd-0afe-445a-b612-276274d30b84",
+    "targetType": "book",
+    "targetId": "2026",
+    "targetLabel": "Архитектура компьютера: [пер. с англ.]",
+    "bookId": "2026",
+    "reporterId": "a9daa4ac-f4a0-40e7-b02e-788f5da119b0",
+    "reasonCode": "abuse",
+    "reason": "Оскорбления и травля",
+    "status": "new",
+    "createdAt": "2026-11-16T08:19:56.084Z"
+  }
+]

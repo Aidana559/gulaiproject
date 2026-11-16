@@ -736,9 +736,9 @@ h2 {
   }
 }
 
-/* Book details: use the same serif family as the book title, without changing sizes. */
+/* Book details: readable Georgia for secondary information; book title keeps its original font. */
 .book-detail-serif,
 .book-detail-serif :is(button, input, textarea, select),
 .book-detail-serif *:not(svg):not(path) {
-  font-family: var(--font-serif) !important;
+  font-family: Georgia, "Times New Roman", serif !important;
 }

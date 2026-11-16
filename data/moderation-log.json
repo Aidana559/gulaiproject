@@ -159,5 +159,31 @@
     "actorRole": "user",
     "stateAfter": "published",
     "createdAt": "2026-11-14T19:27:15.487Z"
+  },
+  {
+    "id": "1b88640b-f6b9-4476-b4f3-671fb6047462",
+    "bookId": "2059",
+    "bookTitle": "Азбука Морзе",
+    "authorId": "5a5ca32f-3441-46c5-864c-8e85858e2674",
+    "authorName": "Хуан",
+    "action": "approved",
+    "actorId": "79d7d016-d9b4-4268-ac07-5d7443632a45",
+    "actorName": "Gulbanu",
+    "actorRole": "moderator",
+    "stateAfter": "published",
+    "createdAt": "2026-11-16T08:25:12.299Z"
+  },
+  {
+    "id": "679dc4be-1b58-4e6d-bad0-f728423932f4",
+    "bookId": "2061",
+    "bookTitle": "Lilo & Stitch",
+    "authorId": "5a5ca32f-3441-46c5-864c-8e85858e2674",
+    "authorName": "Хуан",
+    "action": "approved",
+    "actorId": "79d7d016-d9b4-4268-ac07-5d7443632a45",
+    "actorName": "Gulbanu",
+    "actorRole": "moderator",
+    "stateAfter": "published",
+    "createdAt": "2026-11-16T08:49:15.470Z"
   }
 ]
