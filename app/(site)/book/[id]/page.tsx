@@ -25,12 +25,10 @@ import { readJson } from "@/lib/db";
 import type { Review } from "@/lib/types";
 import { FiArrowLeft } from "react-icons/fi";
 
-
 export default async function BookPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const book = (await getBook(id, { includeHidden: true })) as ServerBook | undefined;
   if (!book || book.deleted) notFound();
-  // скрытые отдаём только через API с правами; на SSR для простоты 404 гостю
   if (isHiddenNow(book)) notFound();
 
   const libraryBook = isLibraryBook(book);
@@ -156,42 +154,36 @@ export default async function BookPage({ params }: { params: Promise<{ id: strin
               <p className="mt-1">Место получения после бронирования будет указано ниже.</p>
             </div>
           ) : (
-          <div className="book-detail-serif mt-6 flex items-center gap-3 text-sm text-stone-600">
-            <UserLink userId={book.ownerId} className="shrink-0 rounded-full">
-              <span className="flex size-10 items-center justify-center rounded-full bg-indigo-100 font-bold text-indigo-700">
-                {(book.owner || "?")[0]}
-              </span>
-            </UserLink>
-            <div>
-              <p className="font-medium text-stone-900">
-                <UserLink userId={book.ownerId}>{book.owner}</UserLink>
-              </p>
-              <p className="text-stone-500">
-                {[book.city, book.campus].filter(Boolean).join(" · ")}
-              </p>
-              <div className="mt-1">
-                <OwnerRating userId={ownerKey} />
-              </div>
-              <div className="mt-1">
-                <ReportButton
-                  targetType="user"
-                  targetId={ownerKey}
-                  label="Пожаловаться на пользователя"
-                  compact
-                />
+            <div className="book-detail-serif mt-6 flex items-center gap-3 text-sm text-stone-600">
+              <UserLink userId={book.ownerId} className="shrink-0 rounded-full">
+                <span className="flex size-10 items-center justify-center rounded-full bg-indigo-100 font-bold text-indigo-700">
+                  {(book.owner || "?")[0]}
+                </span>
+              </UserLink>
+              <div>
+                <p className="font-medium text-stone-900">
+                  <UserLink userId={book.ownerId}>{book.owner}</UserLink>
+                </p>
+                <p className="text-stone-500">
+                  {[book.city, book.campus].filter(Boolean).join(" · ")}
+                </p>
+                <div className="mt-1">
+                  <OwnerRating userId={ownerKey} />
+                </div>
+                <div className="mt-1">
+                  <ReportButton
+                    targetType="user"
+                    targetId={ownerKey}
+                    label="Пожаловаться на пользователя"
+                    compact
+                  />
+                </div>
               </div>
             </div>
-          </div>
-
-<<<<<<< HEAD
-          <div className="mt-8 flex flex-wrap items-center gap-3">
-            <ReserveButton book={book as Book} ownerKey={ownerKey} hasOwnerAccount={book.ownerId != null} />
-=======
           )}
 
           <div className="book-detail-serif mt-8 flex flex-wrap items-center gap-3">
-            <ReserveButton book={book as Book} ownerKey={ownerKey} isLibrary={libraryBook} />
->>>>>>> f25f5012b725116eb5745a6a21fdbed7ad73b909
+            <ReserveButton book={book as Book} ownerKey={ownerKey} hasOwnerAccount={book.ownerId != null} />
             <LinkButton href="/catalog" variant="outline" size="lg">
               <FiArrowLeft /> К каталогу
             </LinkButton>
@@ -209,7 +201,7 @@ export default async function BookPage({ params }: { params: Promise<{ id: strin
           borrowersCount={borrowers.length}
           reviewsCount={reviewsCount}
           borrowers={<BookBorrowers bookId={Number(book.id)} ownerKey={ownerKey} />}
-          reviews={<ReviewsSection bookId={book.id} ownerId={ownerKey} />}
+          reviews={<ReviewsSection bookId={book.id} />}
         />
         <div className="flex min-w-0 flex-col gap-6">
           <AuthorBooks author={book.author} currentId={book.id} />
