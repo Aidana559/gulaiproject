@@ -300,14 +300,36 @@ export function createBook(input: CreateBookInput): Promise<ServerBook> {
   return withLock("user-books", () => createBookUnlocked(input));
 }
 
+/**
+ * Самый большой номер книги, на который ссылаются другие файлы (брони, журнал модерации, жалобы, отзывы).
+ * Даже если сама книга пропала из user-books.json, её номер нельзя выдавать новой книге: иначе старые брони,
+ * записи журнала и переписки «прилипнут» к чужой книге. Файлы только читаются.
+ */
+async function maxReferencedBookNumber(): Promise<number> {
+  let max = 0;
+  const bump = (v: unknown) => {
+    const n = Number(v);
+    if (Number.isFinite(n) && n > max) max = n;
+  };
+  type Ref = { bookId?: unknown; targetType?: string; targetId?: unknown };
+  for (const file of ["bookings.json", "moderation-log.json", "reports.json", "reviews.json"]) {
+    for (const r of await readJson<Ref[]>(file, [])) {
+      bump(r.bookId);
+      if (r.targetType === "book") bump(r.targetId);
+    }
+  }
+  return max;
+}
+
 async function createBookUnlocked(input: CreateBookInput): Promise<ServerBook> {
   const user = await readUserBooks();
   // удалённые тоже учитываем, чтобы id никогда не повторялся
   const all = await getAllBooks({ includeHidden: true, includeDeleted: true });
+  const referenced = await maxReferencedBookNumber();
   const maxNum = all.reduce((m, b) => {
     const n = Number(b.id);
     return Number.isFinite(n) ? Math.max(m, n) : m;
-  }, 1000);
+  }, Math.max(1000, referenced));
   const id = maxNum + 1;
   const genres = normalizeGenres(input.genres ?? input.genre);
   const now = new Date().toISOString();

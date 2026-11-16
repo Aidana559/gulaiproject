@@ -31,7 +31,11 @@ export async function GET(req: Request) {
       const k = byId.get(String(b.bookId));
       return { ...b, coverUrl: k?.coverUrl ?? null, gradient: k?.gradient };
     });
-    return NextResponse.json({ bookings: mine });
+    return NextResponse.json({ bookings: mine.map((b) => ({
+      ...b,
+      isLibrary: byId.has(String(b.bookId)) && byId.get(String(b.bookId))?.ownerId == null,
+      ownerId: byId.get(String(b.bookId))?.ownerId ?? null,
+    })) });
   }
 
   const actor = toPublic(user);

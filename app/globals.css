@@ -735,3 +735,10 @@ h2 {
     display: flex;
   }
 }
+
+/* Book details: readable Georgia for secondary information; book title keeps its original font. */
+.book-detail-serif,
+.book-detail-serif :is(button, input, textarea, select),
+.book-detail-serif *:not(svg):not(path) {
+  font-family: Georgia, "Times New Roman", serif !important;
+}
