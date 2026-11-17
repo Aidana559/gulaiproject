@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/components/AuthProvider";
-import { Button, LinkButton } from "./Button";
+import { LinkButton } from "./Button";
 import BookCover from "./BookCover";
 import type { Book } from "@/data/books";
 import { categoryLabels } from "@/data/books";
@@ -153,7 +153,7 @@ export default function MyListings() {
       ) : shown.length === 0 ? (
         <p className="mt-4 text-sm text-slate-600">В этой категории объявлений нет.</p>
       ) : (
-        <ul className="mt-4 divide-y divide-slate-100">
+        <ul className="mt-4 divide-y divide-slate-100 [overflow-anchor:none]">
           {shown.map((b) => {
             const state = bookState(b); // статус модерации: published | pending | hidden (отклонено) | deleted
             const ownerHidden = !!b.ownerHidden && state !== "deleted"; // видимость — отдельно
@@ -172,21 +172,21 @@ export default function MyListings() {
             return (
               <li
                 key={b.id}
-                className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between"
+                className="relative flex min-w-0 items-start gap-3 py-4 sm:gap-4"
               >
-                <div className="flex min-w-0 gap-4">
+                <div className="flex min-w-0 flex-1 items-start gap-3 sm:gap-4">
                   {/* Обложка: фото или градиент-заглушка (BookCover сам выбирает) */}
                   <div className="w-14 shrink-0 sm:w-16">
                     <BookCover book={b} compact />
                   </div>
-                  <div className="min-w-0">
+                  <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     {(state === "published" || state === "pending") && !ownerHidden ? (
-                      <Link href={`/book/${b.id}`} className="font-semibold text-stone-900 hover:text-indigo-600">
+                      <Link href={`/book/${b.id}`} className="break-words font-semibold text-stone-900 hover:text-indigo-600">
                         {b.title}
                       </Link>
                     ) : (
-                      <span className="font-semibold text-stone-900">{b.title}</span>
+                      <span className="break-words font-semibold text-stone-900">{b.title}</span>
                     )}
                     <span
                       className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset ${STATE_STYLE[state]}`}
@@ -199,7 +199,7 @@ export default function MyListings() {
                       </span>
                     )}
                   </div>
-                  <p className="text-sm text-stone-500">
+                  <p className="mt-1 break-words text-sm leading-5 text-stone-500">
                     {b.author} · {categoryLabels[b.category] ?? b.category}
                     {genres.length > 0 && ` · ${genres.join(", ")}`}
                     {b.views != null && ` · ${b.views} просм.`}
@@ -210,43 +210,58 @@ export default function MyListings() {
                       {b.hiddenReason ? `. Причина: ${b.hiddenReason}` : ""}
                     </p>
                   )}
-                  {ownerHidden && (
-                    <p className="mt-1 text-sm text-stone-600">
-                      Вы скрыли книгу — в каталоге её не видно.
-                      {state === "pending" && " Модерация продолжается."}
-                    </p>
-                  )}
+                  <p className="mt-1 min-h-5 text-sm leading-5 text-stone-600">
+                    {ownerHidden ? (
+                      <>Вы скрыли книгу — в каталоге её не видно.{state === "pending" && " Модерация продолжается."}</>
+                    ) : null}
+                  </p>
                   {state === "deleted" && b.deletedReason && (
                     <p className="mt-1 text-sm text-rose-700">Причина удаления: {b.deletedReason}</p>
                   )}
                   </div>
                 </div>
-                <div className="flex shrink-0 flex-wrap gap-2">
-                  <LinkButton href={`/book/${b.id}/info`} variant="ghost" size="sm">
-                    Информация
-                  </LinkButton>
-                  {state !== "deleted" && (
-                    <>
-                      <LinkButton href={`/book/${b.id}/edit`} variant="outline" size="sm">
-                        Изменить
-                      </LinkButton>
-                      {/* Отклонённую модерацией книгу автор не публикует: решение за администрацией */}
-                      {state !== "hidden" &&
-                        (ownerHidden ? (
-                          <Button size="sm" variant="secondary" disabled={busy} onClick={() => setHidden(b, false)}>
-                            Опубликовать снова
-                          </Button>
-                        ) : (
-                          <Button size="sm" variant="outline" disabled={busy} onClick={() => setHidden(b, true)}>
-                            Скрыть
-                          </Button>
-                        ))}
-                      <Button size="sm" variant="danger" disabled={busy} onClick={() => remove(b)}>
-                        Удалить
-                      </Button>
-                    </>
-                  )}
-                </div>
+                {/* Compact actions menu: no extra row, no squeezed text column. */}
+                <details className="group relative z-10 shrink-0 self-start open:z-30">
+                  <summary
+                    className="flex min-h-9 cursor-pointer list-none items-center gap-1.5 rounded-full border border-stone-300 bg-white px-3 py-1.5 text-sm font-medium text-stone-800 shadow-sm transition hover:bg-stone-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-olive-700 [&::-webkit-details-marker]:hidden"
+                    aria-label={`Действия с книгой ${b.title}`}
+                  >
+                    <span className="hidden sm:inline">Действия</span>
+                    <span className="sm:hidden">•••</span>
+                    <svg aria-hidden="true" className="hidden h-4 w-4 transition-transform group-open:rotate-180 sm:block" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
+                  </summary>
+                  <div className="absolute right-0 top-full z-40 mt-2 flex w-52 flex-col gap-1 rounded-xl border border-stone-200 bg-white p-2 shadow-xl">
+                    <Link href={`/book/${b.id}/info`} className="rounded-lg px-3 py-2 text-sm text-stone-800 hover:bg-stone-100">
+                      Информация
+                    </Link>
+                    {state !== "deleted" && (
+                      <>
+                        <Link href={`/book/${b.id}/edit`} className="rounded-lg px-3 py-2 text-sm text-stone-800 hover:bg-stone-100">
+                          Изменить
+                        </Link>
+                        {state !== "hidden" && (
+                          <button
+                            type="button"
+                            disabled={busy}
+                            onClick={() => void setHidden(b, !ownerHidden)}
+                            className="rounded-lg px-3 py-2 text-left text-sm text-stone-800 hover:bg-stone-100 disabled:opacity-50"
+                          >
+                            {busy ? "Сохранение…" : ownerHidden ? "Опубликовать снова" : "Скрыть"}
+                          </button>
+                        )}
+                        <div className="my-1 border-t border-stone-100" />
+                        <button
+                          type="button"
+                          disabled={busy}
+                          onClick={() => remove(b)}
+                          className="rounded-lg px-3 py-2 text-left text-sm text-rose-700 hover:bg-rose-50 disabled:opacity-50"
+                        >
+                          Удалить
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </details>
               </li>
             );
           })}

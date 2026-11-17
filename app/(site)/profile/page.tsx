@@ -413,73 +413,74 @@ export default function ProfilePage() {
               return (
                 <li
                   key={b.id}
-                  className="flex flex-wrap items-center justify-between gap-4 rounded-2xl bg-white p-4 ring-1 ring-stone-200"
+                  className="rounded-2xl border border-stone-200 bg-white p-4 shadow-sm"
                 >
-                  <div className="flex items-center gap-4">
+                  <div className="flex min-w-0 items-start gap-3 sm:gap-4">
                     {b.coverUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={b.coverUrl}
-                        alt=""
-                        loading="lazy"
-                        className="h-20 w-14 shrink-0 rounded-md object-cover shadow"
-                      />
+                      <img src={b.coverUrl} alt="" loading="lazy" className="h-20 w-14 shrink-0 rounded-md object-cover shadow" />
                     ) : (
                       <div className={`h-20 w-14 shrink-0 rounded-md bg-gradient-to-br ${gradient} shadow`} />
                     )}
-                    <div>
-                      {bookHref ? (
-                        <Link href={bookHref} className="font-semibold text-stone-900 hover:text-indigo-600">
-                          {b.bookTitle}
-                        </Link>
-                      ) : (
-                        <p className="font-semibold text-stone-900">{b.bookTitle}</p>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        {bookHref ? (
+                          <Link href={bookHref} className="min-w-0 font-semibold text-stone-900 hover:text-indigo-600">
+                            {b.bookTitle}
+                          </Link>
+                        ) : (
+                          <p className="font-semibold text-stone-900">{b.bookTitle}</p>
+                        )}
+                        <span className={`inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${badgeStyle(b.status)}`}>
+                          {badgeLabel(b.status)}
+                        </span>
+                      </div>
+                      <p className="mt-0.5 text-sm text-stone-500">{b.bookAuthor || "Автор не указан"}</p>
+                      <p className="mt-1 text-xs text-stone-500">
+                        {b.status === "reserved" || b.status === "cancelled" ? "Бронь" : "Выдача"}: {formatDate(b.startDate)} — {formatDate(b.dueDate)}
+                      </p>
+                      {!b.isLibrary && (
+                        <p className="mt-1 text-sm text-stone-700">
+                          {b.status === "reserved" || b.status === "cancelled"
+                            ? "Хочет взять: "
+                            : b.status === "returned" ? "Брал(а): " : "На руках у: "}
+                          <b>{shown.name}</b>
+                        </p>
                       )}
-                      <p className="text-sm text-stone-500">{b.bookAuthor || "Автор не указан"}</p>
                       {b.isLibrary && ["reserved", "borrowed", "overdue"].includes(b.status) && (
-                        <div className="mt-2 text-sm text-stone-700">
-                          <p className="font-semibold">{LIBRARY.name}</p>
-                          <p>Забрать по адресу: {LIBRARY.address}</p>
-                          <a href={LIBRARY.mapUrl} target="_blank" rel="noopener noreferrer" className="font-semibold text-indigo-700 underline">Открыть в 2ГИС</a>
-                        </div>
+                        <p className="mt-1 text-sm text-stone-700">{LIBRARY.name} · {LIBRARY.address}</p>
                       )}
-                      <p className="mt-1 text-sm text-stone-700">
-                        {b.status === "reserved" || b.status === "cancelled"
-                          ? "Хочет взять: "
-                          : b.status === "returned"
-                            ? "Брал(а): "
-                            : "На руках у: "}
-                        <b>{shown.name}</b>
-                      </p>
                     </div>
+                    <details className="group relative shrink-0">
+                      <summary
+                        aria-label={`Действия с бронью: ${b.bookTitle}`}
+                        className="flex h-9 w-9 cursor-pointer list-none items-center justify-center rounded-full border border-stone-200 text-xl leading-none text-stone-600 transition hover:bg-stone-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-olive-700 [&::-webkit-details-marker]:hidden"
+                      >
+                        ⋯
+                      </summary>
+                      <div className="absolute right-0 top-10 z-20 w-48 rounded-xl border border-stone-200 bg-white p-1.5 shadow-lg">
+                        {bookHref && (
+                          <Link href={bookHref} className="block rounded-lg px-3 py-2 text-sm text-stone-800 hover:bg-stone-100">
+                            Открыть книгу
+                          </Link>
+                        )}
+                        {b.isLibrary && ["reserved", "borrowed", "overdue"].includes(b.status) && (
+                          <a href={LIBRARY.mapUrl} target="_blank" rel="noopener noreferrer" className="block rounded-lg px-3 py-2 text-sm text-stone-800 hover:bg-stone-100">
+                            Открыть в 2ГИС
+                          </a>
+                        )}
+                        {b.status === "reserved" && (
+                          <button
+                            type="button"
+                            onClick={() => cancel(b.id)}
+                            className="block w-full rounded-lg px-3 py-2 text-left text-sm font-medium text-rose-600 hover:bg-rose-50"
+                          >
+                            Отменить бронь
+                          </button>
+                        )}
+                      </div>
+                    </details>
                   </div>
-
-                  <div className="flex gap-8 text-sm">
-                    <div>
-                      <p className="text-xs text-stone-400">
-                        {b.status === "reserved" || b.status === "cancelled" ? "Бронь с" : "Выдана"}
-                      </p>
-                      <p className="font-medium">{formatDate(b.startDate)}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-stone-400">Вернуть до</p>
-                      <p className={`font-medium ${b.status === "overdue" ? "text-rose-600" : ""}`}>
-                        {formatDate(b.dueDate)}
-                      </p>
-                    </div>
-                  </div>
-
-                  <span
-                    className={`inline-flex h-fit w-fit items-center rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset ${badgeStyle(b.status)}`}
-                  >
-                    {badgeLabel(b.status)}
-                  </span>
-
-                  {b.status === "reserved" && (
-                    <Button size="sm" variant="danger" onClick={() => cancel(b.id)}>
-                      Отменить бронь
-                    </Button>
-                  )}
                 </li>
               );
             })}

@@ -183,7 +183,7 @@ export default async function BookPage({ params }: { params: Promise<{ id: strin
           )}
 
           <div className="book-detail-serif mt-8 flex flex-wrap items-center gap-3">
-            <ReserveButton book={book as Book} ownerKey={ownerKey} hasOwnerAccount={book.ownerId != null} />
+            <ReserveButton book={book as Book} ownerKey={ownerKey} hasOwnerAccount={book.ownerId != null} isLibrary={libraryBook} />
             <LinkButton href="/catalog" variant="outline" size="lg">
               <FiArrowLeft /> К каталогу
             </LinkButton>
