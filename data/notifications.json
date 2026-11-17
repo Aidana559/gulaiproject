@@ -1,165 +1,107 @@
 [
   {
-    "id": "7691dd4d-2de2-4e15-9f29-9805e4f7bbf5",
+    "id": "3a09007b-790a-43cf-82fe-47c1fa91f9d5",
     "userId": "5a5ca32f-3441-46c5-864c-8e85858e2674",
     "type": "moderation",
-    "text": "Книга одобрена модератором: «Азбука Морзе». Выполнил: Модератор Gulbanu.",
-    "href": "/book/2059/info",
-    "key": "mod:1b88640b-f6b9-4476-b4f3-671fb6047462",
+    "text": "Книга временно скрыта: «Mia and me - Benvenuti a Centopia». Выполнил: Администратор Min. Причина: Нарушение авторских прав. Скрыта до 24.11.2026.",
+    "href": "/book/2064/info",
+    "key": "mod:b878eb8e-a411-41f3-88d9-0d3db8f4f5ff",
     "moderation": {
-      "id": "1b88640b-f6b9-4476-b4f3-671fb6047462",
-      "bookId": "2059",
-      "bookTitle": "Азбука Морзе",
+      "id": "b878eb8e-a411-41f3-88d9-0d3db8f4f5ff",
+      "bookId": "2064",
+      "bookTitle": "Mia and me - Benvenuti a Centopia",
       "authorId": "5a5ca32f-3441-46c5-864c-8e85858e2674",
       "authorName": "Хуан",
-      "action": "approved",
-      "actorId": "79d7d016-d9b4-4268-ac07-5d7443632a45",
-      "actorName": "Gulbanu",
-      "actorRole": "moderator",
-      "stateAfter": "published",
-      "createdAt": "2026-11-16T08:25:12.299Z"
+      "action": "hidden",
+      "actorId": "857fb46b-ca21-43d9-a065-1e1e5e7534c7",
+      "actorName": "Min",
+      "actorRole": "admin",
+      "reason": "Нарушение авторских прав",
+      "until": "2026-11-24T10:33:57.598Z",
+      "stateAfter": "hidden",
+      "createdAt": "2026-11-17T10:33:57.612Z"
     },
-    "read": false,
-    "createdAt": "2026-11-16T08:25:12.321Z"
+    "read": true,
+    "createdAt": "2026-11-17T10:33:57.758Z"
   },
   {
-<<<<<<< HEAD
-<<<<<<< HEAD
-    "id": "cef62698-5afe-444b-89fa-5559a912b98a",
-=======
-    "id": "07059cd8-02ae-4a9c-bc6f-7ab00babb47f",
->>>>>>> f25f5012b725116eb5745a6a21fdbed7ad73b909
-    "userId": "5a5ca32f-3441-46c5-864c-8e85858e2674",
-    "type": "booking",
-    "text": "Kio забронировал(а) вашу книгу «Азбука Морзе».",
-    "href": "/transactions",
-    "read": false,
-    "createdAt": "2026-11-16T08:25:47.094Z"
-  },
-  {
-    "id": "fd221a1b-06e8-4026-bc59-603c7d5f1c30",
-    "userId": "5a5ca32f-3441-46c5-864c-8e85858e2674",
-    "type": "booking",
-    "text": "Kio отменил(а) бронь книги «Азбука Морзе».",
-    "href": "/transactions",
-    "read": false,
-    "createdAt": "2026-11-16T08:41:16.353Z"
-  },
-  {
-    "id": "8601c88f-3445-4466-a975-885474b84bb8",
-    "userId": "5a5ca32f-3441-46c5-864c-8e85858e2674",
-    "type": "booking",
-    "text": "Kio забронировал(а) вашу книгу «Азбука Морзе».",
-    "href": "/transactions",
-    "read": false,
-    "createdAt": "2026-11-16T08:41:23.292Z"
-  },
-  {
-    "id": "43271aa0-bb22-4013-a400-d4024aa54683",
+    "id": "ee1d430d-f4ef-4c8b-b032-c2b5e2cf1c06",
     "userId": "5a5ca32f-3441-46c5-864c-8e85858e2674",
     "type": "moderation",
-    "text": "Книга одобрена модератором: «Lilo & Stitch». Выполнил: Модератор Gulbanu.",
-    "href": "/book/2061/info",
-    "key": "mod:679dc4be-1b58-4e6d-bad0-f728423932f4",
+    "text": "Книга снова опубликована: «Mia and me - Benvenuti a Centopia». Выполнил: Администратор Min.",
+    "href": "/book/2064/info",
+    "key": "mod:d58311ce-3552-43e0-9d68-70557985ea21",
     "moderation": {
-      "id": "679dc4be-1b58-4e6d-bad0-f728423932f4",
-      "bookId": "2061",
-      "bookTitle": "Lilo & Stitch",
+      "id": "d58311ce-3552-43e0-9d68-70557985ea21",
+      "bookId": "2064",
+      "bookTitle": "Mia and me - Benvenuti a Centopia",
       "authorId": "5a5ca32f-3441-46c5-864c-8e85858e2674",
       "authorName": "Хуан",
-      "action": "approved",
-      "actorId": "79d7d016-d9b4-4268-ac07-5d7443632a45",
-      "actorName": "Gulbanu",
-      "actorRole": "moderator",
-      "stateAfter": "published",
-      "createdAt": "2026-11-16T08:49:15.470Z"
+      "action": "published",
+      "actorId": "857fb46b-ca21-43d9-a065-1e1e5e7534c7",
+      "actorName": "Min",
+      "actorRole": "admin",
+      "stateAfter": "pending",
+      "createdAt": "2026-11-17T10:34:06.196Z"
+    },
+    "read": true,
+    "createdAt": "2026-11-17T10:34:06.216Z"
+  },
+  {
+    "id": "47c2c1aa-1152-47b0-b29d-74a4c2b8efd1",
+    "userId": "5a5ca32f-3441-46c5-864c-8e85858e2674",
+    "type": "moderation",
+    "text": "Книга временно скрыта: «Mia and me - Benvenuti a Centopia». Выполнил: Администратор Min. Причина: Нарушение правил публикации. Скрыта до 24.11.2026.",
+    "href": "/book/2064/info",
+    "key": "mod:b07280c2-2df0-4dfe-87b7-6cde669e1466",
+    "moderation": {
+      "id": "b07280c2-2df0-4dfe-87b7-6cde669e1466",
+      "bookId": "2064",
+      "bookTitle": "Mia and me - Benvenuti a Centopia",
+      "authorId": "5a5ca32f-3441-46c5-864c-8e85858e2674",
+      "authorName": "Хуан",
+      "action": "hidden",
+      "actorId": "857fb46b-ca21-43d9-a065-1e1e5e7534c7",
+      "actorName": "Min",
+      "actorRole": "admin",
+      "reason": "Нарушение правил публикации",
+      "until": "2026-11-24T10:37:22.933Z",
+      "stateAfter": "hidden",
+      "createdAt": "2026-11-17T10:37:22.984Z"
     },
     "read": false,
-    "createdAt": "2026-11-16T08:49:15.479Z"
+    "createdAt": "2026-11-17T10:37:23.006Z"
   },
   {
-    "id": "966161e5-6e30-49ae-b330-e616e2310c4f",
+    "id": "b5d4512e-2eaa-4972-a93c-432d96f8054f",
     "userId": "5a5ca32f-3441-46c5-864c-8e85858e2674",
-    "type": "booking",
-    "text": "Kio забронировал(а) вашу книгу «Lilo & Stitch».",
-    "href": "/transactions",
+    "type": "moderation",
+    "text": "Книга снова опубликована: «Mia and me - Benvenuti a Centopia». Выполнил: Администратор Min.",
+    "href": "/book/2064/info",
+    "key": "mod:eea48838-0071-42d0-89e4-a7896320366a",
+    "moderation": {
+      "id": "eea48838-0071-42d0-89e4-a7896320366a",
+      "bookId": "2064",
+      "bookTitle": "Mia and me - Benvenuti a Centopia",
+      "authorId": "5a5ca32f-3441-46c5-864c-8e85858e2674",
+      "authorName": "Хуан",
+      "action": "published",
+      "actorId": "857fb46b-ca21-43d9-a065-1e1e5e7534c7",
+      "actorName": "Min",
+      "actorRole": "admin",
+      "stateAfter": "pending",
+      "createdAt": "2026-11-17T10:37:29.104Z"
+    },
     "read": false,
-<<<<<<< HEAD
-    "createdAt": "2026-11-14T21:13:04.229Z"
-=======
-    "id": "3b83eca7-1e05-4239-8672-7a6c90ad36df",
-    "userId": "5a5ca32f-3441-46c5-864c-8e85858e2674",
-    "type": "booking",
-    "text": "Kio забронировал(а) вашу книгу «Madness. A Jeff The Killer's story».",
-    "href": "/transactions",
-    "read": false,
-    "createdAt": "2026-11-14T20:28:42.421Z"
+    "createdAt": "2026-11-17T10:37:29.154Z"
   },
   {
-    "id": "f8190434-c021-4aeb-a822-36c70caeb338",
+    "id": "a05db57d-c8f3-4a56-acda-905ba452d80f",
     "userId": "5a5ca32f-3441-46c5-864c-8e85858e2674",
     "type": "booking",
-    "text": "Kio отменил(а) бронь книги «Madness. A Jeff The Killer's story».",
+    "text": "Kio забронировал(а) вашу книгу «Mia and me - Benvenuti a Centopia».",
     "href": "/transactions",
     "read": false,
-    "createdAt": "2026-11-14T20:28:53.233Z"
-  },
-  {
-    "id": "1d61f951-6f98-4710-9f4b-8e731a86f548",
-    "userId": "5a5ca32f-3441-46c5-864c-8e85858e2674",
-    "type": "booking",
-    "text": "Kio забронировал(а) вашу книгу «Madness. A Jeff The Killer's story».",
-    "href": "/transactions",
-    "read": false,
-    "createdAt": "2026-11-14T20:40:18.969Z"
-  },
-  {
-    "id": "0cf1473f-7d97-48a0-9f4f-7e5852100418",
-    "userId": "5a5ca32f-3441-46c5-864c-8e85858e2674",
-    "type": "booking",
-    "text": "Kio отменил(а) бронь книги «Madness. A Jeff The Killer's story».",
-    "href": "/transactions",
-    "read": false,
-    "createdAt": "2026-11-14T20:40:27.658Z"
-  },
-  {
-    "id": "f054c820-9942-4439-a0ed-7e16b7e33d6b",
-    "userId": "5a5ca32f-3441-46c5-864c-8e85858e2674",
-    "type": "booking",
-    "text": "Kio забронировал(а) вашу книгу «Madness. A Jeff The Killer's story».",
-    "href": "/transactions",
-    "read": false,
-    "createdAt": "2026-11-14T20:51:51.345Z"
-  },
-  {
-    "id": "056c69d8-3557-4424-8963-dde0b32c2765",
-    "userId": "5a5ca32f-3441-46c5-864c-8e85858e2674",
-    "type": "booking",
-    "text": "Kio отменил(а) бронь книги «Madness. A Jeff The Killer's story».",
-    "href": "/transactions",
-    "read": false,
-    "createdAt": "2026-11-14T20:52:07.424Z"
-  },
-  {
-    "id": "d3ed1bc1-2cb9-48ad-8fda-4c6aa695ab7f",
-    "userId": "5a5ca32f-3441-46c5-864c-8e85858e2674",
-    "type": "booking",
-    "text": "Kio забронировал(а) вашу книгу «Madness. A Jeff The Killer's story».",
-    "href": "/transactions",
-    "read": false,
-    "createdAt": "2026-11-14T21:00:27.511Z"
-  },
-  {
-    "id": "16d3a629-335e-4ded-acf9-ef28c8260ed2",
-    "userId": "5a5ca32f-3441-46c5-864c-8e85858e2674",
-    "type": "booking",
-    "text": "Kio отменил(а) бронь книги «Madness. A Jeff The Killer's story».",
-    "href": "/transactions",
-    "read": false,
-    "createdAt": "2026-11-14T21:01:24.529Z"
->>>>>>> cb189e12703a610fcd0b13ced84f48590fecfaba
-=======
-    "createdAt": "2026-11-16T08:50:01.050Z"
->>>>>>> f25f5012b725116eb5745a6a21fdbed7ad73b909
+    "createdAt": "2026-11-17T10:41:14.960Z"
   }
 ]
