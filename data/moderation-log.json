@@ -187,6 +187,7 @@
     "createdAt": "2026-11-16T08:49:15.470Z"
   },
   {
+<<<<<<< HEAD
     "id": "b878eb8e-a411-41f3-88d9-0d3db8f4f5ff",
     "bookId": "2064",
     "bookTitle": "Mia and me - Benvenuti a Centopia",
@@ -423,5 +424,85 @@
     "actorRole": "user",
     "stateAfter": "published",
     "createdAt": "2026-11-17T10:58:44.989Z"
+=======
+    "id": "99e333d5-a3e5-4dee-8a7b-e017dc959e4a",
+    "bookId": "2063",
+    "bookTitle": "Бегущий в Лабиринте (сборник)",
+    "authorId": "b7418835-56e3-44ef-b866-f57a78c2dbd2",
+    "authorName": "asd",
+    "action": "approved",
+    "actorId": "ebf44689-3db7-49b8-a2aa-cdc715fbffee",
+    "actorName": "Арман",
+    "actorRole": "moderator",
+    "stateAfter": "published",
+    "createdAt": "2026-11-17T10:29:30.069Z"
+  },
+  {
+    "id": "e7e50836-ae81-4cfc-bbf3-53466f5d0cd3",
+    "bookId": "2062",
+    "bookTitle": "Ұлпан",
+    "authorId": "b7418835-56e3-44ef-b866-f57a78c2dbd2",
+    "authorName": "asd",
+    "action": "hidden",
+    "actorId": "ebf44689-3db7-49b8-a2aa-cdc715fbffee",
+    "actorName": "Арман",
+    "actorRole": "moderator",
+    "reason": "Нет обложки",
+    "until": null,
+    "stateAfter": "hidden",
+    "createdAt": "2026-11-17T10:29:50.294Z"
+  },
+  {
+    "id": "7dfe20b3-33ac-4390-9730-49bbead13968",
+    "bookId": "2063",
+    "bookTitle": "Бегущий в Лабиринте (сборник)",
+    "authorId": "b7418835-56e3-44ef-b866-f57a78c2dbd2",
+    "authorName": "asd",
+    "action": "hidden_by_owner",
+    "actorId": "b7418835-56e3-44ef-b866-f57a78c2dbd2",
+    "actorName": "asd",
+    "actorRole": "user",
+    "stateAfter": "published",
+    "createdAt": "2026-11-17T10:49:31.482Z"
+  },
+  {
+    "id": "37ebad6d-64ec-4793-8a39-a5528d324ff2",
+    "bookId": "2063",
+    "bookTitle": "Бегущий в Лабиринте (сборник)",
+    "authorId": "b7418835-56e3-44ef-b866-f57a78c2dbd2",
+    "authorName": "asd",
+    "action": "shown_by_owner",
+    "actorId": "b7418835-56e3-44ef-b866-f57a78c2dbd2",
+    "actorName": "asd",
+    "actorRole": "user",
+    "stateAfter": "published",
+    "createdAt": "2026-11-17T10:49:33.579Z"
+  },
+  {
+    "id": "74c121a8-84f5-47b6-8ba0-7f9083fb3cca",
+    "bookId": "2063",
+    "bookTitle": "Бегущий в Лабиринте (сборник)",
+    "authorId": "b7418835-56e3-44ef-b866-f57a78c2dbd2",
+    "authorName": "asd",
+    "action": "hidden_by_owner",
+    "actorId": "b7418835-56e3-44ef-b866-f57a78c2dbd2",
+    "actorName": "asd",
+    "actorRole": "user",
+    "stateAfter": "published",
+    "createdAt": "2026-11-17T10:49:44.301Z"
+  },
+  {
+    "id": "403e8617-c55c-4d5f-bbbe-e36083098e4d",
+    "bookId": "2063",
+    "bookTitle": "Бегущий в Лабиринте (сборник)",
+    "authorId": "b7418835-56e3-44ef-b866-f57a78c2dbd2",
+    "authorName": "asd",
+    "action": "shown_by_owner",
+    "actorId": "b7418835-56e3-44ef-b866-f57a78c2dbd2",
+    "actorName": "asd",
+    "actorRole": "user",
+    "stateAfter": "published",
+    "createdAt": "2026-11-17T10:49:52.327Z"
+>>>>>>> e75ce57ae63dae24387eb86debdb96c8b2bcce48
   }
 ]

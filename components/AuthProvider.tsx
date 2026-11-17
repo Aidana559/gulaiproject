@@ -48,6 +48,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         try {
           const next = JSON.parse(localStorage.getItem(extraKey(u)) ?? "{}");
           setExtra((prev) => (JSON.stringify(prev) === JSON.stringify(next) ? prev : next));
+          // бұрын тек браузерде сақталған атты (мысалы «astan») бір рет серверге жібереміз
+          if (typeof next.name === "string" && next.name.trim() && next.name.trim() !== u.name) {
+            void fetch("/api/auth/me", {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ name: next.name.trim() }),
+            }).catch(() => undefined);
+          }
         } catch {
           setExtra({});
         }
@@ -96,8 +104,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // TODO: заменить на fetch("/api/profile", { method: "PATCH", ... })
       localStorage.setItem(extraKey(serverUser), JSON.stringify(next));
       setExtra(next);
+      // аты серверде де сақталады — транзакцияларда «логин» емес, профиль аты шығады
+      if (typeof patch.name === "string" && patch.name.trim() && patch.name.trim() !== serverUser.name) {
+        void fetch("/api/auth/me", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: patch.name.trim() }),
+        })
+          .then((r) => (r.ok ? refresh() : undefined))
+          .catch(() => undefined);
+      }
     },
-    [serverUser, extra]
+    [serverUser, extra, refresh]
   );
 
   const user = serverUser ? { ...serverUser, ...extra } : null;

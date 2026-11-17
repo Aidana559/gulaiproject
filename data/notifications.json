@@ -103,5 +103,60 @@
     "href": "/transactions",
     "read": false,
     "createdAt": "2026-11-17T10:41:14.960Z"
+    "id": "0816b398-768c-45e2-a974-4749447a5dcf",
+    "userId": "b7418835-56e3-44ef-b866-f57a78c2dbd2",
+    "type": "moderation",
+    "text": "Книга одобрена модератором: «Бегущий в Лабиринте (сборник)». Выполнил: Модератор Арман.",
+    "href": "/book/2063/info",
+    "key": "mod:99e333d5-a3e5-4dee-8a7b-e017dc959e4a",
+    "moderation": {
+      "id": "99e333d5-a3e5-4dee-8a7b-e017dc959e4a",
+      "bookId": "2063",
+      "bookTitle": "Бегущий в Лабиринте (сборник)",
+      "authorId": "b7418835-56e3-44ef-b866-f57a78c2dbd2",
+      "authorName": "asd",
+      "action": "approved",
+      "actorId": "ebf44689-3db7-49b8-a2aa-cdc715fbffee",
+      "actorName": "Арман",
+      "actorRole": "moderator",
+      "stateAfter": "published",
+      "createdAt": "2026-11-17T10:29:30.069Z"
+    },
+    "read": true,
+    "createdAt": "2026-11-17T10:29:30.081Z"
+  },
+  {
+    "id": "0fe5f9d6-1e93-463a-8686-821e52fe6552",
+    "userId": "b7418835-56e3-44ef-b866-f57a78c2dbd2",
+    "type": "moderation",
+    "text": "Книга скрыта: «Ұлпан». Выполнил: Модератор Арман. Причина: Нет обложки.",
+    "href": "/book/2062/info",
+    "key": "mod:e7e50836-ae81-4cfc-bbf3-53466f5d0cd3",
+    "moderation": {
+      "id": "e7e50836-ae81-4cfc-bbf3-53466f5d0cd3",
+      "bookId": "2062",
+      "bookTitle": "Ұлпан",
+      "authorId": "b7418835-56e3-44ef-b866-f57a78c2dbd2",
+      "authorName": "asd",
+      "action": "hidden",
+      "actorId": "ebf44689-3db7-49b8-a2aa-cdc715fbffee",
+      "actorName": "Арман",
+      "actorRole": "moderator",
+      "reason": "Нет обложки",
+      "until": null,
+      "stateAfter": "hidden",
+      "createdAt": "2026-11-17T10:29:50.294Z"
+    },
+    "read": true,
+    "createdAt": "2026-11-17T10:29:50.307Z"
+  },
+  {
+    "id": "32301f6c-7c31-417f-afa4-ba13f1ae328c",
+    "userId": "b7418835-56e3-44ef-b866-f57a78c2dbd2",
+    "type": "booking",
+    "text": "Дарига забронировал(а) вашу книгу «Бегущий в Лабиринте (сборник)».",
+    "href": "/transactions",
+    "read": true,
+    "createdAt": "2026-11-17T10:47:15.588Z"
   }
 ]

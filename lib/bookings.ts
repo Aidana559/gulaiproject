@@ -149,6 +149,16 @@ export function allowedActionsFor(
   return actions;
 }
 
+/** Актуальные имена читателей по userId: в брони имя — снимок на момент брони и устаревает после смены имени в профиле. */
+async function currentNames(): Promise<Map<string, string>> {
+  try {
+    const { listUsers } = await import("@/lib/users-store");
+    return new Map((await listUsers()).map((u) => [String(u.id), u.name]));
+  } catch {
+    return new Map();
+  }
+}
+
 export async function getBookingsByUser(userId: string) {
   const all = await readAll();
   return all
@@ -185,6 +195,7 @@ export async function listBookingsForActor(actor: {
 }): Promise<BookingView[]> {
   const all = await readAll();
   const ownerOf = await ownersIndex();
+  const names = await currentNames();
   const result: BookingView[] = [];
   const reliabilityCache = new Map<string, Reliability>();
   for (const b of all) {
@@ -197,6 +208,7 @@ export async function listBookingsForActor(actor: {
 
     result.push({
       ...b,
+      userName: names.get(String(b.userId)) ?? b.userName,
       status: viewStatus(b),
       allowedActions: allowedActionsFor(b, actor, owner),
       reliability: reliabilityFor(all, reliabilityCache, b.userId, b.userName),
@@ -483,6 +495,7 @@ export type Borrower = {
 
 export async function getBookBorrowers(bookId: number): Promise<Borrower[]> {
   const all = await readAll();
+  const names = await currentNames();
   const cache = new Map<string, Reliability>();
 
   const fromServer: Borrower[] = all
@@ -490,7 +503,7 @@ export async function getBookBorrowers(bookId: number): Promise<Borrower[]> {
     .map((b) => ({
       key: b.id,
       userId: b.userId,
-      name: b.userName || "Читатель",
+      name: names.get(String(b.userId)) ?? (b.userName || "Читатель"),
       status: viewStatus(b),
       startDate: b.startDate,
       dueDate: b.dueDate,

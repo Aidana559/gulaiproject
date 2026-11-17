@@ -1,0 +1,34 @@
+[
+  {
+    "id": "c9d66741-f31e-41a2-9dba-71847b76d865",
+    "name": "айдана",
+    "email": "gajnollaajdana@gmail.com",
+    "passwordHash": "26d1f676b03442fc307acf4c736248f7:b8cc742d0253390a3509f65b1a36da08bb09011b00d08be2c265a05bf30f2916dc34393690280c4573a9714c933f0629b11d58d8f86222c4f5bb48d15768490b",
+    "role": "admin",
+    "createdAt": "2026-10-27T18:29:07.884Z"
+  },
+  {
+    "id": "b7418835-56e3-44ef-b866-f57a78c2dbd2",
+    "name": "astan",
+    "email": "asd@gmail.com",
+    "passwordHash": "ded7e970b54c3ce9872583d638e6f1f6:c14653466b3e359997d53dea06cfe59536244ffb3da817ef9f457b3b0671b29f4ec55753e4a01464d7a0165baacac3f0604550b65344030ce0b0da91d85b160c",
+    "role": "user",
+    "createdAt": "2026-11-03T10:16:43.865Z"
+  },
+  {
+    "id": "ebf44689-3db7-49b8-a2aa-cdc715fbffee",
+    "name": "Арман",
+    "email": "arman@gmail.com",
+    "passwordHash": "32cae9735bec3f09063ba06743f06100:6c5f11974fd445af9f0680a222095183f5d964b31e553468ae0286796bef0b31b954745e85feb04bc703571101edd4fe6e493735ce0175dc6a5b911494f0f48f",
+    "role": "moderator",
+    "createdAt": "2026-11-07T19:39:13.372Z"
+  },
+  {
+    "id": "00577e65-0eca-437c-8921-a0a4e084d373",
+    "name": "Дарига",
+    "email": "dariga@gmail.com",
+    "passwordHash": "2d79a357be821805690165c42ef5504f:8a54c2845e2ed8442df69e48df922d51bfdf68f2aed930f0317d11fe369581daed5f4b4ffc0baf5c84c3246cf80e869c8d72207c8293da1c85f0d14c377f147a",
+    "role": "user",
+    "createdAt": "2026-11-14T20:35:56.726Z"
+  }
+]
