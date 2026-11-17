@@ -158,5 +158,27 @@
     "v": 3,
     "status": "none",
     "fetchedAt": "2026-11-14T14:18:26.120Z"
+  },
+  {
+    "key": "джеймс дэшнер",
+    "v": 3,
+    "status": "ok",
+    "fetchedAt": "2026-11-17T10:27:05.977Z",
+    "info": {
+      "name": "Дэшнер, Джеймс",
+      "description": "американский писатель",
+      "extract": "Джеймс Дэшнер — американский писатель.",
+      "born": "26 ноября 1972",
+      "birthPlace": "Austell",
+      "photo": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/55/James_Dashner_%2814595088277%29.jpg/330px-James_Dashner_%2814595088277%29.jpg?utm_source=ru.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "url": "https://ru.wikipedia.org/wiki/%D0%94%D1%8D%D1%88%D0%BD%D0%B5%D1%80%2C_%D0%94%D0%B6%D0%B5%D0%B9%D0%BC%D1%81",
+      "source": "wikipedia"
+    }
+  },
+  {
+    "key": "ghabit mu̇srepov",
+    "v": 3,
+    "status": "none",
+    "fetchedAt": "2026-11-17T10:29:51.844Z"
   }
 ]

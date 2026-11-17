@@ -1,5 +1,59 @@
 [
   {
+    "id": 2024,
+    "title": "Ведьмак. Последнее желание",
+    "author": "Анджей Сапковский",
+    "category": "book",
+    "genre": "Фэнтези",
+    "genres": [
+      "Фэнтези",
+      "Приключения"
+    ],
+    "status": "available",
+    "owner": "Библиотека",
+    "city": "—",
+    "year": 2022,
+    "pages": 58,
+    "description": "Геральт и Лютик всего лишь хотели порыбачить, но случайно освободили джинна, запертого в кувшине. Беспечный Лютик начинает загадывать желания, однако, вместо того чтобы исполнять их, джин внезапно набрасывается на него. Геральт привозит тяжело раненого Лютика в ближайший город – Ринду, и начинает искать того, кто сможет исцелить его друга. Поиски приводят ведьмака к Йеннифэр из Венгерберга. Судьба Геральта отныне навеки будет связана с судьбой могущественной чародейки, но он об этом еще не знает...",
+    "isbn": "9785045084291",
+    "googleId": "52qaEAAAQBAJ",
+    "lang": "ru",
+    "schema": 2,
+    "coverUrl": "https://books.google.com/books/content?id=52qaEAAAQBAJ&printsec=frontcover&img=1&zoom=1&source=gbs_api",
+    "gradient": "from-indigo-500 to-purple-600",
+    "views": 2,
+    "createdAt": "2026-11-14T15:53:02.467Z",
+    "hidden": false,
+    "deleted": false
+  },
+  {
+    "id": 2021,
+    "title": "Гордость и предубеждение",
+    "author": "Джейн Остин",
+    "category": "book",
+    "genre": "Классика",
+    "genres": [
+      "Классика",
+      "Роман"
+    ],
+    "status": "available",
+    "owner": "Библиотека",
+    "city": "—",
+    "year": 2017,
+    "pages": 539,
+    "description": "По соседству с бедной, но уважаемой семьей Беннет поселился богатый и загадочный мистер Дарси. Одной из пяти дочерей миссис Беннет удалось покорить сердце молодого аристократа. Но энергичная красавица Элизабет Беннет его отвергла. Он показался ей слишком надменным и самодовольным. Да и слишком большой казалась разница в их общественном положении, а злобные сплетни окружающих довершили дело. Лишь постепенно Элизабет и мистер Дарси, преодолевая гордость и предубеждения, лучше узнают друг друга, и их соединит настоящая любовь, которой подвластны любые преграды...",
+    "isbn": "9785457490062",
+    "googleId": "MXS-AQAAQBAJ",
+    "lang": "ru",
+    "schema": 2,
+    "coverUrl": "https://books.google.com/books/content?id=MXS-AQAAQBAJ&printsec=frontcover&img=1&zoom=1&source=gbs_api",
+    "gradient": "from-fuchsia-500 to-pink-600",
+    "views": 2,
+    "createdAt": "2026-11-14T15:53:02.467Z",
+    "hidden": false,
+    "deleted": false
+  },
+  {
     "id": 2063,
     "title": "Бегущий в Лабиринте (сборник)",
     "author": "Джеймс Дэшнер",
@@ -18,12 +72,13 @@
     "ownerId": "b7418835-56e3-44ef-b866-f57a78c2dbd2",
     "gradient": "from-violet-500 to-indigo-700",
     "coverUrl": "https://books.google.com/books/content?id=zB23BQAAQBAJ&printsec=frontcover&img=1&zoom=1&edge=curl&source=gbs_api",
-    "views": 7,
+    "views": 15,
     "createdAt": "2026-11-17T10:10:48.435Z",
-    "updatedAt": "2026-11-17T10:10:48.435Z",
+    "updatedAt": "2026-11-17T10:49:52.321Z",
     "hidden": false,
     "deleted": false,
-    "reviewed": false
+    "reviewed": true,
+    "ownerHidden": false
   },
   {
     "id": 2062,
@@ -42,12 +97,21 @@
     "ownerId": "b7418835-56e3-44ef-b866-f57a78c2dbd2",
     "gradient": "from-cyan-500 to-teal-700",
     "coverUrl": null,
-    "views": 5,
+    "views": 9,
     "createdAt": "2026-11-17T10:05:00.328Z",
-    "updatedAt": "2026-11-17T10:05:00.328Z",
-    "hidden": false,
+    "updatedAt": "2026-11-17T10:29:50.316Z",
+    "hidden": true,
     "deleted": false,
-    "reviewed": false
+    "reviewed": true,
+    "hiddenUntil": null,
+    "hiddenReason": "Нет обложки",
+    "hiddenAt": "2026-11-17T10:29:50.289Z",
+    "hiddenBy": {
+      "id": "ebf44689-3db7-49b8-a2aa-cdc715fbffee",
+      "name": "Арман",
+      "role": "moderator"
+    },
+    "moderationNote": "Нет обложки"
   },
   {
     "id": 2061,

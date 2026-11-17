@@ -1,165 +1,59 @@
 [
   {
-    "id": "7691dd4d-2de2-4e15-9f29-9805e4f7bbf5",
-    "userId": "5a5ca32f-3441-46c5-864c-8e85858e2674",
+    "id": "0816b398-768c-45e2-a974-4749447a5dcf",
+    "userId": "b7418835-56e3-44ef-b866-f57a78c2dbd2",
     "type": "moderation",
-    "text": "Книга одобрена модератором: «Азбука Морзе». Выполнил: Модератор Gulbanu.",
-    "href": "/book/2059/info",
-    "key": "mod:1b88640b-f6b9-4476-b4f3-671fb6047462",
+    "text": "Книга одобрена модератором: «Бегущий в Лабиринте (сборник)». Выполнил: Модератор Арман.",
+    "href": "/book/2063/info",
+    "key": "mod:99e333d5-a3e5-4dee-8a7b-e017dc959e4a",
     "moderation": {
-      "id": "1b88640b-f6b9-4476-b4f3-671fb6047462",
-      "bookId": "2059",
-      "bookTitle": "Азбука Морзе",
-      "authorId": "5a5ca32f-3441-46c5-864c-8e85858e2674",
-      "authorName": "Хуан",
+      "id": "99e333d5-a3e5-4dee-8a7b-e017dc959e4a",
+      "bookId": "2063",
+      "bookTitle": "Бегущий в Лабиринте (сборник)",
+      "authorId": "b7418835-56e3-44ef-b866-f57a78c2dbd2",
+      "authorName": "asd",
       "action": "approved",
-      "actorId": "79d7d016-d9b4-4268-ac07-5d7443632a45",
-      "actorName": "Gulbanu",
+      "actorId": "ebf44689-3db7-49b8-a2aa-cdc715fbffee",
+      "actorName": "Арман",
       "actorRole": "moderator",
       "stateAfter": "published",
-      "createdAt": "2026-11-16T08:25:12.299Z"
+      "createdAt": "2026-11-17T10:29:30.069Z"
     },
-    "read": false,
-    "createdAt": "2026-11-16T08:25:12.321Z"
+    "read": true,
+    "createdAt": "2026-11-17T10:29:30.081Z"
   },
   {
-<<<<<<< HEAD
-<<<<<<< HEAD
-    "id": "cef62698-5afe-444b-89fa-5559a912b98a",
-=======
-    "id": "07059cd8-02ae-4a9c-bc6f-7ab00babb47f",
->>>>>>> f25f5012b725116eb5745a6a21fdbed7ad73b909
-    "userId": "5a5ca32f-3441-46c5-864c-8e85858e2674",
-    "type": "booking",
-    "text": "Kio забронировал(а) вашу книгу «Азбука Морзе».",
-    "href": "/transactions",
-    "read": false,
-    "createdAt": "2026-11-16T08:25:47.094Z"
-  },
-  {
-    "id": "fd221a1b-06e8-4026-bc59-603c7d5f1c30",
-    "userId": "5a5ca32f-3441-46c5-864c-8e85858e2674",
-    "type": "booking",
-    "text": "Kio отменил(а) бронь книги «Азбука Морзе».",
-    "href": "/transactions",
-    "read": false,
-    "createdAt": "2026-11-16T08:41:16.353Z"
-  },
-  {
-    "id": "8601c88f-3445-4466-a975-885474b84bb8",
-    "userId": "5a5ca32f-3441-46c5-864c-8e85858e2674",
-    "type": "booking",
-    "text": "Kio забронировал(а) вашу книгу «Азбука Морзе».",
-    "href": "/transactions",
-    "read": false,
-    "createdAt": "2026-11-16T08:41:23.292Z"
-  },
-  {
-    "id": "43271aa0-bb22-4013-a400-d4024aa54683",
-    "userId": "5a5ca32f-3441-46c5-864c-8e85858e2674",
+    "id": "0fe5f9d6-1e93-463a-8686-821e52fe6552",
+    "userId": "b7418835-56e3-44ef-b866-f57a78c2dbd2",
     "type": "moderation",
-    "text": "Книга одобрена модератором: «Lilo & Stitch». Выполнил: Модератор Gulbanu.",
-    "href": "/book/2061/info",
-    "key": "mod:679dc4be-1b58-4e6d-bad0-f728423932f4",
+    "text": "Книга скрыта: «Ұлпан». Выполнил: Модератор Арман. Причина: Нет обложки.",
+    "href": "/book/2062/info",
+    "key": "mod:e7e50836-ae81-4cfc-bbf3-53466f5d0cd3",
     "moderation": {
-      "id": "679dc4be-1b58-4e6d-bad0-f728423932f4",
-      "bookId": "2061",
-      "bookTitle": "Lilo & Stitch",
-      "authorId": "5a5ca32f-3441-46c5-864c-8e85858e2674",
-      "authorName": "Хуан",
-      "action": "approved",
-      "actorId": "79d7d016-d9b4-4268-ac07-5d7443632a45",
-      "actorName": "Gulbanu",
+      "id": "e7e50836-ae81-4cfc-bbf3-53466f5d0cd3",
+      "bookId": "2062",
+      "bookTitle": "Ұлпан",
+      "authorId": "b7418835-56e3-44ef-b866-f57a78c2dbd2",
+      "authorName": "asd",
+      "action": "hidden",
+      "actorId": "ebf44689-3db7-49b8-a2aa-cdc715fbffee",
+      "actorName": "Арман",
       "actorRole": "moderator",
-      "stateAfter": "published",
-      "createdAt": "2026-11-16T08:49:15.470Z"
+      "reason": "Нет обложки",
+      "until": null,
+      "stateAfter": "hidden",
+      "createdAt": "2026-11-17T10:29:50.294Z"
     },
-    "read": false,
-    "createdAt": "2026-11-16T08:49:15.479Z"
+    "read": true,
+    "createdAt": "2026-11-17T10:29:50.307Z"
   },
   {
-    "id": "966161e5-6e30-49ae-b330-e616e2310c4f",
-    "userId": "5a5ca32f-3441-46c5-864c-8e85858e2674",
+    "id": "32301f6c-7c31-417f-afa4-ba13f1ae328c",
+    "userId": "b7418835-56e3-44ef-b866-f57a78c2dbd2",
     "type": "booking",
-    "text": "Kio забронировал(а) вашу книгу «Lilo & Stitch».",
+    "text": "Дарига забронировал(а) вашу книгу «Бегущий в Лабиринте (сборник)».",
     "href": "/transactions",
-    "read": false,
-<<<<<<< HEAD
-    "createdAt": "2026-11-14T21:13:04.229Z"
-=======
-    "id": "3b83eca7-1e05-4239-8672-7a6c90ad36df",
-    "userId": "5a5ca32f-3441-46c5-864c-8e85858e2674",
-    "type": "booking",
-    "text": "Kio забронировал(а) вашу книгу «Madness. A Jeff The Killer's story».",
-    "href": "/transactions",
-    "read": false,
-    "createdAt": "2026-11-14T20:28:42.421Z"
-  },
-  {
-    "id": "f8190434-c021-4aeb-a822-36c70caeb338",
-    "userId": "5a5ca32f-3441-46c5-864c-8e85858e2674",
-    "type": "booking",
-    "text": "Kio отменил(а) бронь книги «Madness. A Jeff The Killer's story».",
-    "href": "/transactions",
-    "read": false,
-    "createdAt": "2026-11-14T20:28:53.233Z"
-  },
-  {
-    "id": "1d61f951-6f98-4710-9f4b-8e731a86f548",
-    "userId": "5a5ca32f-3441-46c5-864c-8e85858e2674",
-    "type": "booking",
-    "text": "Kio забронировал(а) вашу книгу «Madness. A Jeff The Killer's story».",
-    "href": "/transactions",
-    "read": false,
-    "createdAt": "2026-11-14T20:40:18.969Z"
-  },
-  {
-    "id": "0cf1473f-7d97-48a0-9f4f-7e5852100418",
-    "userId": "5a5ca32f-3441-46c5-864c-8e85858e2674",
-    "type": "booking",
-    "text": "Kio отменил(а) бронь книги «Madness. A Jeff The Killer's story».",
-    "href": "/transactions",
-    "read": false,
-    "createdAt": "2026-11-14T20:40:27.658Z"
-  },
-  {
-    "id": "f054c820-9942-4439-a0ed-7e16b7e33d6b",
-    "userId": "5a5ca32f-3441-46c5-864c-8e85858e2674",
-    "type": "booking",
-    "text": "Kio забронировал(а) вашу книгу «Madness. A Jeff The Killer's story».",
-    "href": "/transactions",
-    "read": false,
-    "createdAt": "2026-11-14T20:51:51.345Z"
-  },
-  {
-    "id": "056c69d8-3557-4424-8963-dde0b32c2765",
-    "userId": "5a5ca32f-3441-46c5-864c-8e85858e2674",
-    "type": "booking",
-    "text": "Kio отменил(а) бронь книги «Madness. A Jeff The Killer's story».",
-    "href": "/transactions",
-    "read": false,
-    "createdAt": "2026-11-14T20:52:07.424Z"
-  },
-  {
-    "id": "d3ed1bc1-2cb9-48ad-8fda-4c6aa695ab7f",
-    "userId": "5a5ca32f-3441-46c5-864c-8e85858e2674",
-    "type": "booking",
-    "text": "Kio забронировал(а) вашу книгу «Madness. A Jeff The Killer's story».",
-    "href": "/transactions",
-    "read": false,
-    "createdAt": "2026-11-14T21:00:27.511Z"
-  },
-  {
-    "id": "16d3a629-335e-4ded-acf9-ef28c8260ed2",
-    "userId": "5a5ca32f-3441-46c5-864c-8e85858e2674",
-    "type": "booking",
-    "text": "Kio отменил(а) бронь книги «Madness. A Jeff The Killer's story».",
-    "href": "/transactions",
-    "read": false,
-    "createdAt": "2026-11-14T21:01:24.529Z"
->>>>>>> cb189e12703a610fcd0b13ced84f48590fecfaba
-=======
-    "createdAt": "2026-11-16T08:50:01.050Z"
->>>>>>> f25f5012b725116eb5745a6a21fdbed7ad73b909
+    "read": true,
+    "createdAt": "2026-11-17T10:47:15.588Z"
   }
 ]
