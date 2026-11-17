@@ -66,6 +66,7 @@ function normalize(raw: Booking & { bookId?: number }): Booking | null {
     startDate,
     dueDate: raw.dueDate ?? plusDays(startDate, LOAN_DAYS),
     returnedAt: raw.returnedAt,
+    hiddenByBorrower: raw.hiddenByBorrower === true,
   };
 }
 
@@ -149,20 +150,10 @@ export function allowedActionsFor(
   return actions;
 }
 
-/** Актуальные имена читателей по userId: в брони имя — снимок на момент брони и устаревает после смены имени в профиле. */
-async function currentNames(): Promise<Map<string, string>> {
-  try {
-    const { listUsers } = await import("@/lib/users-store");
-    return new Map((await listUsers()).map((u) => [String(u.id), u.name]));
-  } catch {
-    return new Map();
-  }
-}
-
 export async function getBookingsByUser(userId: string) {
   const all = await readAll();
   return all
-    .filter((b) => b.userId === userId)
+    .filter((b) => b.userId === userId && !b.hiddenByBorrower)
     .map((b) => ({ ...b, status: viewStatus(b) }))
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
@@ -195,7 +186,6 @@ export async function listBookingsForActor(actor: {
 }): Promise<BookingView[]> {
   const all = await readAll();
   const ownerOf = await ownersIndex();
-  const names = await currentNames();
   const result: BookingView[] = [];
   const reliabilityCache = new Map<string, Reliability>();
   for (const b of all) {
@@ -208,13 +198,28 @@ export async function listBookingsForActor(actor: {
 
     result.push({
       ...b,
-      userName: names.get(String(b.userId)) ?? b.userName,
       status: viewStatus(b),
       allowedActions: allowedActionsFor(b, actor, owner),
       reliability: reliabilityFor(all, reliabilityCache, b.userId, b.userName),
     });
   }
   return result.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+}
+
+/** Permanently delete only the current borrower's cancelled booking.
+ * Transaction views read the same bookings.json store.
+ */
+export async function deleteCancelledBookingForBorrower(userId: string, id: string): Promise<boolean> {
+  return withLock("bookings", async () => {
+    const all = await readAll();
+    const index = all.findIndex(
+      (b) => b.id === id && String(b.userId) === String(userId) && b.status === "cancelled",
+    );
+    if (index < 0) return false;
+    all.splice(index, 1);
+    await writeAll(all);
+    return true;
+  });
 }
 
 export async function isBookTaken(bookId: number) {
@@ -495,7 +500,6 @@ export type Borrower = {
 
 export async function getBookBorrowers(bookId: number): Promise<Borrower[]> {
   const all = await readAll();
-  const names = await currentNames();
   const cache = new Map<string, Reliability>();
 
   const fromServer: Borrower[] = all
@@ -503,7 +507,7 @@ export async function getBookBorrowers(bookId: number): Promise<Borrower[]> {
     .map((b) => ({
       key: b.id,
       userId: b.userId,
-      name: names.get(String(b.userId)) ?? (b.userName || "Читатель"),
+      name: b.userName || "Читатель",
       status: viewStatus(b),
       startDate: b.startDate,
       dueDate: b.dueDate,

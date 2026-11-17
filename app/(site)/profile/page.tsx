@@ -159,6 +159,22 @@ export default function ProfilePage() {
     announceBookingsChanged(); // статус книги в профиле владельца и каталоге обновится сразу
   }
 
+  async function removeFromList(id: string) {
+    if (!window.confirm("Удалить это бронирование навсегда?")) return;
+    try {
+      const res = await fetch(`/api/bookings/${encodeURIComponent(id)}`, { method: "DELETE" });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        window.alert(data.error || "Не удалось удалить бронирование");
+        return;
+      }
+      await loadBookings();
+      announceBookingsChanged();
+    } catch {
+      window.alert("Ошибка соединения. Попробуйте ещё раз.");
+    }
+  }
+
   if (!user) {
     return <main className="flex min-h-screen items-center justify-center text-slate-500">Загрузка…</main>;
   }
@@ -468,6 +484,15 @@ export default function ProfilePage() {
                           <a href={LIBRARY.mapUrl} target="_blank" rel="noopener noreferrer" className="block rounded-lg px-3 py-2 text-sm text-stone-800 hover:bg-stone-100">
                             Открыть в 2ГИС
                           </a>
+                        )}
+                        {b.status === "cancelled" && (
+                          <button
+                            type="button"
+                            onClick={() => removeFromList(b.id)}
+                            className="block w-full rounded-lg px-3 py-2 text-left text-sm font-medium text-rose-600 hover:bg-rose-50"
+                          >
+                            Удалить
+                          </button>
                         )}
                         {b.status === "reserved" && (
                           <button

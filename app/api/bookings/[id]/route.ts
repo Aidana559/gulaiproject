@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSessionUser, toPublic } from "@/lib/auth";
-import { applyAction, type BookingAction } from "@/lib/bookings";
+import { applyAction, deleteCancelledBookingForBorrower, type BookingAction } from "@/lib/bookings";
 
 const ACTIONS: BookingAction[] = ["cancel", "issue", "return", "extend"];
 
@@ -31,4 +31,14 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   }
 
   return NextResponse.json({ booking });
+}
+
+/** Permanently delete the current borrower's cancelled booking. */
+export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const user = await getSessionUser();
+  if (!user) return NextResponse.json({ error: "Не авторизован" }, { status: 401 });
+  const { id } = await params;
+  const deleted = await deleteCancelledBookingForBorrower(String(user.id), id);
+  if (!deleted) return NextResponse.json({ error: "Удаление доступно только для своих отменённых броней" }, { status: 403 });
+  return NextResponse.json({ ok: true });
 }
