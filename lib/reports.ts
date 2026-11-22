@@ -1,5 +1,5 @@
 // Общие константы системы жалоб. Без серверных импортов — можно использовать и на клиенте.
-import type { ReportStatus, ReportTargetType } from "./types";
+import type { ReportDecision, ReportStatus, ReportTargetType } from "./types";
 
 export const REPORT_REASONS = [
   { code: "spam", label: "Спам и реклама" },
@@ -23,6 +23,32 @@ export const reasonLabel = (code?: string) =>
   REPORT_REASONS.find((r) => r.code === code)?.label;
 
 export const REPORT_STATUSES: ReportStatus[] = ["new", "in_review", "resolved", "rejected"];
+
+/** «Текущие» — ждут решения; «История» — уже рассмотрены. */
+export const CURRENT_STATUSES: ReportStatus[] = ["new", "in_review"];
+export const HISTORY_STATUSES: ReportStatus[] = ["resolved", "rejected"];
+export const isHistoryStatus = (s: string | undefined) => s === "resolved" || s === "rejected";
+
+export const DECISIONS: ReportDecision[] = [
+  "no_violation",
+  "violation_confirmed",
+  "book_hidden",
+  "book_deleted",
+  "review_deleted",
+];
+
+export const DECISION_LABEL: Record<ReportDecision, string> = {
+  no_violation: "Нарушений нет — жалоба отклонена",
+  violation_confirmed: "Нарушение подтверждено",
+  book_hidden: "Книга скрыта",
+  book_deleted: "Книга удалена",
+  review_deleted: "Отзыв удалён",
+};
+
+/** Статус, в который жалоба переходит при данном решении. */
+export const statusForDecision = (d: ReportDecision): ReportStatus => (d === "no_violation" ? "rejected" : "resolved");
+
+export const isDecision = (v: unknown): v is ReportDecision => typeof v === "string" && (DECISIONS as string[]).includes(v);
 
 export const STATUS_LABEL: Record<ReportStatus, string> = {
   new: "Новая",

@@ -1,4 +1,6 @@
-export type Category = "book" | "textbook" | "guide" | "manga";
+import { CANONICAL_GENRES, categoryLabels as labels, type Category } from "@/lib/categories";
+
+export type { Category };
 export type Status = "available" | "reserved" | "given";
 
 export interface Book {
@@ -20,12 +22,7 @@ export interface Book {
   gradient: string; // tailwind gradient classes for the cover
 }
 
-export const categoryLabels: Record<Category, string> = {
-  book: "Книги",
-  textbook: "Учебники",
-  guide: "Методички",
-  manga: "Манга",
-};
+export const categoryLabels = labels;
 
 export const statusLabels: Record<Status, string> = {
   available: "Доступна",
@@ -50,33 +47,4 @@ export const books: Book[] = [];
  * Список жанров для форм (добавление/правка книги, админка).
  * Фильтр жанров в каталоге строится из реальных книг (см. /api/books).
  */
-export const genres: string[] = [
-  "Антиутопия",
-  "Биология",
-  "Детектив",
-  "Инженерия",
-  "Информатика",
-  "История",
-  "Классика",
-  "Математика",
-  "Наука",
-  "Оформление",
-  "Приключения",
-  "Роман",
-  "Саморазвитие",
-  "Сказка",
-  "Сёдзё",
-  "Сёнэн",
-  "Сэйнэн",
-  "Триллер",
-  "Тёмное фэнтези",
-  "Фантастика",
-  "Физика",
-  "Фэнтези",
-  "Художественная литература",
-  "Химия",
-  "Хоррор",
-  "Экономика",
-  "Экшен",
-  "Языки",
-].sort((a, b) => a.localeCompare(b, "ru"));
+export const genres: string[] = CANONICAL_GENRES;

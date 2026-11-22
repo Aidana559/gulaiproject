@@ -1,6 +1,7 @@
 import { promises as fs } from "fs";
 import path from "path";
-import type { Book, Category, Status } from "@/data/books";
+import type { Book, Status } from "@/data/books";
+import { categoryLabels, categoryLabelsSingular, normalizeCategory, normalizeGenreList, parseCategory, sameGenre, type Category } from "./categories";
 import { readJson, readJsonShared, writeJson, uid, withLock } from "./db";
 import { MAX_GENRES, bookState } from "./moderation-shared";
 import { genresOf } from "./genres";
@@ -65,25 +66,22 @@ async function readCatalog(): Promise<ServerBook[]> {
 
 export { genresOf };
 
+function canonBook(b: ServerBook): ServerBook {
+  const category = normalizeCategory(b.category);
+  const genres = genresOf(b);
+  const sameGenres = Array.isArray(b.genres) && b.genres.length === genres.length && b.genres.every((g, i) => g === genres[i]);
+  if (category === b.category && sameGenres && (b.genre === (genres[0] ?? "—") || (!b.genre && !genres.length))) return b;
+  return { ...b, category, genres, genre: genres[0] ?? "—" };
+}
+
 /**
  * Приводит список жанров к чистому виду: без пустых, «—» и повторов (без учёта регистра),
  * не больше MAX_GENRES. Книга ↔ жанры — связь «многие ко многим»: у книги список жанров,
  * одна и та же запись жанра может быть у любого числа книг.
  */
 export function normalizeGenres(input: unknown): string[] {
-  const raw = Array.isArray(input) ? input : typeof input === "string" ? [input] : [];
-  const seen = new Set<string>();
-  const out: string[] = [];
-  for (const x of raw) {
-    const g = String(x ?? "").trim().replace(/\s+/g, " ").slice(0, 60);
-    if (!g || g === "—") continue;
-    const k = g.toLowerCase();
-    if (seen.has(k)) continue;
-    seen.add(k);
-    out.push(g);
-    if (out.length >= MAX_GENRES) break;
-  }
-  return out;
+  // единый формат названий (lib/categories.ts): синонимы и регистр сводятся к одному жанру
+  return normalizeGenreList(input, MAX_GENRES);
 }
 
 /**
@@ -129,7 +127,9 @@ export async function getAllBooks(
   for (const b of user) byId.set(String(b.id), { ...b }); // копия: объект из кэша менять нельзя
 
   const now = Date.now();
-  return Array.from(byId.values()).filter(
+  // Категория и жанры приводятся к единому формату только при чтении: файлы с данными не переписываются,
+  // поэтому категории уже опубликованных объявлений не теряются, а повторы и разные написания сводятся в одно.
+  return Array.from(byId.values()).map(canonBook).filter(
     (b) =>
       (opts.includeDeleted || !b.deleted) && (opts.includeHidden || !isHiddenNow(b, now)),
   );
@@ -219,15 +219,21 @@ export async function listBooks(query: ListQuery): Promise<ListResult> {
   const q = (query.q ?? "").trim().toLowerCase();
   if (q) {
     // поиск по названию, автору и по любому из жанров книги
+    // …и по названию категории («манга», «учебник», «методички»)
+    const qk = q.replace(/ё/g, "е");
     list = list.filter(
       (b) =>
         b.title.toLowerCase().includes(q) ||
         b.author.toLowerCase().includes(q) ||
-        genresOf(b).some((g) => g.toLowerCase().includes(q)),
+        genresOf(b).some((g) => g.toLowerCase().replace(/ё/g, "е").includes(qk)) ||
+        categoryLabels[b.category]?.toLowerCase().includes(q) ||
+        categoryLabelsSingular[b.category]?.toLowerCase().includes(q),
     );
   }
   if (query.category && query.category !== "all") {
-    list = list.filter((b) => b.category === query.category);
+    const wantCat = parseCategory(query.category);
+    // неизвестная категория в запросе — пустая выдача, а не «все книги»
+    list = wantCat ? list.filter((b) => b.category === wantCat) : [];
   }
   if (query.author) {
     const a = query.author.trim().toLowerCase();
@@ -249,8 +255,8 @@ export async function listBooks(query: ListQuery): Promise<ListResult> {
   if (wantedGenres.length) {
     // книга попадает в выдачу, если у неё есть каждый из выбранных жанров
     list = list.filter((b) => {
-      const have = genresOf(b).map((g) => g.toLowerCase());
-      return wantedGenres.every((w) => have.includes(w.toLowerCase()));
+      const have = genresOf(b);
+      return wantedGenres.every((w) => have.some((g) => sameGenre(g, w)));
     });
   }
 
