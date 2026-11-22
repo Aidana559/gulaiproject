@@ -25,6 +25,8 @@ export interface Booking {
   startDate: string;
   dueDate: string;
   returnedAt?: string;
+  /** заемщик скрыл отмененную бронь из своего списка */
+  hiddenByBorrower?: boolean;
 }
 
 export type BookingView = Omit<Booking, "status"> & {

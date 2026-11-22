@@ -187,7 +187,6 @@
     "createdAt": "2026-11-16T08:49:15.470Z"
   },
   {
-<<<<<<< HEAD
     "id": "b878eb8e-a411-41f3-88d9-0d3db8f4f5ff",
     "bookId": "2064",
     "bookTitle": "Mia and me - Benvenuti a Centopia",
@@ -424,7 +423,8 @@
     "actorRole": "user",
     "stateAfter": "published",
     "createdAt": "2026-11-17T10:58:44.989Z"
-=======
+  },
+  {
     "id": "99e333d5-a3e5-4dee-8a7b-e017dc959e4a",
     "bookId": "2063",
     "bookTitle": "Бегущий в Лабиринте (сборник)",
@@ -503,6 +503,5 @@
     "actorRole": "user",
     "stateAfter": "published",
     "createdAt": "2026-11-17T10:49:52.327Z"
->>>>>>> e75ce57ae63dae24387eb86debdb96c8b2bcce48
   }
 ]
