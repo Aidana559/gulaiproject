@@ -238,5 +238,14 @@
     },
     "read": false,
     "createdAt": "2026-11-24T12:13:16.717Z"
+  },
+  {
+    "id": "945bbe41-1cda-4942-9291-835c2597f82f",
+    "userId": "5a5ca32f-3441-46c5-864c-8e85858e2674",
+    "type": "booking",
+    "text": "Kio забронировал(а) вашу книгу «Азбука Морзе».",
+    "href": "/transactions",
+    "read": false,
+    "createdAt": "2026-11-24T12:20:47.459Z"
   }
 ]
