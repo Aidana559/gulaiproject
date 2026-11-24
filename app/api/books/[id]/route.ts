@@ -6,6 +6,7 @@ import {
   getBook,
   incrementViews,
   isHiddenNow,
+  isPendingReview,
   normalizeGenres,
   patchBook,
   saveCoverFile,
@@ -92,7 +93,8 @@ export async function GET(req: Request, { params }: Ctx) {
   if (!book || book.deleted) {
     return NextResponse.json({ error: "Не найдено" }, { status: 404 });
   }
-  if (isHiddenNow(book)) {
+  // Скрытые и ещё не одобренные (pending) — только владельцу и staff
+  if (isHiddenNow(book) || isPendingReview(book)) {
     if (!actor || (!isStaff(actor) && !isOwner(book, actor))) {
       return NextResponse.json({ error: "Не найдено" }, { status: 404 });
     }
@@ -197,8 +199,20 @@ export async function PATCH(req: Request, { params }: Ctx) {
       if ("coverUrl" in body) patch.coverUrl = body.coverUrl;
     }
 
-    if (patch.year != null) patch.year = Number(patch.year) || undefined;
-    if (patch.pages != null) patch.pages = Number(patch.pages) || 0;
+    if (patch.year != null) {
+      const y = Number(patch.year);
+      if (!Number.isFinite(y) || y < 1000 || y > new Date().getFullYear() + 1) {
+        return bad("Некорректный год издания");
+      }
+      patch.year = y;
+    }
+    if (patch.pages != null) {
+      const p = Number(patch.pages);
+      if (!Number.isFinite(p) || p < 0 || p > 100_000) {
+        return bad("Некорректное число страниц");
+      }
+      patch.pages = p;
+    }
     if (
       patch.condition != null &&
       !["new", "used", "annotated"].includes(String(patch.condition))
@@ -209,8 +223,22 @@ export async function PATCH(req: Request, { params }: Ctx) {
       await getTaxonomy(); // актуальный список категорий
       if (!isCategory(patch.category)) return bad("Неверная категория");
     }
-    if (patch.title !== undefined && !patch.title) {
-      return bad("Название не может быть пустым");
+    if (patch.title !== undefined) {
+      const t = String(patch.title).trim();
+      if (t.length < 2) return bad("Название не может быть короче 2 символов");
+      if (t.length > 200) return bad("Название слишком длинное (макс. 200 символов)");
+      patch.title = t;
+    }
+    if (patch.author !== undefined) {
+      const a = String(patch.author).trim();
+      if (a.length < 2) return bad("Автор не может быть короче 2 символов");
+      if (a.length > 200) return bad("Имя автора слишком длинное (макс. 200 символов)");
+      patch.author = a;
+    }
+    if (patch.description !== undefined) {
+      const d = String(patch.description).trim();
+      if (d.length > 5000) return bad("Описание слишком длинное (макс. 5000 символов)");
+      patch.description = d;
     }
 
     const who = toActor(actor);
@@ -248,7 +276,11 @@ export async function PATCH(req: Request, { params }: Ctx) {
       await patchBook(id, { reviewed: false });
     }
 
-    return NextResponse.json(await getBook(id, { includeHidden: true }));
+    const updated = await getBook(id, { includeHidden: true });
+    return NextResponse.json({
+      ...updated,
+      message: Object.keys(patch).length ? "Изменения сохранены" : "Готово",
+    });
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : "Ошибка";
     return bad(msg);
@@ -307,5 +339,8 @@ export async function DELETE(req: Request, { params }: Ctx) {
     }, "Автор сам удалил объявление");
   }
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({
+    ok: true,
+    message: mine ? "Объявление удалено" : "Книга удалена администрацией",
+  });
 }

@@ -71,14 +71,25 @@ export async function POST(req: Request) {
   let bookTitle = "";
   let bookAuthor = "";
   try {
-    const { getBook } = await import("@/lib/books-store");
-    const b = await getBook(String(bookId));
-    if (b && !b.deleted) {
-      bookTitle = b.title;
-      bookAuthor = b.author;
+    const { getBook, isPendingReview, isHiddenNow } = await import("@/lib/books-store");
+    // includeHidden: true — чтобы отличить «на модерации» от «не найдено»
+    const b = await getBook(String(bookId), { includeHidden: true });
+    if (!b || b.deleted) {
+      return NextResponse.json({ error: "Книга не найдена" }, { status: 404 });
     }
+    if (isPendingReview(b)) {
+      return NextResponse.json(
+        { error: "Книга ещё на проверке модератора — бронировать нельзя" },
+        { status: 409 },
+      );
+    }
+    if (isHiddenNow(b)) {
+      return NextResponse.json({ error: "Книга недоступна для бронирования" }, { status: 409 });
+    }
+    bookTitle = b.title;
+    bookAuthor = b.author;
   } catch {
-
+    /* ниже — «не найдена» */
   }
   if (!bookTitle) {
     return NextResponse.json({ error: "Книга не найдена" }, { status: 404 });

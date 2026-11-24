@@ -99,6 +99,20 @@ export function isHiddenNow(
   return new Date(b.hiddenUntil).getTime() > now;
 }
 
+/**
+ * Объявление пользователя ещё не одобрено модератором — в публичном каталоге и для брони
+ * не должно быть видно. Книги каталога (без ownerId) всегда «опубликованы».
+ */
+export function isPendingReview(b: {
+  ownerId?: string | number | null;
+  reviewed?: boolean;
+  deleted?: boolean;
+}): boolean {
+  if (b.deleted) return false;
+  if (b.ownerId == null || b.ownerId === "") return false;
+  return !b.reviewed;
+}
+
 async function readUserBooks(): Promise<ServerBook[]> {
   return readJson<ServerBook[]>(USER_FILE, []);
 }
@@ -132,9 +146,11 @@ export async function getAllBooks(
   const now = Date.now();
   // Категория и жанры приводятся к единому формату только при чтении: файлы с данными не переписываются,
   // поэтому категории уже опубликованных объявлений не теряются, а повторы и разные написания сводятся в одно.
+  // includeHidden=false — публичный каталог: без скрытых и без ещё не одобренных объявлений.
   return Array.from(byId.values()).map(canonBook).filter(
     (b) =>
-      (opts.includeDeleted || !b.deleted) && (opts.includeHidden || !isHiddenNow(b, now)),
+      (opts.includeDeleted || !b.deleted) &&
+      (opts.includeHidden || (!isHiddenNow(b, now) && !isPendingReview(b))),
   );
 }
 
@@ -146,7 +162,7 @@ export async function getBook(
   const book = all.find((b) => String(b.id) === String(id));
   if (!book) return undefined;
   if (book.deleted && !opts.includeDeleted) return undefined;
-  if (isHiddenNow(book) && !opts.includeHidden) return undefined;
+  if (!opts.includeHidden && (isHiddenNow(book) || isPendingReview(book))) return undefined;
   return withLiveStatus([book], await getBookStates())[0];
 }
 
@@ -340,13 +356,39 @@ async function createBookUnlocked(input: CreateBookInput): Promise<ServerBook> {
     return Number.isFinite(n) ? Math.max(m, n) : m;
   }, Math.max(1000, referenced));
   const id = maxNum + 1;
+
+  const title = input.title.trim();
+  const author = input.author.trim();
+  if (title.length < 2) throw new Error("Укажите название (не короче 2 символов)");
+  if (title.length > 200) throw new Error("Название слишком длинное (макс. 200 символов)");
+  if (author.length < 2) throw new Error("Укажите автора (не короче 2 символов)");
+  if (author.length > 200) throw new Error("Имя автора слишком длинное (макс. 200 символов)");
+  const description = (input.description ?? "").trim();
+  if (description.length > 5000) throw new Error("Описание слишком длинное (макс. 5000 символов)");
+
+  // Дубликат: у того же владельца уже есть неудалённое объявление с тем же названием и автором
+  const tKey = title.toLowerCase().replace(/ё/g, "е");
+  const aKey = author.toLowerCase().replace(/ё/g, "е");
+  const dup = all.find(
+    (b) =>
+      !b.deleted &&
+      String(b.ownerId) === String(input.ownerId) &&
+      (b.title ?? "").trim().toLowerCase().replace(/ё/g, "е") === tKey &&
+      (b.author ?? "").trim().toLowerCase().replace(/ё/g, "е") === aKey,
+  );
+  if (dup) {
+    throw new Error(
+      `У вас уже есть объявление «${dup.title}» (id ${dup.id}). Отредактируйте существующее или удалите его.`,
+    );
+  }
+
   const genres = normalizeGenres(input.genres ?? input.genre);
   const now = new Date().toISOString();
 
   const book: ServerBook = {
     id,
-    title: input.title.trim(),
-    author: input.author.trim(),
+    title,
+    author,
     category: input.category,
     genre: genres[0] ?? "—",
     genres,
@@ -354,7 +396,7 @@ async function createBookUnlocked(input: CreateBookInput): Promise<ServerBook> {
     pages: input.pages || 0,
     city: (input.city ?? "").trim() || "—",
     campus: (input.campus ?? "").trim() || undefined,
-    description: (input.description ?? "").trim() || "",
+    description,
     condition: input.condition ?? "used",
     status: "available" as Status,
     owner: input.ownerName,

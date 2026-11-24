@@ -1,5 +1,31 @@
 [
   {
+    "id": 2067,
+    "title": "Па-той-бок",
+    "author": "Зараслава Камінская",
+    "category": "book",
+    "genre": "Художественная литература",
+    "genres": [
+      "Художественная литература"
+    ],
+    "year": 2025,
+    "pages": 268,
+    "city": "—",
+    "description": "Адна з найлепшых беларускіх кніг 2023 года! Дзеянне ў гэтай кнізе адбываецца па той бок і па гэты. Па гэты бок, іншымі словамі, тут — таямнічае знікненне дзяўчыны і з’яўленне новых дадзеных, якія могуць перавярнуць уяўленне пра беларускіх традыцыйных лялек. А па той бок — тыя ж лялькі выконваюць свае магічныя абавязкі: абараняюць гаспадароў, дапамагаюць змагацца з нячысцікамі, але часам і самі ператвараюцца ў злыдняў. І як заўжды, калі дачытаеце кнігу, зможаце вырашыць, па які бок — вы.",
+    "condition": "used",
+    "status": "available",
+    "owner": "Дарига",
+    "ownerId": "00577e65-0eca-437c-8921-a0a4e084d373",
+    "gradient": "from-sky-500 to-blue-700",
+    "coverUrl": "https://books.google.com/books/content?id=yuZGEQAAQBAJ&printsec=frontcover&img=1&zoom=1&edge=curl&source=gbs_api",
+    "views": 4,
+    "createdAt": "2026-11-24T11:59:09.953Z",
+    "updatedAt": "2026-11-24T12:13:10.462Z",
+    "hidden": false,
+    "deleted": false,
+    "reviewed": true
+  },
+  {
     "id": 2066,
     "title": "Азбука Морзе",
     "author": "Viktor Telʹpugov",
@@ -18,10 +44,10 @@
     "coverUrl": "https://books.google.com/books/content?id=x3hGAAAAMAAJ&printsec=frontcover&img=1&zoom=1&source=gbs_api",
     "views": 4,
     "createdAt": "2026-11-17T11:20:33.262Z",
-    "updatedAt": "2026-11-17T11:20:33.262Z",
+    "updatedAt": "2026-11-24T12:13:13.701Z",
     "hidden": false,
     "deleted": false,
-    "reviewed": false
+    "reviewed": true
   },
   {
     "id": 2065,
@@ -44,9 +70,9 @@
     "coverUrl": "https://books.google.com/books/content?id=8qrFEQAAQBAJ&printsec=frontcover&img=1&zoom=1&edge=curl&source=gbs_api",
     "views": 2,
     "createdAt": "2026-11-17T11:19:56.932Z",
-    "updatedAt": "2026-11-17T11:19:56.932Z",
+    "updatedAt": "2026-11-24T12:13:16.688Z",
     "hidden": false,
     "deleted": false,
-    "reviewed": false
+    "reviewed": true
   }
 ]

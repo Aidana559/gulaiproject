@@ -503,5 +503,44 @@
     "actorRole": "user",
     "stateAfter": "published",
     "createdAt": "2026-11-17T10:49:52.327Z"
+  },
+  {
+    "id": "6abe99e8-710b-472e-a05c-20a4b9facf0b",
+    "bookId": "2067",
+    "bookTitle": "Па-той-бок",
+    "authorId": "00577e65-0eca-437c-8921-a0a4e084d373",
+    "authorName": "Дарига",
+    "action": "approved",
+    "actorId": "ebf44689-3db7-49b8-a2aa-cdc715fbffee",
+    "actorName": "Арман",
+    "actorRole": "moderator",
+    "stateAfter": "published",
+    "createdAt": "2026-11-24T12:13:10.484Z"
+  },
+  {
+    "id": "1eab9791-4627-4eba-ad66-3b6c37f584bc",
+    "bookId": "2066",
+    "bookTitle": "Азбука Морзе",
+    "authorId": "5a5ca32f-3441-46c5-864c-8e85858e2674",
+    "authorName": "Хуан",
+    "action": "approved",
+    "actorId": "ebf44689-3db7-49b8-a2aa-cdc715fbffee",
+    "actorName": "Арман",
+    "actorRole": "moderator",
+    "stateAfter": "published",
+    "createdAt": "2026-11-24T12:13:13.722Z"
+  },
+  {
+    "id": "efe0e953-81ef-46cb-8ed2-18c6d0037f8e",
+    "bookId": "2065",
+    "bookTitle": "Lilo & Stitch",
+    "authorId": "5a5ca32f-3441-46c5-864c-8e85858e2674",
+    "authorName": "Хуан",
+    "action": "approved",
+    "actorId": "ebf44689-3db7-49b8-a2aa-cdc715fbffee",
+    "actorName": "Арман",
+    "actorRole": "moderator",
+    "stateAfter": "published",
+    "createdAt": "2026-11-24T12:13:16.695Z"
   }
 ]

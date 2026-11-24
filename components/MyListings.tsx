@@ -52,12 +52,12 @@ export default function MyListings() {
   const [filter, setFilter] = useState<ListingFilter>("all");
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
 
   const allowed = !!user && canManageOwnListings(user.role);
 
   const load = useCallback(async () => {
     try {
-
       const res = await fetch("/api/books?mine=1&limit=100&sort=new", { cache: "no-store" });
       const json = await res.json();
       setItems(Array.isArray(json.books) ? json.books : []);
@@ -79,22 +79,28 @@ export default function MyListings() {
     [items],
   );
 
-  async function act(id: number | string, run: () => Promise<string | null>) {
+  async function act(id: number | string, run: () => Promise<string | null>, okMessage?: string) {
     setBusyId(String(id));
     setError("");
+    setSuccess("");
     const err = await run();
     if (err) setError(err);
-    await load(); 
+    else if (okMessage) setSuccess(okMessage);
+    // обновляем список без перезагрузки страницы
+    await load();
     setBusyId(null);
   }
 
   const setHidden = (b: Listing, hidden: boolean) =>
-    act(b.id, () =>
-      request(`/api/books/${b.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ownerHidden: hidden }),
-      }),
+    act(
+      b.id,
+      () =>
+        request(`/api/books/${b.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ownerHidden: hidden }),
+        }),
+      hidden ? "Объявление скрыто из каталога" : "Объявление снова опубликовано",
     );
 
   function remove(b: Listing) {
@@ -105,7 +111,7 @@ export default function MyListings() {
       )
     )
       return;
-    void act(b.id, () => request(`/api/books/${b.id}`, { method: "DELETE" }));
+    void act(b.id, () => request(`/api/books/${b.id}`, { method: "DELETE" }), "Объявление удалено");
   }
 
   if (!allowed) return null;
@@ -143,6 +149,11 @@ export default function MyListings() {
       {error && (
         <p role="alert" className="mt-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
           {error}
+        </p>
+      )}
+      {success && (
+        <p role="status" className="mt-4 rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+          {success}
         </p>
       )}
 

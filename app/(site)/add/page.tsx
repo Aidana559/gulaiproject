@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
 import { Button } from "@/components/Button";
@@ -29,6 +29,8 @@ export default function AddPage() {
   const [coverUrl, setCoverUrl] = useState("");
   const { categories } = useTaxonomy();
   const [category, setCategory] = useState<Category>("book");
+  /** Защита от повторной отправки при многократном нажатии (state может не успеть) */
+  const submittingRef = useRef(false);
 
   function fillFromGoogle(b: GoogleBookHit) {
     setTitle(b.title);
@@ -56,6 +58,7 @@ export default function AddPage() {
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    if (submittingRef.current || loading || done) return;
     if (!user) {
       router.push("/login");
       return;
@@ -64,24 +67,54 @@ export default function AddPage() {
       setError("Добавлять книги могут только обычные пользователи");
       return;
     }
-    setError("");
-    setLoading(true);
 
     const form = e.currentTarget;
     const fd = new FormData(form);
 
     const titleVal = String(fd.get("title") ?? "").trim();
     const authorVal = String(fd.get("author") ?? "").trim();
+    const descVal = String(fd.get("description") ?? "").trim();
+    const yearVal = String(fd.get("year") ?? "").trim();
+    const pagesVal = String(fd.get("pages") ?? pages ?? "").trim();
+
     if (titleVal.length < 2) {
-      setError("Укажите название");
-      setLoading(false);
+      setError("Укажите название (не короче 2 символов)");
+      return;
+    }
+    if (titleVal.length > 200) {
+      setError("Название слишком длинное (макс. 200 символов)");
       return;
     }
     if (authorVal.length < 2) {
-      setError("Укажите автора");
-      setLoading(false);
+      setError("Укажите автора (не короче 2 символов)");
       return;
     }
+    if (authorVal.length > 200) {
+      setError("Имя автора слишком длинное (макс. 200 символов)");
+      return;
+    }
+    if (descVal.length > 5000) {
+      setError("Описание слишком длинное (макс. 5000 символов)");
+      return;
+    }
+    if (yearVal) {
+      const y = Number(yearVal);
+      if (!Number.isFinite(y) || y < 1000 || y > new Date().getFullYear() + 1) {
+        setError("Некорректный год издания");
+        return;
+      }
+    }
+    if (pagesVal) {
+      const p = Number(pagesVal);
+      if (!Number.isFinite(p) || p < 0 || p > 100_000) {
+        setError("Некорректное число страниц");
+        return;
+      }
+    }
+
+    setError("");
+    submittingRef.current = true;
+    setLoading(true);
 
     try {
       const res = await fetch("/api/books", {
@@ -91,18 +124,20 @@ export default function AddPage() {
       const json = await res.json().catch(() => ({}));
       if (!res.ok) {
         setError(json.error ?? "Не удалось сохранить");
+        submittingRef.current = false;
         setLoading(false);
         return;
       }
       setCreatedId(json.book?.id ?? null);
       setDone(true);
+      // интерфейс обновляется без перезагрузки: показываем успех, затем переход
       setTimeout(() => {
         if (json.book?.id) router.push(`/book/${json.book.id}`);
         else router.push("/catalog");
-      }, 800);
+      }, 900);
     } catch {
       setError("Нет связи с сервером");
-    } finally {
+      submittingRef.current = false;
       setLoading(false);
     }
   }
@@ -113,7 +148,7 @@ export default function AddPage() {
     <div className="mx-auto max-w-2xl px-4 py-10 sm:px-6">
       <h1 className="text-3xl font-extrabold text-stone-900">Добавить издание</h1>
       <p className="mt-2 text-stone-500">
-        Объявление сохранится на сервере и сразу появится в каталоге.
+        Объявление отправится на проверку модератору. В каталоге оно появится только после одобрения.
       </p>
 
       <form
@@ -275,13 +310,14 @@ export default function AddPage() {
         )}
         {done && (
           <p role="status" className="flex items-center gap-2 rounded-lg bg-emerald-50 p-3 text-sm text-emerald-700 ring-1 ring-emerald-200">
-            <FiCheckCircle className="shrink-0" /> Объявление опубликовано
-            {createdId != null ? ` (#${createdId})` : ""}! Открываем страницу…
+            <FiCheckCircle className="shrink-0" /> Объявление отправлено на проверку
+            {createdId != null ? ` (#${createdId})` : ""}. В каталоге оно появится после одобрения
+            модератором. Открываем страницу…
           </p>
         )}
 
         <Button type="submit" size="lg" full disabled={loading || done || !user}>
-          {loading ? "Публикация…" : done ? "Готово" : "Опубликовать"}
+          {loading ? "Отправка…" : done ? "Готово" : "Отправить на проверку"}
         </Button>
         {!user && !authLoading && (
           <p className="text-center text-sm text-stone-500">

@@ -1,7 +1,7 @@
 "use client";
 
 import GenreMultiSelect from "@/components/GenreMultiSelect";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
 import { useTaxonomy } from "@/components/TaxonomyProvider";
@@ -30,7 +30,9 @@ export default function EditBookForm() {
   const [form, setForm] = useState<Form | null>(null);
   const [ownerId, setOwnerId] = useState<string>("");
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
   const [saving, setSaving] = useState(false);
+  const savingRef = useRef(false);
 
   useEffect(() => {
     fetch(`/api/books/${id}?view=0`, { cache: "no-store" })
@@ -85,13 +87,55 @@ export default function EditBookForm() {
 
   async function save(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    if (savingRef.current || saving) return;
+
+    const titleVal = String(form!.title ?? "").trim();
+    const authorVal = String(form!.author ?? "").trim();
+    const descVal = String(form!.description ?? "").trim();
+    if (titleVal.length < 2) {
+      setError("Название не может быть короче 2 символов");
+      return;
+    }
+    if (titleVal.length > 200) {
+      setError("Название слишком длинное (макс. 200 символов)");
+      return;
+    }
+    if (authorVal.length < 2) {
+      setError("Автор не может быть короче 2 символов");
+      return;
+    }
+    if (authorVal.length > 200) {
+      setError("Имя автора слишком длинное (макс. 200 символов)");
+      return;
+    }
+    if (descVal.length > 5000) {
+      setError("Описание слишком длинное (макс. 5000 символов)");
+      return;
+    }
+    if (form!.year !== undefined && form!.year !== "") {
+      const y = Number(form!.year);
+      if (!Number.isFinite(y) || y < 1000 || y > new Date().getFullYear() + 1) {
+        setError("Некорректный год издания");
+        return;
+      }
+    }
+    if (form!.pages !== undefined && form!.pages !== "") {
+      const p = Number(form!.pages);
+      if (!Number.isFinite(p) || p < 0 || p > 100_000) {
+        setError("Некорректное число страниц");
+        return;
+      }
+    }
+
     setError("");
+    setSuccess("");
+    savingRef.current = true;
     setSaving(true);
     try {
       const fd = new FormData(e.currentTarget);
-      fd.set("title", form!.title ?? "");
-      fd.set("author", form!.author ?? "");
-      fd.set("description", form!.description ?? "");
+      fd.set("title", titleVal);
+      fd.set("author", authorVal);
+      fd.set("description", descVal);
       // жанры: берём из состояния формы (можно добавлять и удалять, повторы отсекает сервер)
       fd.delete("genres");
       for (const g of form!.genres ?? []) fd.append("genres", g);
@@ -100,8 +144,8 @@ export default function EditBookForm() {
       fd.set("city", form!.city ?? "");
       fd.set("campus", form!.campus ?? "");
       fd.set("condition", form!.condition ?? "used");
-      if (form!.year) fd.set("year", String(form!.year));
-      if (form!.pages) fd.set("pages", String(form!.pages));
+      if (form!.year !== undefined && form!.year !== "") fd.set("year", String(form!.year));
+      if (form!.pages !== undefined && form!.pages !== "") fd.set("pages", String(form!.pages));
 
       const res = await fetch(`/api/books/${id}`, {
         method: "PATCH",
@@ -109,11 +153,15 @@ export default function EditBookForm() {
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(json.error ?? "Ошибка сохранения");
-      router.push(`/book/${id}`);
-      router.refresh();
+      // успех без полной перезагрузки: сообщение, затем переход
+      setSuccess(json.message ?? "Изменения сохранены");
+      setTimeout(() => {
+        router.push(`/book/${id}`);
+        router.refresh();
+      }, 600);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Ошибка");
-    } finally {
+      savingRef.current = false;
       setSaving(false);
     }
   }
@@ -133,6 +181,8 @@ export default function EditBookForm() {
           value={form.title ?? ""}
           onChange={(e) => set("title", e.target.value)}
           required
+          minLength={2}
+          maxLength={200}
         />
       </label>
       <label className={label}>
@@ -142,6 +192,9 @@ export default function EditBookForm() {
           name="author"
           value={form.author ?? ""}
           onChange={(e) => set("author", e.target.value)}
+          required
+          minLength={2}
+          maxLength={200}
         />
       </label>
       <label className={label}>
@@ -243,14 +296,15 @@ export default function EditBookForm() {
         </p>
       )}
 
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && <p className="text-sm text-red-600" role="alert">{error}</p>}
+      {success && <p className="text-sm text-emerald-700" role="status">{success}</p>}
       <div className="flex gap-2">
         <button
           type="submit"
-          disabled={saving}
+          disabled={saving || !!success}
           className="rounded-xl bg-indigo-600 px-5 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-60"
         >
-          {saving ? "Сохранение…" : "Сохранить"}
+          {saving ? "Сохранение…" : success ? "Сохранено" : "Сохранить"}
         </button>
         <button
           type="button"

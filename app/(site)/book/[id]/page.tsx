@@ -3,7 +3,13 @@ export const instant = false;
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { categoryLabels, type Book } from "@/data/books";
-import { conditionLabels, getBook, isHiddenNow, type ServerBook } from "@/lib/books-store";
+import {
+  conditionLabels,
+  getBook,
+  isHiddenNow,
+  isPendingReview,
+  type ServerBook,
+} from "@/lib/books-store";
 import BookCover from "@/components/BookCover";
 import BookCard from "@/components/BookCard";
 import BookStatusBadge from "@/components/BookStatusBadge";
@@ -24,12 +30,20 @@ import { getBookBorrowers } from "@/lib/bookings";
 import { readJson } from "@/lib/db";
 import type { Review } from "@/lib/types";
 import { FiArrowLeft } from "react-icons/fi";
+import { getSessionUser } from "@/lib/auth";
+import { isOwner, isStaff } from "@/lib/server-auth";
 
 export default async function BookPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const book = (await getBook(id, { includeHidden: true })) as ServerBook | undefined;
   if (!book || book.deleted) notFound();
-  if (isHiddenNow(book)) notFound();
+
+  const sessionUser = await getSessionUser();
+  const canSeeRestricted =
+    !!sessionUser && (isStaff(sessionUser) || isOwner(book, sessionUser));
+
+  // Скрытые и ещё не одобренные — только владельцу и staff; остальным 404
+  if ((isHiddenNow(book) || isPendingReview(book)) && !canSeeRestricted) notFound();
 
   const libraryBook = isLibraryBook(book);
   const ownerKey = String(book.ownerId ?? book.owner);
@@ -58,9 +72,18 @@ export default async function BookPage({ params }: { params: Promise<{ id: strin
       ? conditionLabels[book.condition]
       : null;
 
+  const pending = isPendingReview(book);
+
   return (
     <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
       <BookGuard bookId={book.id} />
+
+      {pending && (
+        <div className="mb-6 rounded-xl bg-sky-50 p-4 text-sky-900 ring-1 ring-sky-200">
+          Объявление на проверке модератора. Пока оно не одобрено, в каталоге его не видно и
+          забронировать нельзя.
+        </div>
+      )}
 
       <nav className="text-sm text-stone-500">
         <Link href="/catalog" className="hover:text-indigo-600">
@@ -183,7 +206,14 @@ export default async function BookPage({ params }: { params: Promise<{ id: strin
           )}
 
           <div className="book-detail-serif mt-8 flex flex-wrap items-center gap-3">
-            <ReserveButton book={book as Book} ownerKey={ownerKey} hasOwnerAccount={book.ownerId != null} isLibrary={libraryBook} />
+            {!pending && (
+              <ReserveButton
+                book={book as Book}
+                ownerKey={ownerKey}
+                hasOwnerAccount={book.ownerId != null}
+                isLibrary={libraryBook}
+              />
+            )}
             <LinkButton href="/catalog" variant="outline" size="lg">
               <FiArrowLeft /> К каталогу
             </LinkButton>

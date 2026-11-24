@@ -160,5 +160,83 @@
     "href": "/transactions",
     "read": true,
     "createdAt": "2026-11-17T10:47:15.588Z"
+  },
+  {
+    "id": "f8b06dde-3728-4e6d-bc1a-256eb89ef73f",
+    "userId": "00577e65-0eca-437c-8921-a0a4e084d373",
+    "type": "booking",
+    "text": "Астан забронировал(а) вашу книгу «Па-той-бок».",
+    "href": "/transactions",
+    "read": false,
+    "createdAt": "2026-11-24T12:01:38.027Z"
+  },
+  {
+    "id": "3a1fadea-8e70-490a-b09a-f9bb49e59b2f",
+    "userId": "00577e65-0eca-437c-8921-a0a4e084d373",
+    "type": "moderation",
+    "text": "Книга одобрена модератором: «Па-той-бок». Выполнил: Модератор Арман.",
+    "href": "/book/2067/info",
+    "key": "mod:6abe99e8-710b-472e-a05c-20a4b9facf0b",
+    "moderation": {
+      "id": "6abe99e8-710b-472e-a05c-20a4b9facf0b",
+      "bookId": "2067",
+      "bookTitle": "Па-той-бок",
+      "authorId": "00577e65-0eca-437c-8921-a0a4e084d373",
+      "authorName": "Дарига",
+      "action": "approved",
+      "actorId": "ebf44689-3db7-49b8-a2aa-cdc715fbffee",
+      "actorName": "Арман",
+      "actorRole": "moderator",
+      "stateAfter": "published",
+      "createdAt": "2026-11-24T12:13:10.484Z"
+    },
+    "read": false,
+    "createdAt": "2026-11-24T12:13:10.499Z"
+  },
+  {
+    "id": "3048788e-6f31-4c4e-a42d-b053b6362c91",
+    "userId": "5a5ca32f-3441-46c5-864c-8e85858e2674",
+    "type": "moderation",
+    "text": "Книга одобрена модератором: «Азбука Морзе». Выполнил: Модератор Арман.",
+    "href": "/book/2066/info",
+    "key": "mod:1eab9791-4627-4eba-ad66-3b6c37f584bc",
+    "moderation": {
+      "id": "1eab9791-4627-4eba-ad66-3b6c37f584bc",
+      "bookId": "2066",
+      "bookTitle": "Азбука Морзе",
+      "authorId": "5a5ca32f-3441-46c5-864c-8e85858e2674",
+      "authorName": "Хуан",
+      "action": "approved",
+      "actorId": "ebf44689-3db7-49b8-a2aa-cdc715fbffee",
+      "actorName": "Арман",
+      "actorRole": "moderator",
+      "stateAfter": "published",
+      "createdAt": "2026-11-24T12:13:13.722Z"
+    },
+    "read": false,
+    "createdAt": "2026-11-24T12:13:13.849Z"
+  },
+  {
+    "id": "2dce1c7c-e1c0-496b-af4d-cad95e5f0911",
+    "userId": "5a5ca32f-3441-46c5-864c-8e85858e2674",
+    "type": "moderation",
+    "text": "Книга одобрена модератором: «Lilo & Stitch». Выполнил: Модератор Арман.",
+    "href": "/book/2065/info",
+    "key": "mod:efe0e953-81ef-46cb-8ed2-18c6d0037f8e",
+    "moderation": {
+      "id": "efe0e953-81ef-46cb-8ed2-18c6d0037f8e",
+      "bookId": "2065",
+      "bookTitle": "Lilo & Stitch",
+      "authorId": "5a5ca32f-3441-46c5-864c-8e85858e2674",
+      "authorName": "Хуан",
+      "action": "approved",
+      "actorId": "ebf44689-3db7-49b8-a2aa-cdc715fbffee",
+      "actorName": "Арман",
+      "actorRole": "moderator",
+      "stateAfter": "published",
+      "createdAt": "2026-11-24T12:13:16.695Z"
+    },
+    "read": false,
+    "createdAt": "2026-11-24T12:13:16.717Z"
   }
 ]

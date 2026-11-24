@@ -123,8 +123,17 @@ export async function POST(req: Request) {
       coverUrl = body.coverUrl ?? null;
     }
 
-    if (title.length < 2) return bad("Укажите название");
-    if (author.length < 2) return bad("Укажите автора");
+    if (title.length < 2) return bad("Укажите название (не короче 2 символов)");
+    if (title.length > 200) return bad("Название слишком длинное (макс. 200 символов)");
+    if (author.length < 2) return bad("Укажите автора (не короче 2 символов)");
+    if (author.length > 200) return bad("Имя автора слишком длинное (макс. 200 символов)");
+    if (description.length > 5000) return bad("Описание слишком длинное (макс. 5000 символов)");
+    if (year != null && (!Number.isFinite(year) || year < 1000 || year > new Date().getFullYear() + 1)) {
+      return bad("Некорректный год издания");
+    }
+    if (pages != null && (!Number.isFinite(pages) || pages < 0 || pages > 100_000)) {
+      return bad("Некорректное число страниц");
+    }
     await getTaxonomy(); // актуальный список категорий (их добавляет администратор)
     if (!isCategory(category)) {
       return bad("Неверная категория");
@@ -149,9 +158,16 @@ export async function POST(req: Request) {
       ownerName: actor.name,
     });
 
-    return NextResponse.json({ book }, { status: 201 });
+    return NextResponse.json(
+      {
+        book,
+        message: "Объявление создано и отправлено на проверку модератора",
+      },
+      { status: 201 },
+    );
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : "Ошибка сохранения";
+    // дубликат и ошибки валидации из createBook — 400 с понятным текстом
     return bad(msg);
   }
 }
