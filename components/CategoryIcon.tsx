@@ -22,23 +22,18 @@ import type { ComponentType } from "react";
 
 export type IconComponent = ComponentType<{ className?: string; "aria-hidden"?: boolean | "true" | "false" }>;
 
-/** Единый размер/стиль иконок категорий в интерфейсе */
 export const ICON_SIZE_SM = "h-4 w-4 shrink-0";
 export const ICON_SIZE_MD = "h-5 w-5 shrink-0";
 export const ICON_SIZE_LG = "h-6 w-6 shrink-0";
 
-/**
- * Каталог доступных тематических иконок.
- * Ключ сохраняется в taxonomy.json (поле icon категории).
- * Только react-icons/fi и react-icons/lu — без новых зависимостей.
- */
+
 export const CATEGORY_ICON_CATALOG: { key: string; label: string; Icon: IconComponent }[] = [
   { key: "book", label: "Книга", Icon: FiBook },
   { key: "book-open", label: "Открытая книга", Icon: FiBookOpen },
   { key: "graduation", label: "Учёба", Icon: LuGraduationCap },
   { key: "file-text", label: "Документ", Icon: FiFileText },
   { key: "scroll", label: "Методичка", Icon: LuScrollText },
-  { key: "layers", label: "Слои / манга", Icon: FiLayers },
+  { key: "layers", label: "Манга", Icon: FiLayers },
   { key: "newspaper", label: "Журнал", Icon: LuNewspaper },
   { key: "clipboard", label: "Планшет", Icon: FiClipboard },
   { key: "grid", label: "Сетка", Icon: FiGrid },
@@ -58,7 +53,7 @@ const byKey: Record<string, IconComponent> = Object.fromEntries(
   CATEGORY_ICON_CATALOG.map((e) => [e.key, e.Icon]),
 );
 
-/** Встроенные иконки по ключу категории (если в taxonomy нет поля icon) */
+
 const DEFAULT_BY_CATEGORY: Record<string, string> = {
   book: "book",
   textbook: "graduation",
@@ -69,7 +64,6 @@ const DEFAULT_BY_CATEGORY: Record<string, string> = {
   magazine: "newspaper",
 };
 
-/** Резервная иконка для новых/неизвестных категорий */
 export const FALLBACK_CATEGORY_ICON_KEY = "tag";
 export const FallbackCategoryIcon = FiTag;
 
@@ -86,15 +80,10 @@ export function getCategoryIconComponent(iconKey: string | null | undefined): Ic
 
 type Props = {
   category: Category;
-  /** Явный ключ иконки из taxonomy (приоритетнее встроенного) */
   icon?: string | null;
   className?: string;
 };
 
-/**
- * Тематическая иконка категории.
- * Сначала смотрит icon из taxonomy, затем встроенную карту, иначе — FiTag.
- */
 export default function CategoryIcon({ category, icon, className }: Props) {
   const key = resolveCategoryIconKey(String(category ?? ""), icon);
   const Icon = getCategoryIconComponent(key);
