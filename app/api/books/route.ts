@@ -11,6 +11,8 @@ import { canManageOwnListings, checkListingAccess } from "@/lib/listing-access";
 import { sweepExpiredHides } from "@/lib/moderation";
 import { isMutedNow, muteLabel } from "@/lib/mute";
 import type { Category } from "@/data/books";
+import { isCategory } from "@/lib/categories";
+import { getTaxonomy } from "@/lib/taxonomy-store";
 import { catalogIsEmpty, ensureCatalog } from "@/lib/catalog-loader";
 
 export async function GET(req: Request) {
@@ -123,7 +125,8 @@ export async function POST(req: Request) {
 
     if (title.length < 2) return bad("Укажите название");
     if (author.length < 2) return bad("Укажите автора");
-    if (!["book", "textbook", "guide", "manga"].includes(category)) {
+    await getTaxonomy(); // актуальный список категорий (их добавляет администратор)
+    if (!isCategory(category)) {
       return bad("Неверная категория");
     }
     if (!["new", "used", "annotated"].includes(condition)) {

@@ -4,7 +4,7 @@ import ReportsPanel from "@/components/staff/ReportsPanel";
 export default function ModerationReportsPage() {
   return (
     <>
-      <PageTitle title="Жалобы" hint="Жалобы на книги и отзывы: закрыть, скрыть, удалить." />
+      <PageTitle title="Жалобы" hint="Текущие жалобы и история рассмотрения: кто, когда и какое решение принял." />
       <ReportsPanel />
     </>
   );

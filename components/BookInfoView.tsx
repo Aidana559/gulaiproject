@@ -20,6 +20,7 @@ import {
   type BookState,
   type ModerationEntry,
 } from "@/lib/moderation-shared";
+import { useTaxonomy } from "@/components/TaxonomyProvider";
 
 type Info = {
   id: number | string;
@@ -66,6 +67,7 @@ function Item({ label, children }: { label: string; children: React.ReactNode })
 
 /** Подробная информация о книге для автора и администрации: статус, жанры, причины и история. */
 export default function BookInfoView() {
+  useTaxonomy(); // подписка: подписи категорий обновляются, когда администратор их меняет
   const { id } = useParams<{ id: string }>();
   const { user, loading: authLoading } = useAuth();
   const [info, setInfo] = useState<Info | null>(null);

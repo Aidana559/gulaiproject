@@ -1,32 +1,25 @@
 import { NextResponse } from "next/server";
-import { getAllBooks, getBook } from "@/lib/books-store";
+import { getAllBooks, getBook, isHiddenNow } from "@/lib/books-store";
 import { readJson, uid, writeJson } from "@/lib/db";
-import { COMMENT_MAX, OTHER_REASON, REPORT_REASONS, REPORT_STATUSES, normalizeStatus, reasonLabel } from "@/lib/reports";
+import {
+  COMMENT_MAX,
+  NOTE_MAX,
+  OTHER_REASON,
+  REPORT_REASONS,
+  REPORT_STATUSES,
+  decisionsForTarget,
+  isDecision,
+  isHistoryStatus,
+  normalizeStatus,
+  reasonLabel,
+} from "@/lib/reports";
+import { REPORTS_FILE, applyDecision, normalizeReport as normalize, withReportsLock as withLock } from "@/lib/reports-server";
 import { bad, forbidden, getActor, isOwner, isStaff, unauthorized } from "@/lib/server-auth";
-import type { Report, ReportStatus, ReportTargetType, Review, User } from "@/lib/types";
+import type { Report, ReportDecision, ReportStatus, ReportTargetType, Review, User } from "@/lib/types";
 
-const FILE = "reports.json";
+const FILE = REPORTS_FILE;
 const REVIEWS = "reviews.json";
 const TARGET_TYPES: ReportTargetType[] = ["book", "review", "user"];
-
-// Файловое хранилище не атомарно: сериализуем чтение-изменение-запись,
-// чтобы две одновременные жалобы не затёрли друг друга и дубли не проскочили.
-let lock: Promise<unknown> = Promise.resolve();
-function withLock<T>(fn: () => Promise<T>): Promise<T> {
-  const run = lock.then(fn, fn);
-  lock = run.catch(() => undefined);
-  return run;
-}
-
-/** Приводит старые записи (только книги, статусы open/closed, свободный текст) к новому формату. */
-function normalize(r: Report): Report {
-  return {
-    ...r,
-    targetType: r.targetType ?? "book",
-    targetId: r.targetId || r.bookId || "",
-    status: normalizeStatus(r.status),
-  };
-}
 
 const snippet = (s: string, n = 200) => (s.length > n ? s.slice(0, n) + "…" : s);
 
@@ -182,37 +175,113 @@ export async function PATCH(req: Request) {
   if (!actor) return unauthorized();
   if (!isStaff(actor)) return forbidden();
 
-  const body = await req.json().catch(() => ({}));
-  const { id, deleteReview } = body as { id?: string; status?: string; deleteReview?: boolean };
-  if (!id) return bad("Нет id жалобы");
+  const body = (await req.json().catch(() => ({}))) as {
+    id?: string;
+    action?: string;
+    decision?: string;
+    note?: string;
+    status?: string;
+    deleteReview?: boolean;
+  };
+  if (!body.id) return bad("Нет id жалобы");
+  const id = String(body.id);
 
-  // принимаем и новые статусы, и старые open/closed
-  const rawStatus = body.status as string | undefined;
-  let status: ReportStatus | undefined;
-  if (rawStatus !== undefined) {
-    if (rawStatus === "open" || rawStatus === "closed") status = normalizeStatus(rawStatus);
-    else if ((REPORT_STATUSES as string[]).includes(rawStatus)) status = rawStatus as ReportStatus;
-    else return bad("Неверный статус жалобы");
+  // Совместимость со старым клиентом: { status } и { deleteReview } переводим в действия
+  let action = body.action;
+  let decision = body.decision;
+  if (!action) {
+    if (body.deleteReview) {
+      action = "resolve";
+      decision = "review_deleted";
+    } else if (body.status !== undefined) {
+      const st = normalizeStatus(body.status);
+      if (body.status !== "open" && body.status !== "closed" && !(REPORT_STATUSES as string[]).includes(body.status))
+        return bad("Неверный статус жалобы");
+      if (st === "in_review") action = "take";
+      else if (st === "new") action = "reopen";
+      else {
+        action = "resolve";
+        decision = st === "rejected" ? "no_violation" : "violation_confirmed";
+      }
+    }
+  }
+  if (action !== "take" && action !== "resolve" && action !== "reopen") return bad("Неизвестное действие");
+  const note = String(body.note ?? "").trim().slice(0, NOTE_MAX);
+  const by = { id: String(actor.id), name: actor.name, role: actor.role as "admin" | "moderator" };
+
+  // вернуть жалобу из истории в работу может только администратор
+  if (action === "reopen" && actor.role !== "admin") return forbidden();
+
+  if (action === "resolve") {
+    if (!isDecision(decision)) return bad("Выберите решение по жалобе");
   }
 
   return withLock(async () => {
     const reports = (await readJson<Report[]>(FILE, [])).map(normalize);
     const r = reports.find((x) => x.id === id);
     if (!r) return NextResponse.json({ error: "Не найдено" }, { status: 404 });
+    const done = isHistoryStatus(r.status);
+    const now = new Date().toISOString();
 
-    // удалить отзыв прямо из жалобы
-    if (deleteReview && r.targetType === "review") {
-      const reviews = await readJson<Review[]>(REVIEWS, []);
-      await writeJson(
-        REVIEWS,
-        reviews.filter((rev) => rev.id !== r.targetId),
-      );
-      r.status = "resolved";
+    if (action === "take") {
+      if (done) return NextResponse.json({ error: "Жалоба уже рассмотрена", report: r }, { status: 409 });
+      if (r.status === "new") {
+        r.trail = [
+          ...(r.trail ?? []),
+          { at: now, byId: by.id, byName: by.name, byRole: by.role, from: "new" as ReportStatus, to: "in_review" as ReportStatus },
+        ];
+        r.status = "in_review";
+        r.inReviewBy = by.name;
+        r.inReviewAt = now;
+        r.updatedAt = now;
+      }
+    } else if (action === "reopen") {
+      if (!done) return NextResponse.json({ ok: true, report: r });
+      r.trail = [
+        ...(r.trail ?? []),
+        { at: now, byId: by.id, byName: by.name, byRole: by.role, from: r.status as ReportStatus, to: "in_review" as ReportStatus, note: "Возвращена в работу" },
+      ];
+      r.status = "in_review";
+      r.inReviewBy = by.name;
+      r.inReviewAt = now;
+      r.updatedAt = now;
+      // сведения о прошлом рассмотрении остаются в trail; в карточке «Текущие» они не нужны
+      r.decision = undefined;
+      r.decisionNote = undefined;
+      r.handledAt = undefined;
+      r.handledById = undefined;
+      r.handledByRole = undefined;
+      r.handledBy = undefined;
+      r.closedWithReportId = undefined;
+    } else {
+      const d = decision as ReportDecision;
+      if (done) return NextResponse.json({ error: "Жалоба уже рассмотрена", report: r }, { status: 409 });
+      if (!decisionsForTarget(r.targetType).includes(d)) return bad("Это решение не подходит для данной жалобы");
+
+      if (d === "book_hidden" || d === "book_deleted") {
+        // скрытие и удаление выполняются отдельным запросом (с причиной), здесь проверяем, что оно действительно сделано
+        const book = await getBook(r.targetId, { includeHidden: true, includeDeleted: true });
+        const ok = !book || book.deleted || (d === "book_hidden" && isHiddenNow(book));
+        if (!ok) return bad(d === "book_hidden" ? "Сначала скройте книгу" : "Сначала удалите книгу");
+      }
+      if (d === "review_deleted") {
+        const reviews = await readJson<Review[]>(REVIEWS, []);
+        if (reviews.some((rev) => rev.id === r.targetId)) {
+          await writeJson(REVIEWS, reviews.filter((rev) => rev.id !== r.targetId));
+        }
+      }
+
+      applyDecision(r, d, by, note);
+
+      // действие над объектом закрывает и остальные жалобы на него — каждая со своей записью в истории
+      if (d === "book_hidden" || d === "book_deleted" || d === "review_deleted") {
+        for (const o of reports) {
+          if (o.id === r.id || o.targetType !== r.targetType || o.targetId !== r.targetId) continue;
+          if (isHistoryStatus(o.status)) continue;
+          applyDecision(o, d, by, note, r.id);
+        }
+      }
     }
-    if (status) r.status = status;
-
-    r.updatedAt = new Date().toISOString();
-    r.handledBy = actor.name;
 
     await writeJson(FILE, reports);
     return NextResponse.json({ ok: true, report: r });

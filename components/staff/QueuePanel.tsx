@@ -5,6 +5,7 @@ import Link from "next/link";
 import { categoryLabels, type Category } from "@/data/books";
 import { genresOf } from "@/lib/genres";
 import { useToast } from "./useToast";
+import { useTaxonomy } from "@/components/TaxonomyProvider";
 
 type QueueBook = {
   id: number | string;
@@ -42,6 +43,7 @@ function formatDate(iso?: string) {
 
 
 export default function QueuePanel() {
+  useTaxonomy(); // подписка: подписи категорий обновляются, когда администратор их меняет
   const [items, setItems] = useState<QueueBook[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [rejecting, setRejecting] = useState<string | null>(null);

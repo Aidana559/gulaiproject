@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { genres as staticGenres } from "@/data/books";
+import { useMemo, useState } from "react";
+import { useTaxonomy } from "./TaxonomyProvider";
 import { inputClass } from "./FormField";
 
 const OTHER = "__other__";
@@ -24,27 +24,14 @@ export default function GenreSelect({
   id?: string;
   className?: string;
 }) {
-  const [extra, setExtra] = useState<string[]>([]);
+  const { genres: taxGenres } = useTaxonomy();
   const [custom, setCustom] = useState(false);
 
-  useEffect(() => {
-    fetch("/api/genres")
-      .then((r) => r.json())
-      .then((g: unknown) => {
-        const list = Array.isArray(g) ? g : [];
-        setExtra(
-          list
-            .filter((x): x is { name: string; type: string } => !!x && typeof x.name === "string")
-            .filter((x) => x.type === "genre")
-            .map((x) => x.name),
-        );
-      })
-      .catch(() => {});
-  }, []);
 
+  // список жанров задаёт администратор (раздел «Жанры» в админ-панели)
   const options = useMemo(
-    () => Array.from(new Set([...staticGenres, ...extra])).sort((a, b) => a.localeCompare(b, "ru")),
-    [extra],
+    () => Array.from(new Set(taxGenres.map((g) => g.name))).sort((a, b) => a.localeCompare(b, "ru")),
+    [taxGenres],
   );
 
   // текущее значение вне списка (например, у старой книги) — показываем как «другое»

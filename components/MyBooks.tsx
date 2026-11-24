@@ -5,10 +5,12 @@ import Link from "next/link";
 import { books, categoryLabels, statusLabels, type Status } from "@/data/books";
 import StatusBadge from "./StatusBadge";
 import { Button, LinkButton } from "./Button";
+import { useTaxonomy } from "@/components/TaxonomyProvider";
 
 const initial = books.slice(0, 5).map((b) => ({ ...b }));
 
 export default function MyBooks() {
+  useTaxonomy(); // подписка: подписи категорий обновляются, когда администратор их меняет
   const [items, setItems] = useState(initial);
 
   const setStatus = (id: number, status: Status) =>

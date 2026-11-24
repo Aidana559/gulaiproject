@@ -6,6 +6,7 @@ import { readJson, readJsonShared, writeJson, uid, withLock } from "./db";
 import { MAX_GENRES, bookState } from "./moderation-shared";
 import { genresOf } from "./genres";
 import { getBookStates } from "./bookings";
+import { getTaxonomy } from "./taxonomy-store";
 
 export type Condition = "new" | "used" | "annotated";
 
@@ -110,10 +111,12 @@ export async function getAllBooks(
   opts: { includeHidden?: boolean; includeDeleted?: boolean } = {},
 ): Promise<ServerBook[]> {
   // оба файла читаются параллельно и из кэша; ниже данные только фильтруются (копии объектов создаются через spread)
+  // getTaxonomy заодно обновляет реестр категорий и жанров (из data/taxonomy.json), по которому приводятся данные книг
   const [user, catalog] = await Promise.all([
     readJsonShared<ServerBook[]>(USER_FILE, []),
     readCatalog(),
-  ]);
+    getTaxonomy(),
+  ]).then(([u, c]) => [u, c] as const);
   const staticMapped: ServerBook[] = catalog.map((b) => ({
     ...b,
     ownerId: undefined,

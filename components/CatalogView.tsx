@@ -3,23 +3,10 @@
 import { useCallback, useEffect, useState } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { FiArrowLeft, FiArrowRight, FiSearch, FiX } from "react-icons/fi";
-import {
-  categoryLabels,
-  statusLabels,
-  type Book,
-  type Category,
-  type Status,
-} from "@/data/books";
+import { statusLabels, type Book, type Category, type Status } from "@/data/books";
+import { useTaxonomy } from "./TaxonomyProvider";
 import CatalogBookCard from "./CatalogBookCard";
 import { Button } from "./Button";
-
-const tabs: { key: Category | "all"; label: string }[] = [
-  { key: "all", label: "Все" },
-  { key: "book", label: categoryLabels.book },
-  { key: "textbook", label: categoryLabels.textbook },
-  { key: "guide", label: categoryLabels.guide },
-  { key: "manga", label: categoryLabels.manga },
-];
 
 /** Вариант фильтра: текст с подчёркиванием у выбранного (как в каталогах с рядами фильтров) */
 const optClass = (active: boolean) =>
@@ -75,6 +62,12 @@ function plural(n: number, one: string, few: string, many: string) {
 export default function CatalogView() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  // категории и жанры задаёт администратор (раздел «Категории» / «Жанры» в админ-панели)
+  const { categories: taxCategories } = useTaxonomy();
+  const tabs: { key: Category | "all"; label: string }[] = [
+    { key: "all", label: "Все" },
+    ...taxCategories.map((c) => ({ key: c.key, label: c.label })),
+  ];
 
   const query = searchParams.get("q") ?? "";
   const category = (searchParams.get("category") as Category | "all") || "all";

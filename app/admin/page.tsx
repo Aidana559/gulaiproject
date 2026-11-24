@@ -3,6 +3,7 @@ export const instant = false;
 import Link from "next/link";
 import PageTitle from "@/components/staff/PageTitle";
 import { categoryLabels, type Category } from "@/data/books";
+import { getTaxonomy } from "@/lib/taxonomy-store";
 import { getAllBooks, isHiddenNow } from "@/lib/books-store";
 import { readJson } from "@/lib/db";
 import { TARGET_LABEL } from "@/lib/reports";
@@ -66,6 +67,7 @@ export default async function AdminOverviewPage() {
   }));
   const maxDay = Math.max(1, ...perDay.flatMap((d) => [d.users, d.books]));
 
+  await getTaxonomy(); // актуальные подписи категорий
   const cats = (Object.keys(categoryLabels) as Category[]).map((c) => ({
     label: categoryLabels[c],
     count: books.filter((b) => b.category === c).length,

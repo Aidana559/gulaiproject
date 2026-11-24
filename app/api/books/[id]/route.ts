@@ -1,4 +1,7 @@
 import { NextResponse } from "next/server";
+import { isCategory } from "@/lib/categories";
+import { getTaxonomy } from "@/lib/taxonomy-store";
+import { closeReportsForTarget } from "@/lib/reports-server";
 import {
   getBook,
   incrementViews,
@@ -29,7 +32,7 @@ import {
 import { getBookStates } from "@/lib/bookings";
 import { canManageOwnListings, checkListingAccess } from "@/lib/listing-access";
 import { REASON_MAX, REASON_MIN } from "@/lib/moderation-shared";
-import type { Report, Review, User } from "@/lib/types";
+import type { Review, User } from "@/lib/types";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -202,6 +205,10 @@ export async function PATCH(req: Request, { params }: Ctx) {
     ) {
       return bad("Неверное состояние");
     }
+    if (patch.category != null) {
+      await getTaxonomy(); // актуальный список категорий
+      if (!isCategory(patch.category)) return bad("Неверная категория");
+    }
     if (patch.title !== undefined && !patch.title) {
       return bad("Название не может быть пустым");
     }
@@ -284,7 +291,7 @@ export async function DELETE(req: Request, { params }: Ctx) {
 
   await deleteBook(book, toActor(actor), { reason });
 
-  // Автор удаляет своё объявление — как раньше, вместе с отзывами и жалобами.
+  // Автор удаляет своё объявление — вместе с отзывами; жалобы сохраняются в истории.
   // Администрация удаляет «мягко»: отзывы и жалобы остаются, чтобы книгу можно было восстановить.
   if (mine) {
     const reviews = await readJson<Review[]>("reviews.json", []);
@@ -292,11 +299,12 @@ export async function DELETE(req: Request, { params }: Ctx) {
       "reviews.json",
       reviews.filter((r) => !(r.targetType === "book" && r.targetId === id)),
     );
-    const reports = await readJson<Report[]>("reports.json", []);
-    await writeJson(
-      "reports.json",
-      reports.filter((r) => r.bookId !== id),
-    );
+    // Жалобы не удаляем: они уходят в «Историю» (решение: книга удалена, закрыл автор объявления).
+    await closeReportsForTarget("book", String(book.id), "book_deleted", {
+      id: String(actor.id),
+      name: actor.name,
+      role: "user",
+    }, "Автор сам удалил объявление");
   }
 
   return NextResponse.json({ ok: true });

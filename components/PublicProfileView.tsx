@@ -15,6 +15,7 @@ import { useChatSession } from "@/lib/chatStore";
 import { localAvatarOf } from "@/lib/localAvatar";
 import { canViewPublicProfiles } from "@/lib/profile-access";
 import type { PublicProfile } from "@/lib/public-profile";
+import { useTaxonomy } from "@/components/TaxonomyProvider";
 
 type Load =
   | { kind: "loading" }
@@ -38,6 +39,7 @@ function Notice({ title, text, children }: { title?: string; text: string; child
 }
 
 export default function PublicProfileView({ userId }: { userId: string }) {
+  useTaxonomy(); // подписка: подписи категорий обновляются, когда администратор их меняет
   const { user, loading } = useAuth();
   const chat = useChatSession();
   const [state, setState] = useState<Load>({ kind: "loading" });

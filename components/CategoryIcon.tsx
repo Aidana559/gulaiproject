@@ -1,13 +1,14 @@
-import { FiBook, FiFileText, FiLayers } from "react-icons/fi";
+import { FiBook, FiFileText, FiLayers, FiTag } from "react-icons/fi";
 import { LuGraduationCap } from "react-icons/lu";
 import type { Category } from "@/data/books";
 
-const icons = {
+// Значки встроенных категорий; у добавленных администратором — универсальный значок
+const icons: Record<string, React.ComponentType<{ className?: string; "aria-hidden"?: boolean }>> = {
   book: FiBook,
   textbook: LuGraduationCap,
   guide: FiFileText,
   manga: FiLayers,
-} as const;
+};
 
 export default function CategoryIcon({
   category,
@@ -16,6 +17,6 @@ export default function CategoryIcon({
   category: Category;
   className?: string;
 }) {
-  const Icon = icons[category];
+  const Icon = icons[category] ?? FiTag;
   return <Icon className={className} aria-hidden />;
 }

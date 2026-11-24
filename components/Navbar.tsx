@@ -5,6 +5,8 @@ import { usePathname } from "next/navigation";
 import { FiBookOpen } from "react-icons/fi";
 import { Suspense, useMemo, useState } from "react";
 import { LinkButton } from "./Button";
+import CatalogMenu from "./CatalogMenu";
+import { useTaxonomy } from "./TaxonomyProvider";
 import AuthMenu from "@/components/AuthMenu";
 import Avatar from "@/components/Avatar";
 import { useAuth } from "@/components/AuthProvider";
@@ -40,7 +42,7 @@ function linksFor(loggedIn?: boolean, role?: string | null): NavLink[] {
   return userLinks;
 }
 
-function LinkList({ links, pathname }: { links: NavLink[]; pathname: string }) {
+function LinkList({ links, pathname, withMenu = true }: { links: NavLink[]; pathname: string; withMenu?: boolean }) {
   const isActive = (href: string) => (href === "/" ? pathname === "/" : pathname.startsWith(href));
   return (
     <ul className="hidden items-center gap-1 rounded-full bg-white/70 p-1 ring-1 ring-stone-200 md:flex">
@@ -59,6 +61,11 @@ function LinkList({ links, pathname }: { links: NavLink[]; pathname: string }) {
           </Link>
         </li>
       ))}
+      {withMenu && (
+        <li>
+          <CatalogMenu />
+        </li>
+      )}
     </ul>
   );
 }
@@ -71,6 +78,7 @@ function ActiveLinkList({ links }: { links: NavLink[] }) {
 export default function Navbar() {
   const [open, setOpen] = useState(false);
   const { user, loading } = useAuth();
+  const { categories } = useTaxonomy();
 
   const links = useMemo(() => linksFor(!!user, user?.role), [user]);
   const staffLink = staffLinkFor(user?.role);
@@ -141,6 +149,21 @@ export default function Navbar() {
                   </Link>
               </li>
             ))}
+            <li className="px-4 pb-1 pt-2">
+              <p className="text-xs font-semibold uppercase tracking-wide text-stone-400">Категории</p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {categories.map((c) => (
+                  <Link
+                    key={c.key}
+                    href={`/catalog?category=${encodeURIComponent(c.key)}`}
+                    onClick={() => setOpen(false)}
+                    className="rounded-full bg-stone-100 px-3 py-1.5 text-sm font-medium text-stone-700 hover:bg-indigo-100"
+                  >
+                    {c.label}
+                  </Link>
+                ))}
+              </div>
+            </li>
             {staffLink && (
               <li>
                 <Link

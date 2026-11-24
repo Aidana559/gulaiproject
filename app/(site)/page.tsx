@@ -4,12 +4,12 @@ import { FiArrowRight, FiBookOpen } from "react-icons/fi";
 import CategoryIcon from "@/components/CategoryIcon";
 import UserOnly from "@/components/UserOnly";
 import { categoryLabels, type Category } from "@/data/books";
+import { getTaxonomy } from "@/lib/taxonomy-store";
 import { getAllBooks } from "@/lib/books-store";
 import { getBookStates } from "@/lib/bookings";
 import BookCard from "@/components/BookCard";
 import { LinkButton } from "@/components/Button";
 
-const cats = Object.keys(categoryLabels) as Category[];
 
 // Оттенки карточек категорий (оливковый и тёплый коричневый)
 const tones = [
@@ -36,6 +36,8 @@ export default function Home() {
 
 async function HomeContent() {
   const [books, states] = await Promise.all([getAllBooks(), getBookStates()]);
+  // категории задаёт администратор (список берётся при каждом показе страницы)
+  const cats = (await getTaxonomy()).categories.map((c) => c.key) as Category[];
   
   const popular = books.filter((b) => !states[String(b.id)]).slice(0, 8);
 

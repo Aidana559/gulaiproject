@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import { FiBookOpen, FiChevronRight } from "react-icons/fi";
 import { statusLabels, statusStyles, type Book } from "@/data/books";
 import CategoryIcon from "./CategoryIcon";
+import { useTaxonomy } from "@/components/TaxonomyProvider";
 
 type Item = Pick<
   Book,
@@ -26,6 +27,7 @@ export default function AuthorBooks({
   author: string;
   currentId: string | number;
 }) {
+  useTaxonomy(); // подписка: подписи категорий обновляются, когда администратор их меняет
   const [items, setItems] = useState<Item[] | null>(null);
   const [failed, setFailed] = useState(false);
 

@@ -11,6 +11,7 @@ import { FiCheckCircle } from "react-icons/fi";
 import type { Category } from "@/data/books";
 import { canManageOwnListings, staffHomeFor } from "@/lib/listing-access";
 import { categoryFromGoogle, genresFromGoogle, genresFromText } from "@/lib/google-genres";
+import { useTaxonomy } from "@/components/TaxonomyProvider";
 
 export default function AddPage() {
   const router = useRouter();
@@ -26,6 +27,7 @@ export default function AddPage() {
   const [pages, setPages] = useState("");
   const [description, setDescription] = useState("");
   const [coverUrl, setCoverUrl] = useState("");
+  const { categories } = useTaxonomy();
   const [category, setCategory] = useState<Category>("book");
 
   function fillFromGoogle(b: GoogleBookHit) {
@@ -162,13 +164,14 @@ export default function AddPage() {
             id="category"
             name="category"
             className={inputClass}
-            value={category}
+            value={categories.some((c) => c.key === category) ? category : (categories[0]?.key ?? "")}
             onChange={(e) => setCategory(e.target.value as Category)}
           >
-            <option value="book">Книга</option>
-            <option value="textbook">Учебник</option>
-            <option value="guide">Методичка</option>
-            <option value="manga">Манга</option>
+            {categories.map((c) => (
+              <option key={c.key} value={c.key}>
+                {c.singular}
+              </option>
+            ))}
           </select>
         </div>
 

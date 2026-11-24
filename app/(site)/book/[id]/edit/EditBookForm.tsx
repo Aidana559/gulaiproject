@@ -4,7 +4,7 @@ import GenreMultiSelect from "@/components/GenreMultiSelect";
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
-import { categoryLabels } from "@/data/books";
+import { useTaxonomy } from "@/components/TaxonomyProvider";
 
 type Form = {
   title?: string;
@@ -22,6 +22,8 @@ type Form = {
 };
 
 export default function EditBookForm() {
+  const { categories } = useTaxonomy();
+  // подписка: подписи категорий обновляются, когда администратор их меняет
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
@@ -162,9 +164,9 @@ export default function EditBookForm() {
             value={form.category ?? ""}
             onChange={(e) => set("category", e.target.value)}
           >
-            {Object.entries(categoryLabels as Record<string, string>).map(([k, v]) => (
-              <option key={k} value={k}>
-                {v}
+            {categories.map((c) => (
+              <option key={c.key} value={c.key}>
+                {c.singular}
               </option>
             ))}
           </select>

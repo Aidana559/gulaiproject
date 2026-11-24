@@ -1,32 +1,63 @@
 // Единый источник правды по категориям (тип издания) и жанрам. Без серверных импортов — работает и на клиенте.
 //
-// Категория — тип издания (фиксированный список из 4 значений, хранится в книге как book | textbook | guide | manga).
+// Категория — тип издания (по умолчанию 4: book | textbook | guide | manga; администратор может добавлять, переименовывать и удалять).
 // Жанр — свободная метка книги; у книги их может быть несколько.
 //
 // Приведение к единому формату НЕ переписывает данные: старые записи нормализуются при чтении (genresOf,
 // normalizeCategory), поэтому у уже опубликованных объявлений категории и жанры сохраняются и нигде не теряются.
 
-export type Category = "book" | "textbook" | "guide" | "manga";
+/** Ключ категории. Встроенные: book | textbook | guide | manga; остальные добавляет администратор. */
+export type Category = string;
 
-export const CATEGORIES: Category[] = ["book", "textbook", "guide", "manga"];
+export type CategoryDef = {
+  key: string;
+  /** во множественном числе: для фильтров каталога и сводок */
+  label: string;
+  /** в единственном числе: для форм и карточек */
+  singular: string;
+};
+
+/** Категории по умолчанию (используются, пока администратор ничего не менял). */
+export const DEFAULT_CATEGORIES: CategoryDef[] = [
+  { key: "book", label: "Книги", singular: "Книга" },
+  { key: "textbook", label: "Учебники", singular: "Учебник" },
+  { key: "guide", label: "Методички", singular: "Методичка" },
+  { key: "manga", label: "Манга", singular: "Манга" },
+];
+
+// Реестр категорий. Заполняется из data/taxonomy.json (сервер: lib/taxonomy-store.ts, клиент: TaxonomyProvider).
+let registry: CategoryDef[] = DEFAULT_CATEGORIES;
+export const setCategoryRegistry = (list: CategoryDef[]) => {
+  if (Array.isArray(list) && list.length) registry = list;
+};
+export const getCategories = (): CategoryDef[] => registry;
+export const getCategoryKeys = (): string[] => registry.map((c) => c.key);
+
+/** Подпись для неизвестного ключа (категория удалена или ещё не загрузилась): показываем ключ как есть. */
+const labelFor = (key: string, plural: boolean) => {
+  const c = registry.find((x) => x.key === key);
+  return c ? (plural ? c.label : c.singular) : DEFAULT_CATEGORIES.find((x) => x.key === key)?.[plural ? "label" : "singular"];
+};
+
+function labelsProxy(plural: boolean): Record<string, string> {
+  return new Proxy({} as Record<string, string>, {
+    get: (_t, prop) => (typeof prop === "string" ? labelFor(prop, plural) : undefined),
+    has: (_t, prop) => typeof prop === "string" && registry.some((c) => c.key === prop),
+    ownKeys: () => registry.map((c) => c.key),
+    getOwnPropertyDescriptor: (_t, prop) =>
+      typeof prop === "string" && registry.some((c) => c.key === prop)
+        ? { enumerable: true, configurable: true, value: labelFor(prop, plural) }
+        : undefined,
+  });
+}
 
 /** Название во множественном числе — для фильтров каталога и сводок. */
-export const categoryLabels: Record<Category, string> = {
-  book: "Книги",
-  textbook: "Учебники",
-  guide: "Методички",
-  manga: "Манга",
-};
+export const categoryLabels: Record<string, string> = labelsProxy(true);
 
 /** Название в единственном числе — для форм добавления и редактирования, карточек. */
-export const categoryLabelsSingular: Record<Category, string> = {
-  book: "Книга",
-  textbook: "Учебник",
-  guide: "Методичка",
-  manga: "Манга",
-};
+export const categoryLabelsSingular: Record<string, string> = labelsProxy(false);
 
-const CATEGORY_ALIASES: Record<string, Category> = {
+const CATEGORY_ALIASES: Record<string, string> = {
   book: "book",
   books: "book",
   книга: "book",
@@ -44,17 +75,21 @@ const CATEGORY_ALIASES: Record<string, Category> = {
   манга: "manga",
 };
 
-export const isCategory = (v: unknown): v is Category => typeof v === "string" && (CATEGORIES as string[]).includes(v);
+export const isCategory = (v: unknown): v is Category => typeof v === "string" && registry.some((c) => c.key === v);
 
-/** Приводит значение категории (в т.ч. старое или написанное по-русски) к одному из 4 ключей; иначе null. */
+/** Приводит значение категории (в т.ч. старое или написанное по-русски) к ключу существующей категории; иначе null. */
 export function parseCategory(v: unknown): Category | null {
   if (isCategory(v)) return v;
   const k = String(v ?? "").trim().toLowerCase();
-  return CATEGORY_ALIASES[k] ?? null;
+  if (!k) return null;
+  const byLabel = registry.find((c) => c.label.toLowerCase() === k || c.singular.toLowerCase() === k);
+  if (byLabel) return byLabel.key;
+  const alias = CATEGORY_ALIASES[k];
+  return alias && isCategory(alias) ? alias : null;
 }
 
-/** Как parseCategory, но для отображения: неизвестное значение показываем как «Книга», данные при этом не меняются. */
-export const normalizeCategory = (v: unknown): Category => parseCategory(v) ?? "book";
+/** Как parseCategory, но для отображения: неизвестное значение показываем как первую категорию, данные при этом не меняются. */
+export const normalizeCategory = (v: unknown): Category => parseCategory(v) ?? registry[0]?.key ?? "book";
 
 // ---------------- жанры ----------------
 
@@ -131,9 +166,24 @@ const ALIAS_SOURCE: Record<string, string[]> = {
   Языки: ["иностранные языки", "языкознание", "лингвистика", "английский язык", "languages"],
 };
 
-const GENRE_ALIASES = new Map<string, string>();
-for (const g of CANONICAL_GENRES) GENRE_ALIASES.set(genreKey(g), g);
-for (const [canon, list] of Object.entries(ALIAS_SOURCE)) for (const a of list) GENRE_ALIASES.set(genreKey(a), canon);
+let GENRE_ALIASES = new Map<string, string>();
+
+/**
+ * Пересобирает таблицу жанров. Список жанров задаёт администратор: известны только жанры из списка,
+ * синонимы работают лишь для жанров, которые в нём есть (удалённый или переименованный жанр больше не «воскресает»).
+ */
+export function setGenreRegistry(names: string[]) {
+  const canon = Array.isArray(names) ? names : CANONICAL_GENRES;
+  const m = new Map<string, string>();
+  for (const g of canon) m.set(genreKey(g), g);
+  const have = new Set(canon);
+  for (const [c, list] of Object.entries(ALIAS_SOURCE)) {
+    if (!have.has(c)) continue;
+    for (const a of list) if (!m.has(genreKey(a))) m.set(genreKey(a), c);
+  }
+  GENRE_ALIASES = m;
+}
+setGenreRegistry(CANONICAL_GENRES);
 
 /**
  * Единый формат названия жанра:

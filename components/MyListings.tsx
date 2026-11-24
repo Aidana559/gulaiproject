@@ -15,6 +15,7 @@ import {
   type ListingFilter,
 } from "@/lib/listing-access";
 import { STATE_STYLE, bookState, fmtDate } from "@/lib/moderation-shared";
+import { useTaxonomy } from "@/components/TaxonomyProvider";
 
 type Listing = Book & {
   ownerId?: string;
@@ -43,6 +44,7 @@ async function request(url: string, init: RequestInit): Promise<string | null> {
 }
 
 export default function MyListings() {
+  useTaxonomy(); // подписка: подписи категорий обновляются, когда администратор их меняет
   const { user } = useAuth();
   const [items, setItems] = useState<Listing[]>([]);
   const [loading, setLoading] = useState(true);

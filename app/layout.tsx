@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { AuthProvider } from "@/components/AuthProvider";
+import { TaxonomyProvider } from "@/components/TaxonomyProvider";
 
 export const metadata: Metadata = {
   title: "Kitapta — студенческий буккроссинг",
@@ -18,7 +19,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="ru">
       <body className="min-h-screen font-sans">
-        <AuthProvider>{children}</AuthProvider>
+        <AuthProvider>
+          <TaxonomyProvider>{children}</TaxonomyProvider>
+        </AuthProvider>
       </body>
     </html>
   );
