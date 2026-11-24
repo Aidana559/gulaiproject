@@ -17,7 +17,7 @@ import {
 } from "@/lib/moderation-shared";
 import ModerationDialog, { type ModerationMode, type ModerationPayload } from "./ModerationDialog";
 import { useToast } from "./useToast";
-import { FiEdit2, FiTrash2 } from "react-icons/fi";
+import { FiEdit2, FiTrash2, FiInfo, FiEye, FiEyeOff, FiRotateCcw, FiMoreHorizontal, FiSearch, FiX } from "react-icons/fi";
 import { ICON_SIZE_SM } from "@/components/CategoryIcon";
 
 type BookRow = {
@@ -104,6 +104,7 @@ function RowMenu({ label, children }: { label: string; children: (close: () => v
         ref={btn}
         type="button"
         aria-label={label}
+        title={label}
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={() => {
@@ -115,7 +116,7 @@ function RowMenu({ label, children }: { label: string; children: (close: () => v
         }}
         className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-lg font-bold leading-none text-stone-700 ring-1 ring-inset ring-stone-300 transition hover:bg-indigo-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
       >
-        <span aria-hidden="true">⋯</span>
+        <FiMoreHorizontal className="h-5 w-5" aria-hidden />
       </button>
       {open && (
         <div
@@ -131,7 +132,7 @@ function RowMenu({ label, children }: { label: string; children: (close: () => v
   );
 }
 
-const menuItem = "inline-flex items-center gap-1.5 block w-full rounded-lg px-3 py-2 text-left text-sm text-stone-800 hover:bg-stone-100 focus-visible:bg-stone-100 focus-visible:outline-none";
+const menuItem = "flex items-center gap-2 w-full rounded-lg px-3 py-2 text-left text-sm text-stone-800 hover:bg-stone-100 focus-visible:bg-stone-100 focus-visible:outline-none";
 
 /** Все объявления: скрыть (с причиной и сроком), опубликовать, изменить, удалить и восстановить. */
 export default function BooksPanel() {
@@ -265,6 +266,7 @@ export default function BooksPanel() {
           <label htmlFor="books-search" className="sr-only">
             Поиск объявлений
           </label>
+          <FiSearch aria-hidden className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-500" />
           <input
             id="books-search"
             type="search"
@@ -272,7 +274,7 @@ export default function BooksPanel() {
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Поиск: название, автор или владелец"
             autoComplete="off"
-            className="w-full rounded-full bg-white px-4 py-2.5 text-sm text-stone-900 ring-1 ring-inset ring-stone-300 placeholder:text-stone-400 focus:outline focus:outline-2 focus:outline-indigo-600"
+            className="w-full rounded-full bg-white pl-10 pr-4 py-2.5 text-sm text-stone-900 ring-1 ring-inset ring-stone-300 placeholder:text-stone-400 focus:outline focus:outline-2 focus:outline-indigo-600"
           />
         </div>
         <div>
@@ -298,7 +300,7 @@ export default function BooksPanel() {
           disabled={isDefault}
           className="rounded-full bg-white px-4 py-2.5 text-sm font-medium text-stone-700 ring-1 ring-inset ring-stone-300 hover:bg-indigo-50 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          Сбросить фильтры
+          <FiX className="mr-1 inline h-4 w-4" aria-hidden /> Сбросить фильтры
         </button>
       </div>
 
@@ -400,7 +402,7 @@ export default function BooksPanel() {
                   {(close) => (
                     <>
                       <Link href={`/book/${b.id}/info`} role="menuitem" className={menuItem} onClick={close}>
-                        Информация
+                        <FiInfo className={ICON_SIZE_SM} aria-hidden /> Информация
                       </Link>
                       {state !== "deleted" && (
                         <Link href={`/book/${b.id}/edit`} role="menuitem" className={menuItem} onClick={close} title="Редактировать" aria-label={`Редактировать «${b.title}»`}>
@@ -418,7 +420,7 @@ export default function BooksPanel() {
                             setDlg({ mode: "unhide", book: b });
                           }}
                         >
-                          Вернуть в каталог
+                          <FiEye className={ICON_SIZE_SM} aria-hidden /> Вернуть в каталог
                         </button>
                       ) : (
                         state !== "deleted" && (
@@ -431,7 +433,7 @@ export default function BooksPanel() {
                               setDlg({ mode: "hide", book: b });
                             }}
                           >
-                            Скрыть
+                            <FiEyeOff className={ICON_SIZE_SM} aria-hidden /> Скрыть
                           </button>
                         )
                       )}
@@ -446,7 +448,7 @@ export default function BooksPanel() {
                             setDlg({ mode: "restore", book: b });
                           }}
                         >
-                          Восстановить
+                          <FiRotateCcw className={ICON_SIZE_SM} aria-hidden /> Восстановить
                         </button>
                       ) : (
                         <button

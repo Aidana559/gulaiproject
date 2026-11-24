@@ -127,6 +127,23 @@ function Toolbar({
   );
 }
 
+function IconPicker({ value, onChange }: { value: string; onChange: (key: string) => void }) {
+  return (
+    <fieldset className="mt-3 min-w-0">
+      <legend className="mb-2 text-xs font-medium text-stone-600">Иконка категории</legend>
+      <div className="flex flex-wrap gap-2">
+        {CATEGORY_ICON_CATALOG.map(({ key, label, Icon }) => (
+          <button key={key} type="button" aria-pressed={value === key} aria-label={label} title={label}
+            onClick={() => onChange(key)}
+            className={`inline-flex h-10 w-10 items-center justify-center rounded-lg border transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 ${value === key ? "border-indigo-500 bg-indigo-50 text-indigo-700 ring-1 ring-indigo-500" : "border-stone-200 bg-white text-stone-600 hover:border-stone-400"}`}>
+            <Icon className={ICON_SIZE_SM} aria-hidden />
+          </button>
+        ))}
+      </div>
+    </fieldset>
+  );
+}
+
 // ======================= КАТЕГОРИИ =======================
 
 export function CategoriesPanel() {
@@ -236,6 +253,7 @@ export function CategoriesPanel() {
             <FiPlus className={ICON_SIZE_SM} aria-hidden /> Добавить
           </Button>
         </div>
+        <IconPicker value={icon} onChange={setIcon} />
         <p className="mt-2 text-xs text-stone-400">
           Категория сразу появится в меню сайта, фильтре каталога и форме добавления книги.
         </p>
@@ -269,29 +287,7 @@ export function CategoriesPanel() {
                     Отмена
                   </Button>
                 </div>
-                <div className="flex flex-wrap gap-1.5" role="listbox" aria-label="Иконка категории">
-                  {CATEGORY_ICON_CATALOG.map(({ key, label: iconLabel, Icon }) => {
-                    const selected = editIcon === key;
-                    return (
-                      <button
-                        key={key}
-                        type="button"
-                        role="option"
-                        aria-selected={selected}
-                        title={iconLabel}
-                        aria-label={iconLabel}
-                        onClick={() => setEditIcon(key)}
-                        className={`inline-flex h-8 w-8 items-center justify-center rounded-lg border transition ${
-                          selected
-                            ? "border-indigo-500 bg-indigo-50 text-indigo-700 ring-1 ring-indigo-500"
-                            : "border-stone-200 bg-white text-stone-600 hover:border-stone-300"
-                        }`}
-                      >
-                        <Icon className={ICON_SIZE_SM} aria-hidden />
-                      </button>
-                    );
-                  })}
-                </div>
+                <IconPicker value={editIcon} onChange={setEditIcon} />
               </div>
             ) : (
               <div className="flex flex-wrap items-center justify-between gap-2">

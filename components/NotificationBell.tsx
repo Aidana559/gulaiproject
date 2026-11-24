@@ -54,10 +54,11 @@ export default function NotificationBell() {
           if (!open) void load();
         }}
         aria-label={unread ? `Оповещения: ${unread} новых` : "Оповещения"}
+        title="Оповещения"
         aria-expanded={open}
         className="relative rounded-full p-2 text-stone-600 transition hover:bg-stone-100 hover:text-stone-900"
       >
-        <FiBell className="text-xl" />
+        <FiBell className="h-5 w-5" aria-hidden />
         {unread > 0 && (
           <span className="absolute -right-0.5 -top-0.5 flex min-w-[18px] items-center justify-center rounded-full bg-rose-600 px-1 text-[11px] font-bold leading-[18px] text-white">
             {unread > 9 ? "9+" : unread}

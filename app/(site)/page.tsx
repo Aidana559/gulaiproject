@@ -10,6 +10,13 @@ import BookCard from "@/components/BookCard";
 import { LinkButton } from "@/components/Button";
 
 
+const categoryCovers = new Map([
+  ["book", "/category-covers/book.webp"],
+  ["textbook", "/category-covers/textbook.webp"],
+  ["guide", "/category-covers/guide.webp"],
+  ["manga", "/category-covers/manga.webp"],
+]);
+
 const tones = [
   "from-indigo-700 to-indigo-950",
   "from-stone-700 to-stone-900",
@@ -98,10 +105,18 @@ async function HomeContent() {
               href={`/catalog?category=${c.key}`}
               className={`group relative flex aspect-[4/5] flex-col justify-end overflow-hidden rounded-3xl bg-gradient-to-br p-5 text-white transition hover:-translate-y-1 hover:shadow-xl ${tones[i % tones.length]}`}
             >
-              <CategoryIcon category={c.key} icon={c.icon} className="absolute right-4 top-4 text-5xl text-white/25 transition group-hover:text-white/40" />
+              {categoryCovers.has(c.key) && (
+                <>
+                  <div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-cover bg-center transition-transform duration-500 motion-safe:group-hover:scale-105" style={{ backgroundImage: `url(${categoryCovers.get(c.key)})` }} />
+                  <div aria-hidden="true" className="pointer-events-none absolute inset-0" style={{ background: "linear-gradient(180deg, rgba(29,38,22,.30), rgba(23,30,17,.22) 35%, rgba(17,23,13,.94) 100%)" }} />
+                </>
+              )}
+              <CategoryIcon category={c.key} icon={c.icon} className="absolute right-4 top-4 h-7 w-7 text-white/80 drop-shadow transition group-hover:text-white" />
+              <div className="relative">
               <p className="text-sm text-white/70">{String(i + 1).padStart(2, "0")}</p>
               <p className="mt-1 text-lg font-semibold">{c.label}</p>
               <p className="text-sm text-white/70">{books.filter((b) => b.category === c.key).length} шт.</p>
+              </div>
             </Link>
           ))}
         </div>
