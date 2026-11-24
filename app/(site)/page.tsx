@@ -3,7 +3,6 @@ import Link from "next/link";
 import { FiArrowRight, FiBookOpen } from "react-icons/fi";
 import CategoryIcon from "@/components/CategoryIcon";
 import UserOnly from "@/components/UserOnly";
-import { categoryLabels, type Category } from "@/data/books";
 import { getTaxonomy } from "@/lib/taxonomy-store";
 import { getAllBooks } from "@/lib/books-store";
 import { getBookStates } from "@/lib/bookings";
@@ -11,7 +10,6 @@ import BookCard from "@/components/BookCard";
 import { LinkButton } from "@/components/Button";
 
 
-// Оттенки карточек категорий (оливковый и тёплый коричневый)
 const tones = [
   "from-indigo-700 to-indigo-950",
   "from-stone-700 to-stone-900",
@@ -36,8 +34,8 @@ export default function Home() {
 
 async function HomeContent() {
   const [books, states] = await Promise.all([getAllBooks(), getBookStates()]);
-  // категории задаёт администратор (список берётся при каждом показе страницы)
-  const cats = (await getTaxonomy()).categories.map((c) => c.key) as Category[];
+  const taxonomy = await getTaxonomy();
+  const cats = taxonomy.categories;
   
   const popular = books.filter((b) => !states[String(b.id)]).slice(0, 8);
 
@@ -96,14 +94,14 @@ async function HomeContent() {
         <div className="mt-8 grid grid-cols-2 gap-4 lg:grid-cols-4">
           {cats.map((c, i) => (
             <Link
-              key={c}
-              href={`/catalog?category=${c}`}
+              key={c.key}
+              href={`/catalog?category=${c.key}`}
               className={`group relative flex aspect-[4/5] flex-col justify-end overflow-hidden rounded-3xl bg-gradient-to-br p-5 text-white transition hover:-translate-y-1 hover:shadow-xl ${tones[i % tones.length]}`}
             >
-              <CategoryIcon category={c} className="absolute right-4 top-4 text-5xl text-white/25 transition group-hover:text-white/40" />
+              <CategoryIcon category={c.key} icon={c.icon} className="absolute right-4 top-4 text-5xl text-white/25 transition group-hover:text-white/40" />
               <p className="text-sm text-white/70">{String(i + 1).padStart(2, "0")}</p>
-              <p className="mt-1 text-lg font-semibold">{categoryLabels[c]}</p>
-              <p className="text-sm text-white/70">{books.filter((b) => b.category === c).length} шт.</p>
+              <p className="mt-1 text-lg font-semibold">{c.label}</p>
+              <p className="text-sm text-white/70">{books.filter((b) => b.category === c.key).length} шт.</p>
             </Link>
           ))}
         </div>

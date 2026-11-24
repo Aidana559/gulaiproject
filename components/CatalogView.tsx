@@ -3,12 +3,12 @@
 import { useCallback, useEffect, useState } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { FiArrowLeft, FiArrowRight, FiSearch, FiX } from "react-icons/fi";
+import { ICON_SIZE_SM } from "@/components/CategoryIcon";
 import { statusLabels, type Book, type Category, type Status } from "@/data/books";
 import { useTaxonomy } from "./TaxonomyProvider";
 import CatalogBookCard from "./CatalogBookCard";
 import { Button } from "./Button";
 
-/** Вариант фильтра: текст с подчёркиванием у выбранного (как в каталогах с рядами фильтров) */
 const optClass = (active: boolean) =>
   `border-b-2 pb-1 text-[15px] transition ${
     active
@@ -62,7 +62,6 @@ function plural(n: number, one: string, few: string, many: string) {
 export default function CatalogView() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  // категории и жанры задаёт администратор (раздел «Категории» / «Жанры» в админ-панели)
   const { categories: taxCategories } = useTaxonomy();
   const tabs: { key: Category | "all"; label: string }[] = [
     { key: "all", label: "Все" },
@@ -71,7 +70,6 @@ export default function CatalogView() {
 
   const query = searchParams.get("q") ?? "";
   const category = (searchParams.get("category") as Category | "all") || "all";
-  // жанров можно выбрать несколько (?genre=A&genre=B): показываются книги со всеми выбранными жанрами
   const selectedGenres = searchParams.getAll("genre").filter((g) => g && g !== "all");
   const genreKey = selectedGenres.join("\u0001");
   const author = searchParams.get("author") ?? "";
@@ -83,7 +81,7 @@ export default function CatalogView() {
   const [data, setData] = useState<ApiResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState(query);
-  useEffect(() => setQ(query), [query]); // кнопки «Назад/Сбросить» обновляют поле поиска
+  useEffect(() => setQ(query), [query]); 
 
   const setParams = useCallback(
     (patch: Record<string, string | string[] | null>) => {
@@ -93,10 +91,8 @@ export default function CatalogView() {
         if (Array.isArray(v)) v.filter(Boolean).forEach((x) => sp.append(k, x));
         else if (!(v == null || v === "" || v === "all")) sp.set(k, v);
       }
-      if (!("page" in patch)) sp.delete("page"); // сброс страницы при смене фильтра
+      if (!("page" in patch)) sp.delete("page");
       const qs = sp.toString();
-      // Меняем только адресную строку (useSearchParams подхватывает это сам): router.push вызывал лишний
-      // серверный запрос страницы при каждом клике по фильтру, хотя данные приходят из /api/books.
       window.history.pushState(null, "", qs ? `${pathname}?${qs}` : pathname);
     },
     [pathname, searchParams],
@@ -116,7 +112,7 @@ export default function CatalogView() {
     sp.set("page", String(page));
     sp.set("limit", "24");
 
-    // устаревший запрос отменяется (раньше он продолжал выполняться на сервере впустую)
+  
     fetch(`/api/books?${sp}`, { cache: "no-store", signal: ctrl.signal })
       .then((r) => r.json())
       .then((json: ApiResult) => {
@@ -137,8 +133,6 @@ export default function CatalogView() {
   }
 
   const books = data?.books ?? [];
-  // жанры берём из реальных книг выбранной категории; выбранный жанр показываем всегда,
-  // чтобы его можно было снять
   const genres = Array.from(new Set([...(data?.genres ?? []), ...selectedGenres])).sort((a, b) =>
     a.localeCompare(b, "ru"),
   );
@@ -160,7 +154,7 @@ export default function CatalogView() {
         }}
         className="flex max-w-3xl items-center gap-2 rounded-full bg-white p-1.5 pl-5 shadow-sm ring-2 ring-stone-900/80 focus-within:ring-indigo-600"
       >
-        <FiSearch className="shrink-0 text-lg text-stone-400" />
+        <FiSearch className={`${ICON_SIZE_SM} shrink-0 text-stone-400`} aria-hidden />
         <input
           type="search"
           value={q}
@@ -258,12 +252,12 @@ export default function CatalogView() {
           <span className="text-stone-500">Фильтры:</span>
           {author && (
             <button type="button" onClick={() => setParams({ author: null })} className={activeChip}>
-              Автор: {author} <FiX />
+              Автор: {author} <FiX className={ICON_SIZE_SM} aria-hidden />
             </button>
           )}
           {year > 0 && (
             <button type="button" onClick={() => setParams({ year: null })} className={activeChip}>
-              Год: {year} <FiX />
+              Год: {year} <FiX className={ICON_SIZE_SM} aria-hidden />
             </button>
           )}
         </div>
@@ -282,7 +276,7 @@ export default function CatalogView() {
         <p className="mt-10 text-center text-stone-500">Загрузка…</p>
       ) : books.length === 0 ? (
         <div className="mt-10 rounded-2xl bg-white p-12 text-center ring-1 ring-stone-200">
-          <FiSearch className="mx-auto text-4xl text-stone-400" />
+          <FiSearch className="mx-auto h-10 w-10 text-stone-400" aria-hidden />
           <p className="mt-3 font-semibold text-stone-800">Ничего не найдено</p>
           <p className="mt-1 text-sm text-stone-500">Попробуйте изменить запрос или фильтры.</p>
         </div>
@@ -302,7 +296,7 @@ export default function CatalogView() {
             disabled={page <= 1}
             onClick={() => setParams({ page: String(page - 1) })}
           >
-            <FiArrowLeft /> Назад
+            <FiArrowLeft className={ICON_SIZE_SM} aria-hidden /> Назад
           </Button>
           <span className="text-sm text-stone-600">
             {page} / {pages}
@@ -313,7 +307,7 @@ export default function CatalogView() {
             disabled={page >= pages}
             onClick={() => setParams({ page: String(page + 1) })}
           >
-            Вперёд <FiArrowRight />
+            Вперёд <FiArrowRight className={ICON_SIZE_SM} aria-hidden />
           </Button>
         </div>
       )}

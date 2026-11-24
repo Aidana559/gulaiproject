@@ -39,7 +39,16 @@ function sanitize(raw: Partial<Taxonomy> | null | undefined): Taxonomy {
     ? raw!.genres.filter((g) => g && typeof g.id === "string" && typeof g.name === "string")
     : [];
   return {
-    categories: raw?.categories ? cats.map((c) => ({ key: c.key, label: c.label, singular: c.singular || c.label })) : DEFAULT_CATEGORIES,
+    categories: raw?.categories
+      ? cats.map((c) => ({
+          key: c.key,
+          label: c.label,
+          singular: c.singular || c.label,
+          ...(typeof (c as CategoryDef).icon === "string" && (c as CategoryDef).icon
+            ? { icon: String((c as CategoryDef).icon) }
+            : {}),
+        }))
+      : DEFAULT_CATEGORIES,
     genres: raw?.genres ? genres : seedGenres(),
   };
 }
@@ -163,7 +172,7 @@ function fail(m: string): never {
 
 // ---------------- категории ----------------
 
-export function addCategory(labelRaw: unknown, singularRaw?: unknown): Promise<Taxonomy> {
+export function addCategory(labelRaw: unknown, singularRaw?: unknown, iconRaw?: unknown): Promise<Taxonomy> {
   return withLock("taxonomy", async () => {
     const t = await getTaxonomy();
     const label = capitalize(cleanLabel(labelRaw, CATEGORY_LABEL_MAX));
@@ -172,13 +181,15 @@ export function addCategory(labelRaw: unknown, singularRaw?: unknown): Promise<T
     if (t.categories.some((c) => c.label.toLowerCase() === label.toLowerCase() || c.singular.toLowerCase() === singular.toLowerCase()))
       fail("Такая категория уже есть");
     const key = uniqueKey(label, new Set(t.categories.map((c) => c.key)));
-    const next = { ...t, categories: [...t.categories, { key, label, singular }] };
+    const icon = typeof iconRaw === "string" && iconRaw.trim() ? iconRaw.trim() : undefined;
+    const entry: CategoryDef = icon ? { key, label, singular, icon } : { key, label, singular };
+    const next = { ...t, categories: [...t.categories, entry] };
     await save(next);
     return next;
   });
 }
 
-export function updateCategory(key: string, labelRaw: unknown, singularRaw?: unknown): Promise<Taxonomy> {
+export function updateCategory(key: string, labelRaw: unknown, singularRaw?: unknown, iconRaw?: unknown): Promise<Taxonomy> {
   return withLock("taxonomy", async () => {
     const t = await getTaxonomy();
     const cur = t.categories.find((c) => c.key === key);
@@ -192,7 +203,14 @@ export function updateCategory(key: string, labelRaw: unknown, singularRaw?: unk
       )
     )
       fail("Такая категория уже есть");
-    const next = { ...t, categories: t.categories.map((c) => (c.key === key ? { key, label, singular } : c)) };
+    const icon =
+      iconRaw === null
+        ? undefined
+        : typeof iconRaw === "string"
+          ? iconRaw.trim() || undefined
+          : cur.icon;
+    const entry: CategoryDef = icon ? { key, label, singular, icon } : { key, label, singular };
+    const next = { ...t, categories: t.categories.map((c) => (c.key === key ? entry : c)) };
     await save(next);
     return next;
   });

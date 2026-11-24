@@ -16,6 +16,8 @@ import {
 } from "@/lib/listing-access";
 import { STATE_STYLE, bookState, fmtDate } from "@/lib/moderation-shared";
 import { useTaxonomy } from "@/components/TaxonomyProvider";
+import { FiEdit2, FiTrash2 } from "react-icons/fi";
+import { ICON_SIZE_SM } from "@/components/CategoryIcon";
 
 type Listing = Book & {
   ownerId?: string;
@@ -25,7 +27,6 @@ type Listing = Book & {
   hidden?: boolean;
   hiddenUntil?: string | null;
   hiddenReason?: string;
-  /** книгу скрыл сам автор (видимость; не связана с модерацией) */
   ownerHidden?: boolean;
   deleted?: boolean;
   deletedReason?: string;
@@ -44,7 +45,7 @@ async function request(url: string, init: RequestInit): Promise<string | null> {
 }
 
 export default function MyListings() {
-  useTaxonomy(); // подписка: подписи категорий обновляются, когда администратор их меняет
+  useTaxonomy(); 
   const { user } = useAuth();
   const [items, setItems] = useState<Listing[]>([]);
   const [loading, setLoading] = useState(true);
@@ -52,12 +53,11 @@ export default function MyListings() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState("");
 
-  // Раздел существует только у роли user (проверка повторяется на сервере в каждой операции)
   const allowed = !!user && canManageOwnListings(user.role);
 
   const load = useCallback(async () => {
     try {
-      // mine=1 — свои книги в любом состоянии: опубликованные, скрытые, на модерации и удалённые
+
       const res = await fetch("/api/books?mine=1&limit=100&sort=new", { cache: "no-store" });
       const json = await res.json();
       setItems(Array.isArray(json.books) ? json.books : []);
@@ -70,8 +70,6 @@ export default function MyListings() {
 
   useEffect(() => {
     if (!allowed) return;
-    // загрузка своих объявлений при открытии страницы
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     void load();
   }, [allowed, load]);
 
@@ -86,7 +84,7 @@ export default function MyListings() {
     setError("");
     const err = await run();
     if (err) setError(err);
-    await load(); // статус берём с сервера: он сохраняется после перезагрузки
+    await load(); 
     setBusyId(null);
   }
 
@@ -238,7 +236,13 @@ export default function MyListings() {
                     </Link>
                     {state !== "deleted" && (
                       <>
-                        <Link href={`/book/${b.id}/edit`} className="rounded-lg px-3 py-2 text-sm text-stone-800 hover:bg-stone-100">
+                        <Link
+                          href={`/book/${b.id}/edit`}
+                          className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm text-stone-800 hover:bg-stone-100"
+                          title="Редактировать"
+                          aria-label={`Редактировать «${b.title}»`}
+                        >
+                          <FiEdit2 className={ICON_SIZE_SM} aria-hidden />
                           Изменить
                         </Link>
                         {state !== "hidden" && (
@@ -256,8 +260,11 @@ export default function MyListings() {
                           type="button"
                           disabled={busy}
                           onClick={() => remove(b)}
-                          className="rounded-lg px-3 py-2 text-left text-sm text-rose-700 hover:bg-rose-50 disabled:opacity-50"
+                          className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-left text-sm text-rose-700 hover:bg-rose-50 disabled:opacity-50"
+                          title="Удалить объявление"
+                          aria-label={`Удалить «${b.title}»`}
                         >
+                          <FiTrash2 className={ICON_SIZE_SM} aria-hidden />
                           Удалить
                         </button>
                       </>

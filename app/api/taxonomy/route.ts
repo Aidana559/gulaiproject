@@ -12,7 +12,6 @@ import {
 } from "@/lib/taxonomy-store";
 import { bad, forbidden, getActor, unauthorized } from "@/lib/server-auth";
 
-// Категории и жанры: читать может любой (меню, фильтры, формы), менять — только администратор.
 
 export async function GET(req: Request) {
   const taxonomy = await getTaxonomy();
@@ -43,7 +42,7 @@ export async function POST(req: Request) {
   const a = await adminOnly(req);
   if (a.res) return a.res;
   const b = (await req.json().catch(() => ({}))) as Record<string, unknown>;
-  if (b.kind === "category") return run(async () => ({ taxonomy: await addCategory(b.label, b.singular) }));
+  if (b.kind === "category") return run(async () => ({ taxonomy: await addCategory(b.label, b.singular, b.icon) }));
   if (b.kind === "genre") return run(async () => ({ taxonomy: await addGenre(b.name) }));
   return bad("Неизвестный тип");
 }
@@ -52,7 +51,7 @@ export async function PATCH(req: Request) {
   const a = await adminOnly(req);
   if (a.res) return a.res;
   const b = (await req.json().catch(() => ({}))) as Record<string, unknown>;
-  if (b.kind === "category") return run(async () => ({ taxonomy: await updateCategory(String(b.key ?? ""), b.label, b.singular) }));
+  if (b.kind === "category") return run(async () => ({ taxonomy: await updateCategory(String(b.key ?? ""), b.label, b.singular, b.icon) }));
   if (b.kind === "genre") return run(async () => updateGenre(String(b.id ?? ""), b.name));
   return bad("Неизвестный тип");
 }

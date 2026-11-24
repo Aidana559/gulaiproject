@@ -15,14 +15,16 @@ export type CategoryDef = {
   label: string;
   /** в единственном числе: для форм и карточек */
   singular: string;
+  /** ключ иконки из CATEGORY_ICON_CATALOG (необязательно; есть встроенные значения) */
+  icon?: string;
 };
 
 /** Категории по умолчанию (используются, пока администратор ничего не менял). */
 export const DEFAULT_CATEGORIES: CategoryDef[] = [
-  { key: "book", label: "Книги", singular: "Книга" },
-  { key: "textbook", label: "Учебники", singular: "Учебник" },
-  { key: "guide", label: "Методички", singular: "Методичка" },
-  { key: "manga", label: "Манга", singular: "Манга" },
+  { key: "book", label: "Книги", singular: "Книга", icon: "book" },
+  { key: "textbook", label: "Учебники", singular: "Учебник", icon: "graduation" },
+  { key: "guide", label: "Методички", singular: "Методичка", icon: "file-text" },
+  { key: "manga", label: "Манга", singular: "Манга", icon: "layers" },
 ];
 
 // Реестр категорий. Заполняется из data/taxonomy.json (сервер: lib/taxonomy-store.ts, клиент: TaxonomyProvider).

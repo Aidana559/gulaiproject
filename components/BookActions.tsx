@@ -1,8 +1,10 @@
 "use client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { FiEdit2, FiInfo, FiTrash2 } from "react-icons/fi";
 import { useAuth } from "@/components/AuthProvider";
 import { api } from "@/lib/api";
+import { ICON_SIZE_SM } from "@/components/CategoryIcon";
 
 export default function BookActions({
   bookId,
@@ -29,7 +31,6 @@ export default function BookActions({
     if (isOwner) {
       if (!confirm("Удалить объявление? Отзывы и жалобы тоже будут удалены.")) return;
     } else {
-      // администрация удаляет с причиной: автор получит уведомление
       const r = prompt("Причина удаления (её увидит автор книги):");
       if (r == null) return;
       reason = r.trim();
@@ -50,24 +51,37 @@ export default function BookActions({
     }
   }
 
+  const btn =
+    "inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-medium transition";
+
   return (
     <div className="flex flex-wrap gap-2">
       <Link
         href={`/book/${bookId}/info`}
-        className="rounded-xl px-4 py-2 text-sm font-medium text-stone-700 ring-1 ring-stone-300 hover:bg-stone-50"
+        className={`${btn} text-stone-700 ring-1 ring-stone-300 hover:bg-stone-50`}
+        title="Подробная информация"
+        aria-label="Подробная информация о книге"
       >
+        <FiInfo className={ICON_SIZE_SM} aria-hidden />
         Информация
       </Link>
       <Link
         href={`/book/${bookId}/edit`}
-        className="rounded-xl px-4 py-2 text-sm font-medium text-stone-700 ring-1 ring-stone-300 hover:bg-stone-50"
+        className={`${btn} text-stone-700 ring-1 ring-stone-300 hover:bg-stone-50`}
+        title="Редактировать объявление"
+        aria-label="Редактировать объявление"
       >
+        <FiEdit2 className={ICON_SIZE_SM} aria-hidden />
         Изменить
       </Link>
       <button
+        type="button"
         onClick={remove}
-        className="rounded-xl bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
+        className={`${btn} bg-red-600 text-white hover:bg-red-700`}
+        title="Удалить объявление"
+        aria-label="Удалить объявление"
       >
+        <FiTrash2 className={ICON_SIZE_SM} aria-hidden />
         Удалить
       </button>
     </div>

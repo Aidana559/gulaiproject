@@ -1,7 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { FiEdit2, FiPlus, FiSearch, FiTrash2, FiX } from "react-icons/fi";
+import { FiEdit2, FiFilter, FiPlus, FiSearch, FiTrash2, FiX } from "react-icons/fi";
+import CategoryIcon, {
+  CATEGORY_ICON_CATALOG,
+  FALLBACK_CATEGORY_ICON_KEY,
+  ICON_SIZE_SM,
+  resolveCategoryIconKey,
+} from "@/components/CategoryIcon";
 import { Button } from "@/components/Button";
 import { inputClass } from "@/components/FormField";
 import { useTaxonomy } from "@/components/TaxonomyProvider";
@@ -83,7 +89,7 @@ function Toolbar({
   return (
     <div className="mt-6 flex flex-wrap items-center gap-2">
       <label className="relative min-w-[200px] flex-1">
-        <FiSearch className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" />
+        <FiSearch className={`pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-stone-400 ${ICON_SIZE_SM}`} aria-hidden />
         <input
           type="search"
           value={search}
@@ -93,19 +99,25 @@ function Toolbar({
           className="w-full rounded-lg border border-stone-300 bg-white py-1.5 pl-9 pr-3 text-sm"
         />
       </label>
-      <select value={usageFilter} onChange={(e) => setUsageFilter(e.target.value as UsageFilter)} aria-label="Фильтр" className={selectCls}>
-        <option value="all">Все</option>
-        <option value="used">С книгами</option>
-        <option value="unused">Без книг</option>
-      </select>
-      <select value={sort} onChange={(e) => setSort(e.target.value as SortKey)} aria-label="Сортировка" className={selectCls}>
-        <option value="name">По названию</option>
-        <option value="count_desc">Больше книг сверху</option>
-        <option value="count_asc">Меньше книг сверху</option>
-      </select>
+      <label className="inline-flex items-center gap-1.5">
+        <FiFilter className={`${ICON_SIZE_SM} text-stone-400`} aria-hidden />
+        <select value={usageFilter} onChange={(e) => setUsageFilter(e.target.value as UsageFilter)} aria-label="Фильтр" title="Фильтр" className={selectCls}>
+          <option value="all">Все</option>
+          <option value="used">С книгами</option>
+          <option value="unused">Без книг</option>
+        </select>
+      </label>
+      <label className="inline-flex items-center gap-1.5">
+        <span className="text-xs font-medium text-stone-400" aria-hidden>А→Я</span>
+        <select value={sort} onChange={(e) => setSort(e.target.value as SortKey)} aria-label="Сортировка" title="Сортировка" className={selectCls}>
+          <option value="name">По названию</option>
+          <option value="count_desc">Больше книг сверху</option>
+          <option value="count_asc">Меньше книг сверху</option>
+        </select>
+      </label>
       {active && (
-        <Button size="sm" variant="ghost" onClick={() => (setSearch(""), setUsageFilter("all"))}>
-          <FiX /> Сбросить
+        <Button size="sm" variant="ghost" onClick={() => (setSearch(""), setUsageFilter("all"))} title="Сбросить фильтры" aria-label="Сбросить фильтры">
+          <FiX className={ICON_SIZE_SM} aria-hidden /> Сбросить
         </Button>
       )}
       <span className="text-xs text-stone-400">
@@ -124,9 +136,11 @@ export function CategoriesPanel() {
 
   const [label, setLabel] = useState("");
   const [singular, setSingular] = useState("");
+  const [icon, setIcon] = useState(FALLBACK_CATEGORY_ICON_KEY);
   const [editKey, setEditKey] = useState<string | null>(null);
   const [editLabel, setEditLabel] = useState("");
   const [editSingular, setEditSingular] = useState("");
+  const [editIcon, setEditIcon] = useState(FALLBACK_CATEGORY_ICON_KEY);
   const [del, setDel] = useState<CategoryDef | null>(null);
   const [moveTo, setMoveTo] = useState("");
   const [busy, setBusy] = useState(false);
@@ -168,10 +182,11 @@ export function CategoriesPanel() {
   async function add() {
     if (!label.trim()) return;
     setBusy(true);
-    const r = await call("POST", { kind: "category", label, singular });
+    const r = await call("POST", { kind: "category", label, singular, icon });
     if (await after(r.ok, r.json, "Категория добавлена")) {
       setLabel("");
       setSingular("");
+      setIcon(FALLBACK_CATEGORY_ICON_KEY);
     }
     setBusy(false);
   }
@@ -179,7 +194,7 @@ export function CategoriesPanel() {
   async function saveEdit() {
     if (!editKey) return;
     setBusy(true);
-    const r = await call("PATCH", { kind: "category", key: editKey, label: editLabel, singular: editSingular });
+    const r = await call("PATCH", { kind: "category", key: editKey, label: editLabel, singular: editSingular, icon: editIcon });
     if (await after(r.ok, r.json, "Категория изменена")) setEditKey(null);
     setBusy(false);
   }
@@ -218,7 +233,7 @@ export function CategoriesPanel() {
             aria-label="Название в единственном числе"
           />
           <Button size="sm" onClick={add} disabled={busy || !label.trim()}>
-            <FiPlus /> Добавить
+            <FiPlus className={ICON_SIZE_SM} aria-hidden /> Добавить
           </Button>
         </div>
         <p className="mt-2 text-xs text-stone-400">
@@ -243,23 +258,53 @@ export function CategoriesPanel() {
         {visible.map((c) => (
           <li key={c.key} className="rounded-lg bg-stone-50 px-4 py-2.5 text-sm">
             {editKey === c.key ? (
-              <div className="grid gap-2 sm:grid-cols-[1fr_1fr_auto_auto]">
-                <input value={editLabel} onChange={(e) => setEditLabel(e.target.value)} maxLength={40} className={inputClass} aria-label="Название" />
-                <input value={editSingular} onChange={(e) => setEditSingular(e.target.value)} maxLength={40} className={inputClass} aria-label="В единственном числе" />
-                <Button size="sm" onClick={saveEdit} disabled={busy || !editLabel.trim()}>
-                  Сохранить
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => setEditKey(null)}>
-                  Отмена
-                </Button>
+              <div className="space-y-2">
+                <div className="grid gap-2 sm:grid-cols-[1fr_1fr_auto_auto]">
+                  <input value={editLabel} onChange={(e) => setEditLabel(e.target.value)} maxLength={40} className={inputClass} aria-label="Название" />
+                  <input value={editSingular} onChange={(e) => setEditSingular(e.target.value)} maxLength={40} className={inputClass} aria-label="В единственном числе" />
+                  <Button size="sm" onClick={saveEdit} disabled={busy || !editLabel.trim()}>
+                    Сохранить
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => setEditKey(null)}>
+                    Отмена
+                  </Button>
+                </div>
+                <div className="flex flex-wrap gap-1.5" role="listbox" aria-label="Иконка категории">
+                  {CATEGORY_ICON_CATALOG.map(({ key, label: iconLabel, Icon }) => {
+                    const selected = editIcon === key;
+                    return (
+                      <button
+                        key={key}
+                        type="button"
+                        role="option"
+                        aria-selected={selected}
+                        title={iconLabel}
+                        aria-label={iconLabel}
+                        onClick={() => setEditIcon(key)}
+                        className={`inline-flex h-8 w-8 items-center justify-center rounded-lg border transition ${
+                          selected
+                            ? "border-indigo-500 bg-indigo-50 text-indigo-700 ring-1 ring-indigo-500"
+                            : "border-stone-200 bg-white text-stone-600 hover:border-stone-300"
+                        }`}
+                      >
+                        <Icon className={ICON_SIZE_SM} aria-hidden />
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             ) : (
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <div>
-                  <span className="font-medium text-stone-800">{c.label}</span>
-                  <span className="ml-2 text-xs text-stone-400">
-                    ед. число: {c.singular} · ключ: {c.key}
+                <div className="flex min-w-0 items-center gap-2.5">
+                  <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white text-stone-600 ring-1 ring-stone-200">
+                    <CategoryIcon category={c.key} icon={c.icon} className={ICON_SIZE_SM} />
                   </span>
+                  <div className="min-w-0">
+                    <span className="font-medium text-stone-800">{c.label}</span>
+                    <span className="ml-2 text-xs text-stone-400">
+                      ед. число: {c.singular} · ключ: {c.key}
+                    </span>
+                  </div>
                 </div>
                 <div className="flex items-center gap-3">
                   <span className="text-xs text-stone-500">
@@ -268,17 +313,26 @@ export function CategoriesPanel() {
                   <button
                     type="button"
                     className="inline-flex items-center gap-1 text-xs font-medium text-indigo-600 hover:underline"
-                    onClick={() => (setEditKey(c.key), setEditLabel(c.label), setEditSingular(c.singular))}
+                    title="Изменить категорию"
+                    aria-label={`Изменить категорию ${c.label}`}
+                    onClick={() => (
+                      setEditKey(c.key),
+                      setEditLabel(c.label),
+                      setEditSingular(c.singular),
+                      setEditIcon(resolveCategoryIconKey(c.key, c.icon))
+                    )}
                   >
-                    <FiEdit2 /> Изменить
+                    <FiEdit2 className={ICON_SIZE_SM} aria-hidden /> Изменить
                   </button>
                   <button
                     type="button"
                     className="inline-flex items-center gap-1 text-xs font-medium text-rose-600 hover:underline disabled:opacity-40"
                     disabled={categories.length <= 1}
+                    title="Удалить категорию"
+                    aria-label={`Удалить категорию ${c.label}`}
                     onClick={() => (setDel(c), setMoveTo(categories.find((x) => x.key !== c.key)?.key ?? ""))}
                   >
-                    <FiTrash2 /> Удалить
+                    <FiTrash2 className={ICON_SIZE_SM} aria-hidden /> Удалить
                   </button>
                 </div>
               </div>
@@ -410,7 +464,7 @@ export function GenresPanel() {
             aria-label="Название жанра"
           />
           <Button size="sm" onClick={add} disabled={busy || !name.trim()}>
-            <FiPlus /> Добавить
+            <FiPlus className={ICON_SIZE_SM} aria-hidden /> Добавить
           </Button>
         </div>
         <p className="mt-2 text-xs text-stone-400">Жанр сразу появится в формах добавления и правки книги.</p>
@@ -461,10 +515,10 @@ export function GenresPanel() {
                     className="inline-flex items-center gap-1 text-xs font-medium text-indigo-600 hover:underline"
                     onClick={() => (setEditId(g.id), setEditName(g.name))}
                   >
-                    <FiEdit2 /> Изменить
+                    <FiEdit2 className={ICON_SIZE_SM} aria-hidden /> Изменить
                   </button>
                   <button type="button" className="inline-flex items-center gap-1 text-xs font-medium text-rose-600 hover:underline" onClick={() => setDel(g)}>
-                    <FiTrash2 /> Удалить
+                    <FiTrash2 className={ICON_SIZE_SM} aria-hidden /> Удалить
                   </button>
                 </div>
               </div>

@@ -17,6 +17,8 @@ import {
 } from "@/lib/moderation-shared";
 import ModerationDialog, { type ModerationMode, type ModerationPayload } from "./ModerationDialog";
 import { useToast } from "./useToast";
+import { FiEdit2, FiTrash2 } from "react-icons/fi";
+import { ICON_SIZE_SM } from "@/components/CategoryIcon";
 
 type BookRow = {
   id: number | string;
@@ -129,8 +131,7 @@ function RowMenu({ label, children }: { label: string; children: (close: () => v
   );
 }
 
-const menuItem =
-  "block w-full rounded-lg px-3 py-2 text-left text-sm text-stone-800 hover:bg-stone-100 focus-visible:bg-stone-100 focus-visible:outline-none";
+const menuItem = "inline-flex items-center gap-1.5 block w-full rounded-lg px-3 py-2 text-left text-sm text-stone-800 hover:bg-stone-100 focus-visible:bg-stone-100 focus-visible:outline-none";
 
 /** Все объявления: скрыть (с причиной и сроком), опубликовать, изменить, удалить и восстановить. */
 export default function BooksPanel() {
@@ -402,7 +403,8 @@ export default function BooksPanel() {
                         Информация
                       </Link>
                       {state !== "deleted" && (
-                        <Link href={`/book/${b.id}/edit`} role="menuitem" className={menuItem} onClick={close}>
+                        <Link href={`/book/${b.id}/edit`} role="menuitem" className={menuItem} onClick={close} title="Редактировать" aria-label={`Редактировать «${b.title}»`}>
+                          <FiEdit2 className={ICON_SIZE_SM} aria-hidden />
                           Изменить
                         </Link>
                       )}
@@ -455,7 +457,10 @@ export default function BooksPanel() {
                             close();
                             setDlg({ mode: "delete", book: b });
                           }}
+                          title="Удалить объявление"
+                          aria-label={`Удалить «${b.title}»`}
                         >
+                          <FiTrash2 className={ICON_SIZE_SM} aria-hidden />
                           Удалить
                         </button>
                       )}
