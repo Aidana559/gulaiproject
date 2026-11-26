@@ -1,7 +1,8 @@
-import { uid } from "./db";
-import path from "node:path";
-import { readTextRetry, writeFileAtomic } from "./atomic-file";
+import "server-only";
+import { randomUUID } from "node:crypto";
+import { supabase } from "./supabase-server";
 import type { User } from "./auth";
+
 export class UsersStoreError extends Error {
   constructor(message: string, options?: { cause?: unknown }) {
     super(message, options);
@@ -16,96 +17,201 @@ export class EmailTakenError extends Error {
   }
 }
 
-const usersFile = () => process.env.USERS_FILE ?? path.join(process.cwd(), "data", "users.json");
 const norm = (s: string) => s.trim().toLowerCase();
 
+function toUser(row: any): User {
+  return {
+    id: String(row.id),
+    name: row.name,
+    email: row.email,
+    passwordHash: row.password_hash,
+    role: row.role,
+    createdAt: row.created_at,
+    bio: row.bio ?? undefined,
+    avatar: row.avatar ?? null,
+    telegram: row.telegram ?? undefined,
+    blocked: row.blocked ?? false,
+    muted: row.muted ?? false,
+    mutedUntil: row.muted_until ?? undefined,
+    muteReason: row.mute_reason ?? undefined,
+  };
+}
+
 export async function loadUsers(): Promise<User[]> {
-  const file = usersFile();
-  let text: string;
-  try {
-    text = await readTextRetry(file);
-  } catch (e) {
-    if ((e as NodeJS.ErrnoException).code === "ENOENT") return []; 
-    throw new UsersStoreError(`Не удалось прочитать ${file}`, { cause: e });
+  const users: User[] = [];
+  const size = 500;
+
+  for (let offset = 0; ; offset += size) {
+    const { data, error } = await supabase
+      .from("users")
+      .select("*")
+      .order("created_at", { ascending: true })
+      .order("id", { ascending: true })
+      .range(offset, offset + size - 1);
+
+    if (error) {
+      throw new UsersStoreError(error.message);
+    }
+
+    users.push(...data.map(toUser));
+
+    if (data.length < size) break;
   }
-  let data: unknown;
-  try {
-    data = JSON.parse(text);
-  } catch (e) {
-    throw new UsersStoreError(`Файл пользователей повреждён (${file}); ничего не перезаписано, копия: ${file}.bak`, { cause: e });
-  }
-  const ok =
-    Array.isArray(data) &&
-    data.every((u) => u && typeof u === "object" && (u as User).id != null && typeof (u as User).email === "string");
-  if (!ok) throw new UsersStoreError(`Неверный формат файла пользователей (${file}); ничего не перезаписано`);
-  return data as User[];
+
+  return users;
 }
-
-
-const g = globalThis as unknown as { __usersQueue?: Promise<unknown> };
-
-function exclusive<T>(fn: () => Promise<T>): Promise<T> {
-  const run = (g.__usersQueue ?? Promise.resolve()).then(fn);
-  g.__usersQueue = run.catch(() => undefined);
-  return run;
-}
-
-
-export function mutateUsers<T>(fn: (users: User[]) => { users?: User[]; result: T }): Promise<T> {
-  return exclusive(async () => {
-    const out = fn(await loadUsers());
-    if (out.users) await writeFileAtomic(usersFile(), JSON.stringify(out.users, null, 2), { backup: true });
-    return out.result;
-  });
-}
-
 
 export const listUsers = loadUsers;
 
 export async function findUserByEmail(email: string) {
-  const e = norm(email);
-  return (await loadUsers()).find((u) => norm(u.email) === e);
+  const { data, error } = await supabase
+    .from("users")
+    .select("*")
+    .eq("email", norm(email))
+    .maybeSingle();
+
+  if (error) {
+    throw new UsersStoreError(error.message);
+  }
+
+  return data ? toUser(data) : undefined;
 }
 
 export async function findUserById(id: string) {
-  return (await loadUsers()).find((u) => String(u.id) === String(id));
+  const { data, error } = await supabase
+    .from("users")
+    .select("*")
+    .eq("id", String(id))
+    .maybeSingle();
+
+  if (error) {
+    throw new UsersStoreError(error.message);
+  }
+
+  return data ? toUser(data) : undefined;
 }
 
-
-export function insertUser(input: { name: string; email: string; passwordHash: string }): Promise<User> {
-  const email = norm(input.email);
-  return mutateUsers((users) => {
-    if (users.some((u) => norm(u.email) === email)) throw new EmailTakenError();
-    const user: User = {
-      id: uid(users),
+export async function insertUser(input: {
+  name: string;
+  email: string;
+  passwordHash: string;
+}): Promise<User> {
+  const { data, error } = await supabase
+    .from("users")
+    .insert({
+      id: randomUUID(),
       name: input.name.trim(),
-      email,
-      passwordHash: input.passwordHash,
-      role: users.length === 0 ? "admin" : "user", // админ только у самого первого аккаунта пустой системы
-      createdAt: new Date().toISOString(),
-    };
-    return { users: [...users, user], result: user };
-  });
+      email: norm(input.email),
+      password_hash: input.passwordHash,
+      role: "user",
+      blocked: false,
+      muted: false,
+      created_at: new Date().toISOString(),
+    })
+    .select()
+    .single();
+
+  if (error) {
+    if (error.code === "23505") {
+      throw new EmailTakenError();
+    }
+
+    throw new UsersStoreError(error.message);
+  }
+
+  return toUser(data);
 }
 
-export function updateUser(
+export async function updateUser(
   id: string,
-  patch: Partial<Pick<User, "role" | "blocked" | "muted" | "mutedUntil" | "muteReason" | "name" | "email" | "bio" | "avatar" | "telegram">>,
+  patch: Partial<
+    Pick<
+      User,
+      | "role"
+      | "blocked"
+      | "muted"
+      | "mutedUntil"
+      | "muteReason"
+      | "name"
+      | "email"
+      | "bio"
+      | "avatar"
+      | "telegram"
+    >
+  >
 ) {
-  return mutateUsers((users) => {
-    const idx = users.findIndex((u) => String(u.id) === String(id));
-    if (idx === -1) return { result: null };
-    if (patch.email !== undefined && users.some((u, i) => i !== idx && norm(u.email) === norm(patch.email!))) throw new EmailTakenError();
-    if (users[idx].blocked && (patch.name !== undefined || patch.email !== undefined || patch.bio !== undefined || patch.avatar !== undefined || patch.telegram !== undefined)) return { result: null };
-    const next = [...users];
-    next[idx] = { ...users[idx], ...patch };
-    return { users: next, result: next[idx] };
-  });
+  const updates: Record<string, unknown> = {};
+
+  const fields = {
+    role: "role",
+    blocked: "blocked",
+    muted: "muted",
+    mutedUntil: "muted_until",
+    muteReason: "mute_reason",
+    name: "name",
+    email: "email",
+    bio: "bio",
+    avatar: "avatar",
+    telegram: "telegram",
+  } as const;
+
+  for (const key of Object.keys(fields) as Array<
+    keyof typeof fields
+  >) {
+    if (!Object.prototype.hasOwnProperty.call(patch, key)) {
+      continue;
+    }
+
+    const value = patch[key];
+
+    updates[fields[key]] =
+      key === "email" && typeof value === "string"
+        ? norm(value)
+        : value ?? null;
+  }
+
+  if (Object.keys(updates).length === 0) {
+    return (await findUserById(id)) ?? null;
+  }
+
+  const profileFields = [
+    "name",
+    "email",
+    "bio",
+    "avatar",
+    "telegram",
+  ];
+
+  const changesProfile = profileFields.some(
+    (key) => key in updates
+  );
+
+  let query = supabase
+    .from("users")
+    .update(updates)
+    .eq("id", String(id));
+
+  if (changesProfile) {
+    query = query.eq("blocked", false);
+  }
+
+  const { data, error } = await query
+    .select()
+    .maybeSingle();
+
+  if (error) {
+    if (error.code === "23505") {
+      throw new EmailTakenError();
+    }
+
+    throw new UsersStoreError(error.message);
+  }
+
+  return data ? toUser(data) : null;
 }
 
-export function deleteUser(id: string) {
-  return mutateUsers((users) => {
-    const next = users.filter((u) => String(u.id) !== String(id));
-    return next.length === users.length ? { result: false } : { users: next, result: true };
-  });
+export async function deleteUser(id: string) {
+  throw new UsersStoreError(
+    "Удаление аккаунтов временно отключено на время миграции"
+  );
 }

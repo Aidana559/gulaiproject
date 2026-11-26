@@ -11,7 +11,7 @@ export { EmailTakenError, UsersStoreError, deleteUser, findUserByEmail, findUser
 
 export type Role = "admin" | "moderator" | "user";
 
-export interface User {
+export type User = {
   id: string;
   name: string;
   email: string;
