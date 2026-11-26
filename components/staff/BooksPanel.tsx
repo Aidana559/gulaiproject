@@ -1,5 +1,6 @@
 "use client";
 
+import UserLink from "@/components/UserLink";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import BookCover from "@/components/BookCover";
@@ -35,14 +36,14 @@ type BookRow = {
   deletedReason?: string;
   ownerId?: string;
   reviewed?: boolean;
-  /** книгу скрыл сам автор (видимость; не связана с модерацией) */
+  
   ownerHidden?: boolean;
   coverUrl?: string | null;
 };
 
 type Tab = ListingFilter | "deleted";
-// Статусы те же, что у автора в «Моих объявлениях» (lib/listing-access): published / pending / hidden (скрыл автор) / rejected (скрыто модерацией).
-// «Удалённые» оставлены отдельной вкладкой: оттуда объявление восстанавливают.
+
+
 const TABS: { key: Tab; label: string }[] = [
   { key: "all", label: "Все" },
   { key: "published", label: "Опубликовано" },
@@ -67,10 +68,7 @@ const time = (b: BookRow) => {
   return Number.isFinite(n) ? n : null;
 };
 
-/**
- * Меню «⋯» карточки. Открывается поверх карточки (absolute, высоту карточки не меняет),
- * закрывается по клику вне меню, по Escape и после выбора пункта. Если снизу мало места — открывается вверх.
- */
+
 function RowMenu({ label, children }: { label: string; children: (close: () => void) => React.ReactNode }) {
   const [open, setOpen] = useState(false);
   const [up, setUp] = useState(false);
@@ -134,7 +132,7 @@ function RowMenu({ label, children }: { label: string; children: (close: () => v
 
 const menuItem = "flex items-center gap-2 w-full rounded-lg px-3 py-2 text-left text-sm text-stone-800 hover:bg-stone-100 focus-visible:bg-stone-100 focus-visible:outline-none";
 
-/** Все объявления: скрыть (с причиной и сроком), опубликовать, изменить, удалить и восстановить. */
+
 export default function BooksPanel() {
   const [books, setBooks] = useState<BookRow[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -145,8 +143,8 @@ export default function BooksPanel() {
   const [dlg, setDlg] = useState<{ mode: ModerationMode; book: BookRow } | null>(null);
   const { toast, toastNode } = useToast();
 
-  // Список грузится один раз (все страницы, сервер отдаёт максимум 100 за запрос), а поиск, фильтры и сортировка
-  // работают на клиенте: смена фильтра не делает запросов и не перезагружает страницу.
+  
+  
   const load = useCallback(async () => {
     try {
       const all: BookRow[] = [];
@@ -160,7 +158,7 @@ export default function BooksPanel() {
       }
       setBooks(all);
     } catch {
-      // при сбое сети оставляем уже показанный список, чтобы не потерять фильтры и положение на странице
+      
       setBooks((prev) => prev);
     } finally {
       setLoaded(true);
@@ -168,12 +166,12 @@ export default function BooksPanel() {
   }, []);
 
   useEffect(() => {
-    // загрузка списка при открытии
+    
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void load();
   }, [load]);
 
-  // Поиск + статус + сортировка одновременно
+  
   const searched = useMemo(() => {
     const q = norm(query);
     if (!q) return books;
@@ -193,7 +191,7 @@ export default function BooksPanel() {
       const a = time(x);
       const b = time(y);
       if (a === null && b === null) return byTitle(x, y);
-      if (a === null) return 1; // без даты — всегда в конце
+      if (a === null) return 1; 
       if (b === null) return -1;
       return a === b ? byTitle(x, y) : (a - b) * dir;
     };
@@ -260,7 +258,7 @@ export default function BooksPanel() {
 
   return (
     <>
-      {/* Поиск, сортировка и сброс */}
+      
       <div className="mt-4 grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] lg:grid-cols-[minmax(0,1fr)_14rem_auto]">
         <div className="relative sm:col-span-2 lg:col-span-1">
           <label htmlFor="books-search" className="sr-only">
@@ -328,7 +326,7 @@ export default function BooksPanel() {
         ) : null}
       </p>
 
-      {/* Карточки объявлений */}
+      
       <div className="mt-2 min-h-[22rem] [overflow-anchor:none]">
         {!loaded && <p className="rounded-2xl bg-white px-4 py-10 text-center text-sm text-stone-500 ring-1 ring-stone-200">Загрузка…</p>}
         {loaded && rows.length === 0 && (
@@ -382,7 +380,7 @@ export default function BooksPanel() {
                   </div>
                   <p className="mt-1 break-words text-sm text-stone-600">{b.author}</p>
                   <p className="mt-0.5 break-words text-xs text-stone-500">
-                    {b.owner ? `Владелец: ${b.owner}` : "Владелец не указан"}
+                    {b.owner ? <>Владелец: <UserLink userId={b.ownerId}>{b.owner}</UserLink></> : "Владелец не указан"}
                     {" · "}
                     {fmtDateTime(b.createdAt, APP_TZ)}
                     {genres && ` · ${genres}`}

@@ -18,6 +18,9 @@ export interface User {
   passwordHash: string;
   role: Role;
   createdAt: string;
+  bio?: string;
+  avatar?: string | null;
+  telegram?: string;
   blocked?: boolean;
   muted?: boolean;
   mutedUntil?: string;
@@ -35,7 +38,7 @@ const SECRET =
     ? (() => { throw new Error("AUTH_SECRET не задан"); })()
     : "dev-secret-change-me");
 
-/** Хранение пользователей — в lib/users-store.ts (атомарная запись, блокировка, уникальный email). */
+
 export async function createUser(name: string, email: string, password: string) {
   return insertUser({ name, email, passwordHash: hashPassword(password) });
 }
@@ -104,7 +107,7 @@ export async function getSessionUser() {
     return user && !user.blocked ? user : null;
   } catch (e) {
     if (!(e instanceof UsersStoreError)) throw e;
-    console.error(e); // хранилище недоступно: считаем гостем, но ничего не меняем и не пишем
+    console.error(e); 
     return null;
   }
 }

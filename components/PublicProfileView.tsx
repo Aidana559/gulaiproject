@@ -12,7 +12,6 @@ import { categoryLabels, type Book } from "@/data/books";
 import { LIVE_HINTS, LIVE_LABELS, LIVE_STYLES } from "@/lib/book-live";
 import { subscribeBookingsChanged } from "@/lib/bookings-sync";
 import { useChatSession } from "@/lib/chatStore";
-import { localAvatarOf } from "@/lib/localAvatar";
 import { canViewPublicProfiles } from "@/lib/profile-access";
 import type { PublicProfile } from "@/lib/public-profile";
 import { useTaxonomy } from "@/components/TaxonomyProvider";
@@ -25,7 +24,7 @@ type Load =
   | { kind: "anon" }
   | { kind: "error"; message: string };
 
-/** Как часто перечитывать статусы, пока вкладка открыта (кроме мгновенных сигналов и возврата на вкладку). */
+
 const REFRESH_MS = 20_000;
 
 function Notice({ title, text, children }: { title?: string; text: string; children?: React.ReactNode }) {
@@ -39,12 +38,12 @@ function Notice({ title, text, children }: { title?: string; text: string; child
 }
 
 export default function PublicProfileView({ userId }: { userId: string }) {
-  useTaxonomy(); // подписка: подписи категорий обновляются, когда администратор их меняет
+  useTaxonomy(); 
   const { user, loading } = useAuth();
   const chat = useChatSession();
   const [state, setState] = useState<Load>({ kind: "loading" });
 
-  // Роль берётся из серверной сессии; сервер проверяет её ещё раз в каждом запросе
+  
   const allowed = !!user && canViewPublicProfiles(user.role);
 
   const load = useCallback(async () => {
@@ -57,18 +56,18 @@ export default function PublicProfileView({ userId }: { userId: string }) {
       if (!res.ok || !json) throw new Error(json?.error ?? "Не удалось загрузить профиль");
       setState({ kind: "ok", data: json as PublicProfile });
     } catch (e) {
-      // при сбое фонового обновления остаётся последняя удачная версия
+      
       setState((prev) =>
         prev.kind === "ok" ? prev : { kind: "error", message: e instanceof Error ? e.message : "Нет связи с сервером" },
       );
     }
   }, [userId]);
 
-  // Первая загрузка и автообновление статусов: по таймеру, при возврате на вкладку
-  // и мгновенно, когда в другой вкладке кто-то забронировал / выдал / вернул / отменил книгу.
+  
+  
   useEffect(() => {
     if (!allowed) return;
-    // загрузка профиля при открытии страницы
+    
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void load();
     const refresh = () => {
@@ -96,7 +95,7 @@ export default function PublicProfileView({ userId }: { userId: string }) {
   }
   if (!allowed || state.kind === "denied") {
     return (
-      <Notice title="Раздел недоступен" text="Профили пользователей доступны только обычным пользователям.">
+      <Notice title="Раздел недоступен" text="Для просмотра профиля необходима действующая сессия.">
         <LinkButton href="/" variant="outline">На главную</LinkButton>
       </Notice>
     );
@@ -119,8 +118,8 @@ export default function PublicProfileView({ userId }: { userId: string }) {
 
   const { user: p, rating, books } = state.data;
   const isMe = String(user.id) === p.id;
-  // «Написать»: только другому пользователю с ролью user из серверного справочника чатов
-  const canWrite = !isMe && chat.status === "ok" && !!chat.peers?.has(p.id);
+  
+  const canWrite = user.role === "user" && !isMe && chat.status === "ok" && !!chat.peers?.has(p.id);
 
   return (
     <>
@@ -132,7 +131,7 @@ export default function PublicProfileView({ userId }: { userId: string }) {
         <div className="flex flex-col items-center gap-5 text-center sm:flex-row sm:text-left">
           <Avatar
             name={p.name}
-            src={isMe ? user.avatar : localAvatarOf(p.id)}
+            src={p.avatar}
             className="size-24 shrink-0 text-4xl font-semibold"
           />
           <div className="min-w-0 flex-1">
@@ -142,6 +141,8 @@ export default function PublicProfileView({ userId }: { userId: string }) {
               <span>{rating.count ? `${rating.average.toFixed(1)} (${rating.count})` : "Нет оценок"}</span>
             </div>
             <p className="mt-1 text-sm text-stone-500">Опубликовано книг: {books.length}</p>
+            {p.createdAt && <p className="mt-1 text-sm text-stone-500">Дата регистрации: {new Date(p.createdAt).toLocaleDateString("ru-RU")}</p>}
+            {p.bio && <p className="mt-3 whitespace-pre-wrap break-words text-sm text-stone-700">{p.bio}</p>}
             {isMe && <p className="mt-1 text-sm text-stone-500">Так вас видят другие пользователи.</p>}
           </div>
           <div className="flex w-full flex-col gap-2 sm:w-auto">

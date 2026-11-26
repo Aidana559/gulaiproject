@@ -2,16 +2,10 @@
 
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { useAuth } from "@/components/AuthProvider";
 import { useChatSession } from "@/lib/chatStore";
 
-/**
- * Имя или аватар пользователя как ссылка на его публичный профиль.
- *
- * Ссылкой это становится только если у пользователя есть публичный профиль (роль `user`, не заблокирован —
- * это тот же серверный справочник, что и у чатов) и смотрит вошедший `user`. Для гостя, admin / moderator,
- * а также для имён без аккаунта (книги каталога «Библиотека», демо-читатели) остаётся обычный текст.
- * Свою карточку открывает личный профиль (/profile).
- */
+
 export default function UserLink({
   userId,
   className = "",
@@ -24,11 +18,13 @@ export default function UserLink({
   children: ReactNode;
 }) {
   const chat = useChatSession();
+  const { user } = useAuth();
+  const staff = user?.role === "admin" || user?.role === "moderator";
   const id = userId == null ? "" : String(userId);
-  const linkable = !!id && chat.status === "ok" && !!chat.peers?.has(id);
+  const linkable = !!id && !!user && (staff || String(user.id) === id || (chat.status === "ok" && !!chat.peers?.has(id)));
   if (!linkable) return <span className={className}>{children}</span>;
 
-  const href = chat.me?.id === id ? "/profile" : `/user/${encodeURIComponent(id)}`;
+  const href = String(user?.id) === id ? "/profile" : `/user/${encodeURIComponent(id)}`;
   return (
     <Link
       href={href}

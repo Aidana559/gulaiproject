@@ -1,5 +1,6 @@
 "use client";
 
+import UserLink from "@/components/UserLink";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { Button } from "@/components/Button";
@@ -37,7 +38,7 @@ export default function AdminUsersPage() {
     try {
       const res = await fetch("/api/admin/users", { cache: "no-store" });
       const json = res.ok ? await res.json() : [];
-      // API отдаёт { users: [...] } — берём массив, не весь объект
+      
       setUsers(Array.isArray(json) ? json : Array.isArray(json?.users) ? json.users : []);
     } catch {
       setUsers([]);
@@ -140,7 +141,7 @@ export default function AdminUsersPage() {
                   className={u.blocked ? "bg-rose-50/40" : u.muted ? "bg-amber-50/40" : ""}
                 >
                   <td className="px-4 py-3 font-medium text-stone-900">
-                    {u.name}
+                    <UserLink userId={u.id}>{u.name}</UserLink>
                     {self && <span className="ml-2 text-xs text-stone-400">(вы)</span>}
                   </td>
                   <td className="px-4 py-3 text-stone-600">{u.email}</td>

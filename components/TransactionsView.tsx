@@ -1,5 +1,6 @@
 "use client";
 
+import UserLink from "@/components/UserLink";
 import Link from "next/link";
 import { FiBookmark, FiBookOpen, FiCheckCircle, FiClock, FiInbox } from "react-icons/fi";
 import type { IconType } from "react-icons";
@@ -30,6 +31,7 @@ type Row = {
   id: string;
   book: { id: number | string; title: string; author: string; gradient: string; coverUrl?: string | null };
   person: string;
+  personId?: string;
   status: TxStatus;
   startDate: string;
   dueDate: string;
@@ -67,6 +69,7 @@ function toRow(b: ApiBooking, fallbackPerson: string, catalog: Map<number, Book>
       coverUrl: found?.coverUrl ?? null,
     },
     person: b.userName || fallbackPerson,
+    personId: b.userId,
     status: (b.status === "confirmed" ? "reserved" : b.status) as TxStatus,
     startDate: b.startDate,
     dueDate: b.dueDate,
@@ -75,7 +78,7 @@ function toRow(b: ApiBooking, fallbackPerson: string, catalog: Map<number, Book>
   };
 }
 
-/** Колонки таблицы на широких экранах: одинаковые для шапки и всех строк */
+
 const COLS =
   "lg:grid lg:grid-cols-[3.5rem_minmax(0,1.6fr)_minmax(0,1.1fr)_7.5rem_7.5rem_7.5rem_13rem] lg:items-center lg:gap-4";
 
@@ -119,10 +122,10 @@ export default function TransactionsView() {
   const items = useMemo<Row[]>(() => {
     const person = user?.name ?? "Читатель";
     const fromServer = serverBookings
-      .filter((b) => b.status !== "cancelled") // отменённые — в профиле
+      .filter((b) => b.status !== "cancelled") 
       .map((b) => toRow(b, person, catalog));
 
-    // Демонстрационные транзакции других читателей из transactions.json / txStore.
+    
     const fromStore: Row[] = storeItems.map((t) => ({
       id: `demo-${t.id}`,
       book: {
@@ -144,7 +147,7 @@ export default function TransactionsView() {
         const isReserved = (t.status as string) === "reserved" || (t.status as string) === "confirmed";
         const actions: Action[] = [];
 
-        // Бронь: «Выдать» — владелец/админ, «Отменить бронь» — владелец/админ/сам читатель
+        
         if (isReserved) {
           if (isAdmin || isOwner) actions.push("issue");
           if (isAdmin || isOwner || isBorrower) actions.push("cancel");
@@ -164,7 +167,7 @@ export default function TransactionsView() {
   }, [serverBookings, storeItems, user, catalog]);
 
 async function act(t: Row, action: Action) {
-  // Демонстрационные транзакции
+  
   if (t.id.startsWith("demo-")) {
     const id = Number(t.id.replace("demo-", ""));
 
@@ -205,7 +208,7 @@ async function act(t: Row, action: Action) {
     return;
   }
 
-  // Обычные серверные бронирования
+  
   const res = await fetch(`/api/bookings/${t.id}`, {
     method: "PATCH",
     headers: {
@@ -216,7 +219,7 @@ async function act(t: Row, action: Action) {
 
   if (res.ok) {
     await loadServer();
-    announceBookingsChanged(); // профиль владельца и каталог в других вкладках обновятся сразу
+    announceBookingsChanged(); 
   }
 }
 
@@ -414,7 +417,7 @@ async function act(t: Row, action: Action) {
                         ? "Брал(а)"
                         : "На руках у"}
                   </p>
-                  <p className="truncate font-semibold text-stone-800">{t.person}</p>
+                  <p className="truncate font-semibold text-stone-800"><UserLink userId={t.personId}>{t.person}</UserLink></p>
                   {t.reliability && (
                     <p
                       className={`text-xs ${

@@ -1,3 +1,4 @@
+import UserLink from "@/components/UserLink";
 import Link from "next/link";
 import type { Book } from "@/data/books";
 import { categoryLabels } from "@/data/books";
@@ -12,6 +13,7 @@ export default function BookCard({ book }: { book: Book }) {
       : book.genre && book.genre !== "—"
         ? [book.genre]
         : [];
+  const ownerId = (book as Book & { ownerId?: string | number }).ownerId;
   return (
     <article className="group flex flex-col rounded-2xl bg-white p-4 shadow-sm ring-1 ring-stone-200 transition hover:-translate-y-1 hover:shadow-lg">
       <Link href={`/book/${book.id}`} aria-label={book.title}>
@@ -49,6 +51,7 @@ export default function BookCard({ book }: { book: Book }) {
             : "—"}{" "}
           · {book.city}
         </p>
+        {ownerId != null && <p className="relative z-10 mt-2 text-xs text-stone-500">Владелец: <UserLink userId={ownerId}>{book.owner}</UserLink></p>}
         <div className="mt-4 flex-1" />
         <LinkButton href={`/book/${book.id}`} variant="outline" size="sm" full>
           Подробнее

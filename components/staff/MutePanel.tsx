@@ -1,5 +1,6 @@
 "use client";
 
+import UserLink from "@/components/UserLink";
 import { useCallback, useEffect, useState } from "react";
 import { isMutedNow, muteLabel } from "@/lib/mute";
 import { useToast } from "./useToast";
@@ -103,7 +104,7 @@ export default function MutePanel() {
               const muted = isMutedNow(u);
               return (
                 <tr key={u.id} className={muted ? "bg-amber-50/50" : ""}>
-                  <td className="px-4 py-3 font-medium">{u.name}</td>
+                  <td className="px-4 py-3 font-medium"><UserLink userId={u.id}>{u.name}</UserLink></td>
                   <td className="px-4 py-3 text-stone-600">{u.email}</td>
                   <td className="px-4 py-3">{u.role}</td>
                   <td className="px-4 py-3">

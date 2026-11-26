@@ -1,5 +1,6 @@
 "use client";
 
+import UserLink from "@/components/UserLink";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { FiSearch, FiX } from "react-icons/fi";
@@ -34,6 +35,7 @@ type ReportRow = {
   createdAt: string;
   updatedAt?: string;
   reporterName?: string;
+  reporterId?: string;
   targetExists?: boolean;
   sameTargetCount?: number;
   bookTitle?: string;
@@ -41,7 +43,7 @@ type ReportRow = {
   reviewAuthor?: string;
   userName?: string;
   bookId?: string;
-  // рассмотрение
+  
   handledBy?: string;
   handledByRole?: string;
   handledAt?: string;
@@ -60,7 +62,7 @@ const POLL_MS = 20_000;
 const fmt = (iso?: string) => (iso ? new Date(iso).toLocaleString("ru-RU") : "—");
 const norm = (s: unknown) => String(s ?? "").toLowerCase().replace(/ё/g, "е");
 
-/** Что показывать как «объект» жалобы — для поиска и заголовка. */
+
 function targetTitle(r: ReportRow) {
   if (r.targetType === "book") return r.bookTitle ?? "";
   if (r.targetType === "review") return `${r.reviewAuthor ?? ""} ${r.reviewText ?? ""} ${r.bookTitle ?? ""}`;
@@ -69,7 +71,7 @@ function targetTitle(r: ReportRow) {
 
 const selectCls = "rounded-lg border border-stone-300 bg-white px-3 py-1.5 text-sm";
 
-/** Жалобы на книги, отзывы и пользователей — общий блок для панели модератора и панели администратора. */
+
 export default function ReportsPanel() {
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
@@ -83,7 +85,7 @@ export default function ReportsPanel() {
   const [decisionFilter, setDecisionFilter] = useState<ReportDecision | "all">("all");
   const [sort, setSort] = useState<Sort>("new");
   const [decide, setDecide] = useState<ReportRow | null>(null);
-  // скрытие/удаление книги по жалобе: сначала причина, потом фиксируем решение
+  
   const [bookAction, setBookAction] = useState<{ report: ReportRow; decision: ReportDecision; note: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const { toast, toastNode } = useToast();
@@ -104,7 +106,7 @@ export default function ReportsPanel() {
     load();
   }, [load]);
 
-  // новые жалобы и решения коллег появляются сами, без перезагрузки страницы
+  
   useEffect(() => {
     const tick = () => {
       if (document.visibilityState === "visible") load();
@@ -117,14 +119,14 @@ export default function ReportsPanel() {
     };
   }, [load]);
 
-  // при смене вкладки фильтры, которые относятся только к одной из них, сбрасываем
+  
   useEffect(() => {
     setStatusFilter("all");
     setDecisionFilter("all");
     setSort("new");
   }, [tab]);
 
-  /** Отправляет PATCH; ответ сразу применяется к списку — жалоба переезжает между вкладками без перезагрузки. */
+  
   async function patch(body: Record<string, unknown>, okMsg: string): Promise<boolean> {
     try {
       const res = await fetch("/api/reports", {
@@ -142,7 +144,7 @@ export default function ReportsPanel() {
         return false;
       }
       toast(okMsg);
-      load(); // подтягиваем остальные жалобы, закрытые вместе с этой
+      load(); 
       return true;
     } catch {
       toast("Нет связи с сервером");
@@ -158,7 +160,7 @@ export default function ReportsPanel() {
 
   async function submitDecision(r: ReportRow, decision: ReportDecision, note: string) {
     if (decision === "book_hidden" || decision === "book_deleted") {
-      // нужна причина для автора книги — спрашиваем её отдельным диалогом
+      
       setDecide(null);
       setBookAction({ report: r, decision, note });
       return;
@@ -166,7 +168,7 @@ export default function ReportsPanel() {
     setBusy(true);
     const ok = await patch({ id: r.id, action: "resolve", decision, note }, "Жалоба рассмотрена и перенесена в историю");
     setBusy(false);
-    if (ok) setDecide(null); // жалоба сама исчезает из «Текущих» и появляется в «Истории»
+    if (ok) setDecide(null); 
   }
 
   async function moderateBook(p: ModerationPayload) {
@@ -203,7 +205,7 @@ export default function ReportsPanel() {
     }
   }
 
-  // ---------- вкладки, поиск, фильтры, сортировка ----------
+  
   const current = useMemo(() => reports.filter((r) => !isHistoryStatus(r.status)), [reports]);
   const history = useMemo(() => reports.filter((r) => isHistoryStatus(r.status)), [reports]);
   const base = tab === "current" ? current : history;
@@ -280,7 +282,7 @@ export default function ReportsPanel() {
         )}
       </div>
 
-      {/* Поиск и фильтры */}
+      
       <div className="mt-4 flex flex-wrap items-center gap-2">
         <label className="relative min-w-[220px] flex-1">
           <FiSearch className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" />
@@ -425,7 +427,7 @@ export default function ReportsPanel() {
                       )}
                     </div>
                   )}
-                  {r.targetType === "user" && <p className="mt-1 font-semibold text-stone-900">{r.userName}</p>}
+                  {r.targetType === "user" && <p className="mt-1 font-semibold text-stone-900"><UserLink userId={r.targetId}>{r.userName}</UserLink></p>}
 
                   <p className="mt-2 text-sm text-stone-700">
                     <b>Причина:</b> {r.reason}
@@ -436,7 +438,7 @@ export default function ReportsPanel() {
                     </p>
                   )}
                   <p className="mt-1 text-xs text-stone-400">
-                    От {r.reporterName} · {fmt(r.createdAt)}
+                    От <UserLink userId={r.reporterId}>{r.reporterName}</UserLink> · {fmt(r.createdAt)}
                   </p>
                   {!done && r.status === "in_review" && r.inReviewBy && (
                     <p className="mt-1 text-xs text-amber-700">
@@ -515,7 +517,7 @@ export default function ReportsPanel() {
   );
 }
 
-/** Выбор решения по жалобе. Доступные решения зависят от того, на что пожаловались. */
+
 function DecisionDialog({
   report,
   busy,
@@ -528,7 +530,7 @@ function DecisionDialog({
   onClose: () => void;
 }) {
   const options = decisionsForTarget(report.targetType).filter((d) => {
-    // действия над объектом возможны, только пока он существует
+    
     if (d === "book_hidden" || d === "book_deleted" || d === "review_deleted") return !!report.targetExists;
     return true;
   });

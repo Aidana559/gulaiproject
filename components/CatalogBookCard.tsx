@@ -1,16 +1,18 @@
+import UserLink from "@/components/UserLink";
 import Link from "next/link";
 import { categoryLabels, type Book } from "@/data/books";
 import { genresOf } from "@/lib/genres";
 import BookCover from "./BookCover";
 import BookStatusBadge from "./BookStatusBadge";
 
-/** Горизонтальная карточка каталога: обложка слева, справа название, автор, статус и данные издания. */
+
 export default function CatalogBookCard({ book }: { book: Book }) {
   const genres = genresOf(book);
   const meta = [book.year ? `${book.year} г.` : null, book.city && book.city !== "—" ? book.city : null]
     .filter(Boolean)
     .join(" · ");
 
+  const ownerId = (book as Book & { ownerId?: string | number }).ownerId;
   return (
     <article className="group relative flex min-h-[15rem] gap-5 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-stone-200 transition hover:-translate-y-0.5 hover:shadow-lg">
       <Link href={`/book/${book.id}`} aria-label={book.title} className="w-[6.5rem] shrink-0 self-start">
@@ -38,6 +40,7 @@ export default function CatalogBookCard({ book }: { book: Book }) {
           {genres.length > 0 && ` · ${genres.join(", ")}`}
         </p>
 
+        {ownerId != null && <p className="relative z-10 mt-2 text-xs text-stone-500">Владелец: <UserLink userId={ownerId}>{book.owner}</UserLink></p>}
         <div className="mt-3">
           <BookStatusBadge book={book} />
         </div>

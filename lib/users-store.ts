@@ -2,23 +2,6 @@ import { uid } from "./db";
 import path from "node:path";
 import { readTextRetry, writeFileAtomic } from "./atomic-file";
 import type { User } from "./auth";
-
-/**
- * ЕДИНСТВЕННОЕ место, где читается и пишется список пользователей (data/users.json).
- * Регистрация, вход, админка, чат и уведомления идут через эти функции.
- *
- * Гарантии:
- *  - запись атомарная (tmp + rename), частично записанного файла читатель не увидит;
- *  - все изменения идут через mutateUsers: один изменяющий запрос за раз, «прочитал → изменил → записал»
- *    не теряет чужие изменения;
- *  - email уникален (проверка внутри блокировки, без учёта регистра);
- *  - если файл нельзя прочитать или он повреждён, бросается UsersStoreError и НИЧЕГО не записывается.
- *    Раньше любая ошибка чтения превращалась в «нет пользователей», и следующая запись затирала файл.
- *
- * Ограничения: блокировка действует внутри одного процесса Node (для прототипа с одним сервером
- * этого достаточно); при нескольких процессах/инстансах нужна настоящая БД.
- */
-
 export class UsersStoreError extends Error {
   constructor(message: string, options?: { cause?: unknown }) {
     super(message, options);
@@ -42,7 +25,7 @@ export async function loadUsers(): Promise<User[]> {
   try {
     text = await readTextRetry(file);
   } catch (e) {
-    if ((e as NodeJS.ErrnoException).code === "ENOENT") return []; // первый запуск: файла ещё нет
+    if ((e as NodeJS.ErrnoException).code === "ENOENT") return []; 
     throw new UsersStoreError(`Не удалось прочитать ${file}`, { cause: e });
   }
   let data: unknown;
@@ -58,7 +41,7 @@ export async function loadUsers(): Promise<User[]> {
   return data as User[];
 }
 
-// Очередь изменений. Ключ в globalThis: в dev-режиме Next может создать модуль несколько раз.
+
 const g = globalThis as unknown as { __usersQueue?: Promise<unknown> };
 
 function exclusive<T>(fn: () => Promise<T>): Promise<T> {
@@ -67,7 +50,7 @@ function exclusive<T>(fn: () => Promise<T>): Promise<T> {
   return run;
 }
 
-/** Читает актуальный список под блокировкой; если fn вернула users — записывает их атомарно. */
+
 export function mutateUsers<T>(fn: (users: User[]) => { users?: User[]; result: T }): Promise<T> {
   return exclusive(async () => {
     const out = fn(await loadUsers());
@@ -76,7 +59,7 @@ export function mutateUsers<T>(fn: (users: User[]) => { users?: User[]; result: 
   });
 }
 
-// ---------- операции ----------
+
 export const listUsers = loadUsers;
 
 export async function findUserByEmail(email: string) {
@@ -88,7 +71,7 @@ export async function findUserById(id: string) {
   return (await loadUsers()).find((u) => String(u.id) === String(id));
 }
 
-/** Создаёт пользователя с постоянным id. Дубликат email → EmailTakenError. */
+
 export function insertUser(input: { name: string; email: string; passwordHash: string }): Promise<User> {
   const email = norm(input.email);
   return mutateUsers((users) => {
@@ -107,11 +90,13 @@ export function insertUser(input: { name: string; email: string; passwordHash: s
 
 export function updateUser(
   id: string,
-  patch: Partial<Pick<User, "role" | "blocked" | "muted" | "mutedUntil" | "muteReason" | "name">>,
+  patch: Partial<Pick<User, "role" | "blocked" | "muted" | "mutedUntil" | "muteReason" | "name" | "email" | "bio" | "avatar" | "telegram">>,
 ) {
   return mutateUsers((users) => {
     const idx = users.findIndex((u) => String(u.id) === String(id));
     if (idx === -1) return { result: null };
+    if (patch.email !== undefined && users.some((u, i) => i !== idx && norm(u.email) === norm(patch.email!))) throw new EmailTakenError();
+    if (users[idx].blocked && (patch.name !== undefined || patch.email !== undefined || patch.bio !== undefined || patch.avatar !== undefined || patch.telegram !== undefined)) return { result: null };
     const next = [...users];
     next[idx] = { ...users[idx], ...patch };
     return { users: next, result: next[idx] };

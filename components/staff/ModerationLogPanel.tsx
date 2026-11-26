@@ -1,5 +1,6 @@
 "use client";
 
+import UserLink from "@/components/UserLink";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
@@ -19,13 +20,13 @@ type Sort = "new" | "old";
 
 const norm = (v: unknown) => String(v ?? "").toLowerCase().replace(/ё/g, "е").replace(/\s+/g, " ").trim();
 const dayFmt = new Intl.DateTimeFormat("en-CA", { timeZone: APP_TZ, year: "numeric", month: "2-digit", day: "2-digit" });
-/** Календарный день записи (ГГГГ-ММ-ДД) в часовом поясе приложения — по нему работает фильтр дат. */
+
 const dayOf = (iso: string) => {
   const d = new Date(iso);
   return Number.isNaN(d.getTime()) ? "" : dayFmt.format(d);
 };
 
-/** Журнал всех действий администрации над книгами: кто, когда, что и почему. */
+
 export default function ModerationLogPanel() {
   const [items, setItems] = useState<ModerationEntry[]>([]);
   const [emails, setEmails] = useState<Record<string, string>>({});
@@ -36,8 +37,8 @@ export default function ModerationLogPanel() {
   const [to, setTo] = useState("");
   const [sort, setSort] = useState<Sort>("new");
 
-  // Журнал грузится один раз (только чтение), поиск, фильтры и сортировка работают в браузере —
-  // без запросов, перезагрузки страницы и скачков интерфейса.
+  
+  
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -50,7 +51,7 @@ export default function ModerationLogPanel() {
       } finally {
         if (!cancelled) setLoaded(true);
       }
-      // email пользователей нужны только для поиска; доступны администрации и модераторам
+      
       try {
         const res = await fetch("/api/admin/users", { cache: "no-store" });
         if (!res.ok) return;
@@ -71,7 +72,7 @@ export default function ModerationLogPanel() {
     const query = norm(q);
     const [lo, hi] = from && to && from > to ? [to, from] : [from, to];
     return items.filter((e) => {
-      // «Пользователь» записи: тот, кто выполнил действие, и автор книги (имя и email)
+      
       if (
         query &&
         ![e.actorName, e.authorName, e.actorId ? emails[e.actorId] : "", e.authorId ? emails[e.authorId] : "", e.bookTitle, e.reason].some((v) =>
@@ -199,7 +200,7 @@ export default function ModerationLogPanel() {
                   <Link href={`/book/${e.bookId}/info`} className="font-medium hover:text-indigo-600">
                     {e.bookTitle}
                   </Link>
-                  <p className="text-xs text-stone-400">{e.authorName}</p>
+                  <p className="text-xs text-stone-400"><UserLink userId={e.authorId}>{e.authorName}</UserLink></p>
                 </td>
                 <td className="p-3">
                   {actionName(e)}
@@ -207,7 +208,7 @@ export default function ModerationLogPanel() {
                     <p className="text-xs text-stone-500">до {fmtDate(e.until)}</p>
                   )}
                 </td>
-                <td className="p-3 text-stone-600">{actorLabel(e)}</td>
+                <td className="p-3 text-stone-600"><UserLink userId={e.actorId}>{actorLabel(e)}</UserLink></td>
                 <td className="p-3 text-stone-600">{e.reason ?? "—"}</td>
                 <td className="p-3">
                   <span

@@ -52,12 +52,12 @@ const FILTERS: { key: BookingStatus; label: string }[] = [
 
 const fmt = (iso: string) => new Date(iso).toLocaleDateString("ru-RU");
 
-// метка и цвет статуса: те же, что на странице «Транзакции»
+
 const badgeLabel = (s: BookingStatus) => (s === "cancelled" ? "Отменена" : txLabels[s]);
 const badgeStyle = (s: BookingStatus) =>
   s === "cancelled" ? "bg-stone-100 text-stone-600 ring-stone-500/20" : txStyles[s];
 
-// Обрезает фото до квадрата 256x256, чтобы оно не весило много
+
 function resizeImage(file: File, size = 256): Promise<string> {
   return new Promise((resolve, reject) => {
     const img = new Image();
@@ -89,16 +89,16 @@ function validate(d: Draft): FieldErrors {
 export default function ProfilePage() {
   const router = useRouter();
   const { user: authUser, loading: authLoading, updateProfile, refresh } = useAuth();
-  // пользователь уже загружен AuthProvider — отдельный запрос /api/auth/me не нужен
+  
   const user = authUser as unknown as Profile | null;
   const authId = authUser ? String(authUser.id ?? authUser.email) : null;
   const [bookings, setBookings] = useState<Booking[]>([]);
 
-  // фильтр броней и поиск книг
+  
   const [filter, setFilter] = useState<BookingStatus | null>(null);
   const [query, setQuery] = useState("");
 
-  // редактирование профиля
+  
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
@@ -106,7 +106,7 @@ export default function ProfilePage() {
   const fileRef = useRef<HTMLInputElement>(null);
 
   const loadBookings = useCallback(async () => {
-    // scope=mine — только брони текущего пользователя (без него приходят все транзакции сайта)
+    
     const res = await fetch("/api/bookings?scope=mine", { cache: "no-store" });
     if (res.ok) setBookings((await res.json()).bookings ?? []);
   }, []);
@@ -126,7 +126,7 @@ export default function ProfilePage() {
     return () => clearTimeout(id);
   }, [toast]);
 
-  // результаты поиска по книгам каталога (каталог живёт на сервере)
+  
   const [found, setFound] = useState<{ id: number | string; title: string; author: string }[]>([]);
   useEffect(() => {
     const q = query.trim();
@@ -149,14 +149,14 @@ export default function ProfilePage() {
 
   async function logout() {
     await fetch("/api/auth/logout", { method: "POST" });
-    await refresh(); // чтобы шапка снова показала «Войти» и «Регистрация»
+    await refresh(); 
     router.replace("/login");
   }
 
   async function cancel(id: string) {
     await fetch(`/api/bookings/${id}`, { method: "PATCH" });
     await loadBookings();
-    announceBookingsChanged(); // статус книги в профиле владельца и каталоге обновится сразу
+    announceBookingsChanged(); 
   }
 
   async function removeFromList(id: string) {
@@ -184,7 +184,7 @@ export default function ProfilePage() {
   const input =
     "w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-teal-700 focus:ring-2 focus:ring-teal-700/25";
 
-  // то, что показываем: данные с сервера + правки из редактирования
+  
   const shown = {
     name: authUser?.name ?? user.name,
     email: authUser?.email ?? user.email,
@@ -204,12 +204,13 @@ export default function ProfilePage() {
     setFieldErrors({});
   }
 
-  function saveEdit() {
+  async function saveEdit() {
     if (!draft) return;
     const e = validate(draft);
     setFieldErrors(e);
     if (Object.keys(e).length) return;
-    updateProfile({
+    try {
+      await updateProfile({
       name: draft.name.trim(),
       email: draft.email.trim(),
       telegram: draft.telegram.trim(),
@@ -218,6 +219,9 @@ export default function ProfilePage() {
     });
     setEditing(false);
     setToast("Профиль сохранён");
+    } catch (error) {
+      setToast(error instanceof Error ? error.message : "Не удалось сохранить профиль");
+    }
   }
 
   async function onPickAvatar(e: React.ChangeEvent<HTMLInputElement>) {
@@ -242,7 +246,7 @@ export default function ProfilePage() {
 
   return (
     <main className="mx-auto max-w-3xl space-y-6 px-4 py-10">
-      {/* Ақпарат */}
+      
       <section className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex items-center gap-4">
           <Avatar name={shown.name} src={shown.avatar} className="h-14 w-14 text-2xl font-semibold" />
@@ -381,15 +385,15 @@ export default function ProfilePage() {
         )}
       </section>
 
-      {/* Мои объявления — только у роли user (admin и moderator работают через свои панели) */}
+      
       {user.role === "user" && <MyListings />}
 
-      {/* Брони — только у обычных пользователей (админ и модератор не бронируют) */}
+      
       {user.role === "user" && (
       <section className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
         <h2 className="text-lg font-semibold text-slate-900">Мои брони</h2>
 
-        {/* Фильтры (повторный клик снимает фильтр) */}
+        
         <div className="mt-4 flex flex-wrap gap-2">
           {FILTERS.map((f) => {
             const on = filter === f.key;
@@ -512,7 +516,7 @@ export default function ProfilePage() {
           </ul>
         )}
 
-        {/* Поиск книги */}
+        
         <div className="mt-6 border-t border-slate-100 pt-5">
           <label className="block text-sm font-medium text-slate-700" htmlFor="book-search">
             Найти книгу

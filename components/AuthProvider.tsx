@@ -21,7 +21,7 @@ type AuthCtx = {
   loading: boolean;
   refresh: () => Promise<void>;
   logout: () => Promise<void>;
-  updateProfile: (patch: Partial<User>) => void;
+  updateProfile: (patch: Partial<User>) => Promise<void>;
 };
 
 const AuthContext = createContext<AuthCtx | null>(null);
@@ -39,23 +39,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const res = await fetch("/api/auth/me", { cache: "no-store" });
       const data = res.ok ? await res.json() : null;
-      // чаты получают этот же ответ: отдельный второй запрос /api/auth/me больше не нужен
+      
       void refreshChatSession(data?.user ?? null);
       const u: User | null = data?.user ?? data;
       if (u && u.email) {
-        // тот же пользователь — сохраняем прежний объект, чтобы не перерисовывать весь сайт и не перезапускать эффекты
+        
         setServerUser((prev) => (prev && JSON.stringify(prev) === JSON.stringify(u) ? prev : u));
         try {
-          const next = JSON.parse(localStorage.getItem(extraKey(u)) ?? "{}");
-          setExtra((prev) => (JSON.stringify(prev) === JSON.stringify(next) ? prev : next));
-          // бұрын тек браузерде сақталған атты (мысалы «astan») бір рет серверге жібереміз
-          if (typeof next.name === "string" && next.name.trim() && next.name.trim() !== u.name) {
-            void fetch("/api/auth/me", {
-              method: "PATCH",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ name: next.name.trim() }),
-            }).catch(() => undefined);
-          }
+          const old = JSON.parse(localStorage.getItem(extraKey(u)) ?? "{}");
+          const next: Partial<User> = {};
+          if (u.bio === undefined && typeof old.bio === "string") next.bio = old.bio;
+          if (u.telegram === undefined && typeof old.telegram === "string") next.telegram = old.telegram;
+          if (u.avatar === undefined && typeof old.avatar === "string") next.avatar = old.avatar;
+          setExtra(next);
         } catch {
           setExtra({});
         }
@@ -75,8 +71,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     refresh();
   }, [refresh]);
 
-  // Роль могла измениться (или сессия истечь) пока вкладка была в фоне — перепроверяем доступ к чатам.
-  // Не чаще раза в минуту: частые переключения окон не должны каждый раз ходить на сервер.
+  
+  
   useEffect(() => {
     const onFocus = () => {
       if (Date.now() - lastRefreshAt.current < 60_000) return;
@@ -98,24 +94,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [router]);
 
   const updateProfile = useCallback(
-    (patch: Partial<User>) => {
-      if (!serverUser) return;
-      const next = { ...extra, ...patch };
-      // TODO: заменить на fetch("/api/profile", { method: "PATCH", ... })
-      localStorage.setItem(extraKey(serverUser), JSON.stringify(next));
-      setExtra(next);
-      // аты серверде де сақталады — транзакцияларда «логин» емес, профиль аты шығады
-      if (typeof patch.name === "string" && patch.name.trim() && patch.name.trim() !== serverUser.name) {
-        void fetch("/api/auth/me", {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name: patch.name.trim() }),
-        })
-          .then((r) => (r.ok ? refresh() : undefined))
-          .catch(() => undefined);
-      }
+    async (patch: Partial<User>) => {
+      if (!serverUser) throw new Error("Нужна авторизация");
+      const res = await fetch("/api/auth/me", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: patch.name, email: patch.email, bio: patch.bio, telegram: patch.telegram, avatar: patch.avatar }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data?.user) throw new Error(data?.error ?? "Не удалось сохранить профиль");
+      setServerUser(data.user);
+      setExtra({});
+      void refreshChatSession(data.user);
     },
-    [serverUser, extra, refresh]
+    [serverUser]
   );
 
   const user = serverUser ? { ...serverUser, ...extra } : null;

@@ -1,6 +1,7 @@
 export const instant = false;
 
 import Link from "next/link";
+import UserLink from "@/components/UserLink";
 import PageTitle from "@/components/staff/PageTitle";
 import { categoryLabels, type Category } from "@/data/books";
 import { getTaxonomy } from "@/lib/taxonomy-store";
@@ -53,7 +54,6 @@ export default async function AdminOverviewPage() {
     { label: "Просрочено", value: overdue, sub: "не вернули в срок" },
   ];
 
-  // новое за 7 дней
   const days = Array.from({ length: 7 }, (_, i) => {
     const d = new Date();
     d.setUTCDate(d.getUTCDate() - (6 - i));
@@ -67,7 +67,7 @@ export default async function AdminOverviewPage() {
   }));
   const maxDay = Math.max(1, ...perDay.flatMap((d) => [d.users, d.books]));
 
-  await getTaxonomy(); // актуальные подписи категорий
+  await getTaxonomy();
   const cats = (Object.keys(categoryLabels) as Category[]).map((c) => ({
     label: categoryLabels[c],
     count: books.filter((b) => b.category === c).length,
@@ -184,7 +184,9 @@ export default async function AdminOverviewPage() {
           <ul className="mt-4 space-y-3">
             {newUsers.map((u) => (
               <li key={u.id}>
-                <p className="text-sm font-medium text-stone-900">{u.name}</p>
+                <p className="text-sm font-medium text-stone-900">
+                  <UserLink userId={u.id}>{u.name}</UserLink>
+                </p>
                 <p className="text-xs text-stone-400">
                   {u.email} · {fmt(u.createdAt)}
                 </p>

@@ -8,11 +8,7 @@ import { hasPublicProfile } from "@/lib/profile-access";
 import type { Review } from "@/lib/types";
 import { findUserById } from "@/lib/users-store";
 
-/**
- * Данные публичного профиля. Только то, что можно показывать другим пользователям:
- * имя, рейтинг и одобренные публичные книги со статусами. Никаких email, роли,
- * дат регистрации, броней, имён читателей и личных операций.
- */
+
 export type PublicBook = {
   id: number | string;
   title: string;
@@ -25,20 +21,20 @@ export type PublicBook = {
 };
 
 export type PublicProfile = {
-  user: { id: string; name: string };
+  user: { id: string; name: string; avatar: string | null; bio: string; createdAt: string };
   rating: { average: number; count: number };
   books: PublicBook[];
 };
 
-/** null — профиля нет (пользователь не найден, заблокирован или не имеет роли user). */
-export async function getPublicProfile(id: string): Promise<PublicProfile | null> {
+
+export async function getPublicProfile(id: string, staff = false): Promise<PublicProfile | null> {
   const target = await findUserById(id);
-  if (!target || !hasPublicProfile(target)) return null;
+  if (!target || (!staff && !hasPublicProfile(target))) return null;
   const uid = String(target.id);
 
-  // getAllBooks() без флагов уже не отдаёт удалённые и скрытые (автором или модерацией, с учётом срока скрытия).
-  // Дополнительно оставляем только прошедшие проверку: bookState === "published" (не «на модерации»).
-  // Владелец — строго по id: совпадение по имени не считается (имена не уникальны).
+  
+  
+  
   const [all, live] = await Promise.all([getAllBooks(), getBookLiveStatuses()]);
   const books: PublicBook[] = all
     .filter((b) => b.ownerId != null && String(b.ownerId) === uid && bookState(b) === "published")
@@ -60,5 +56,5 @@ export async function getPublicProfile(id: string): Promise<PublicProfile | null
   const count = ratings.length;
   const average = count ? ratings.reduce((s, r) => s + r.rating, 0) / count : 0;
 
-  return { user: { id: uid, name: target.name }, rating: { average, count }, books };
+  return { user: { id: uid, name: target.name, avatar: target.avatar ?? null, bio: target.bio ?? "", createdAt: target.createdAt }, rating: { average, count }, books };
 }

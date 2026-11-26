@@ -1,5 +1,6 @@
 "use client";
 
+import UserLink from "@/components/UserLink";
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { categoryLabels, type Category } from "@/data/books";
@@ -43,7 +44,7 @@ function formatDate(iso?: string) {
 
 
 export default function QueuePanel() {
-  useTaxonomy(); // подписка: подписи категорий обновляются, когда администратор их меняет
+  useTaxonomy(); 
   const [items, setItems] = useState<QueueBook[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [rejecting, setRejecting] = useState<string | null>(null);
@@ -128,7 +129,7 @@ export default function QueuePanel() {
                     {genresOf(b).length ? ` · ${genresOf(b).join(", ")}` : ""}
                   </p>
                   <p className="mq-meta">
-                    Добавил: {b.owner ?? "?"}
+                    Добавил: <UserLink userId={b.ownerId}>{b.owner ?? "?"}</UserLink>
                     {b.createdAt ? ` · ${formatDate(b.createdAt)}` : ""}
                   </p>
                   {b.description && <p className="mq-desc">{b.description}</p>}
