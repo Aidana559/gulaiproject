@@ -51,15 +51,42 @@ export default async function AuthorInfoCard({ author }: { author: string }) {
         </dl>
       )}
 
-      {info.source === "wikipedia" && info.url && (
-        <p className="mt-4 border-t border-stone-100 pt-3 text-xs text-stone-400">
-          Текст —{" "}
-          <a href={info.url} target="_blank" rel="noopener noreferrer" className="underline hover:text-indigo-600">
-            Википедия
-          </a>
-          , CC BY-SA. Данные — Викиданные. Фото — Wikimedia Commons.
-        </p>
-      )}
+      {(() => {
+        const wiki = info.wikipediaUrl ?? (info.source === "wikipedia" ? info.url : undefined);
+        const wd = info.wikidataUrl ?? (info.source === "wikidata" ? info.url : undefined);
+        const ol = info.openLibraryUrl ?? (info.source === "openlibrary" ? info.url : undefined);
+        const items: { href: string; label: string }[] = [];
+        if (wiki) items.push({ href: wiki, label: "Википедия" });
+        if (wd) items.push({ href: wd, label: "Викиданные" });
+        if (ol) items.push({ href: ol, label: "Open Library" });
+        const shown = items.slice(0, 3);
+        if (!shown.length) return null;
+        return (
+          <div className="mt-4 border-t border-stone-100 pt-3">
+            <p className="text-xs font-medium text-stone-500">Дополнительные материалы</p>
+            <ul className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-xs text-stone-500">
+              {shown.map((item) => (
+                <li key={item.href}>
+                  <a
+                    href={item.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="underline hover:text-indigo-600"
+                  >
+                    {item.label}
+                  </a>
+                </li>
+              ))}
+            </ul>
+            {info.source === "wikipedia" && (
+              <p className="mt-2 text-xs text-stone-400">
+                Текст — Википедия, CC BY-SA. Данные — Викиданные.
+                {info.photo ? " Фото — Wikimedia Commons." : ""}
+              </p>
+            )}
+          </div>
+        );
+      })()}
     </aside>
   );
 }

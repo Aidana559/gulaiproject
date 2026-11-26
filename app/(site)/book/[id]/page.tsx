@@ -26,12 +26,15 @@ import { listBooks } from "@/lib/books-store";
 import BookBorrowers from "@/components/BookBorrowers";
 import BookTabs from "@/components/BookTabs";
 import AuthorBooks from "@/components/AuthorBooks";
+import AuthorInfoCard from "@/components/AuthorInfoCard";
 import { getBookBorrowers } from "@/lib/bookings";
 import { readJson } from "@/lib/db";
 import type { Review } from "@/lib/types";
 import { FiArrowLeft } from "react-icons/fi";
 import { getSessionUser } from "@/lib/auth";
 import { isOwner, isStaff } from "@/lib/server-auth";
+import { Suspense } from "react";
+import { isSingleAuthor, splitAuthors } from "@/lib/author-info";
 
 export default async function BookPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -39,8 +42,11 @@ export default async function BookPage({ params }: { params: Promise<{ id: strin
   if (!book || book.deleted) notFound();
 
   const sessionUser = await getSessionUser();
+  // auth.User и types.User совместимы по полям, но объявлены в разных модулях —
+  // приводим тип, чтобы убрать ошибку TS2345
+  const user = sessionUser as any;
   const canSeeRestricted =
-    !!sessionUser && (isStaff(sessionUser) || isOwner(book, sessionUser));
+    !!sessionUser && (isStaff(user) || isOwner(book, user));
 
   // Скрытые и ещё не одобренные — только владельцу и staff; остальным 404
   if ((isHiddenNow(book) || isPendingReview(book)) && !canSeeRestricted) notFound();
@@ -98,13 +104,18 @@ export default async function BookPage({ params }: { params: Promise<{ id: strin
         <div>
           <BookStatusBadge book={book as Book} />
           <h1 className="mt-3 text-3xl font-extrabold text-stone-900">{book.title}</h1>
-          <p className="mt-1 text-lg">
-            <Link
-              href={`/author/${encodeURIComponent(book.author)}`}
-              className="text-stone-500 hover:text-indigo-600 hover:underline"
-            >
-              {book.author}
-            </Link>
+          <p className="mt-1 text-lg text-stone-500">
+            {splitAuthors(book.author).map((name, i, arr) => (
+              <span key={name}>
+                {i > 0 && (i === arr.length - 1 ? " и " : ", ")}
+                <Link
+                  href={`/author/${encodeURIComponent(name)}`}
+                  className="hover:text-indigo-600 hover:underline"
+                >
+                  {name}
+                </Link>
+              </span>
+            ))}
           </p>
           {book.description && <p className="mt-6 text-stone-700">{book.description}</p>}
 
@@ -234,6 +245,15 @@ export default async function BookPage({ params }: { params: Promise<{ id: strin
           reviews={<ReviewsSection bookId={book.id} />}
         />
         <div className="flex min-w-0 flex-col gap-6">
+          {isSingleAuthor(book.author) && (
+            <Suspense
+              fallback={
+                <div className="h-48 animate-pulse rounded-2xl bg-stone-100" aria-hidden />
+              }
+            >
+              <AuthorInfoCard author={book.author} />
+            </Suspense>
+          )}
           <AuthorBooks author={book.author} currentId={book.id} />
         </div>
       </div>

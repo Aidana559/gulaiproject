@@ -38,22 +38,50 @@ function catalogSummary(books: BookLite[]): { description: string; extract: stri
 }
 
 function Credit({ info }: { info: AuthorInfo }) {
-  const link = (href: string | undefined, text: string) =>
-    href ? (
-      <a href={href} target="_blank" rel="noopener noreferrer" className="underline hover:text-indigo-600">
-        {text}
-      </a>
-    ) : (
-      text
-    );
+  const wiki = info.wikipediaUrl ?? (info.source === "wikipedia" ? info.url : undefined);
+  const wd = info.wikidataUrl ?? (info.source === "wikidata" ? info.url : undefined);
+  const ol = info.openLibraryUrl ?? (info.source === "openlibrary" ? info.url : undefined);
+
+  const items: { href: string; label: string }[] = [];
+  if (wiki) items.push({ href: wiki, label: "Википедия" });
+  if (wd) items.push({ href: wd, label: "Викиданные" });
+  if (ol) items.push({ href: ol, label: "Open Library" });
+
+  // Limit to 3 reliable sources; never invent URLs.
+  const shown = items.slice(0, 3);
+
+  if (!shown.length) return null;
+
   return (
-    <p className="mt-4 text-xs text-stone-400">
+    <div className="mt-4 border-t border-stone-100 pt-3">
+      <p className="text-xs font-medium text-stone-500">Дополнительные материалы</p>
+      <ul className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-xs text-stone-500">
+        {shown.map((item) => (
+          <li key={item.href}>
+            <a
+              href={item.href}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline hover:text-indigo-600"
+            >
+              {item.label}
+            </a>
+          </li>
+        ))}
+      </ul>
       {info.source === "wikipedia" && (
-        <>Текст — {link(info.url, "Википедия")}, CC BY-SA. Данные — Викиданные. {info.photo && "Фото — Wikimedia Commons."}</>
+        <p className="mt-2 text-xs text-stone-400">
+          Текст — Википедия, CC BY-SA. Данные — Викиданные.
+          {info.photo ? " Фото — Wikimedia Commons." : ""}
+        </p>
       )}
-      {info.source === "wikidata" && <>Данные — {link(info.url, "Викиданные")}. {info.photo && "Фото — Wikimedia Commons."}</>}
-      {info.source === "openlibrary" && <>Данные — {link(info.url, "Open Library")}.</>}
-    </p>
+      {info.source === "wikidata" && info.photo && (
+        <p className="mt-2 text-xs text-stone-400">Фото — Wikimedia Commons.</p>
+      )}
+      {info.source === "openlibrary" && (
+        <p className="mt-2 text-xs text-stone-400">Биография и данные — Open Library.</p>
+      )}
+    </div>
   );
 }
 

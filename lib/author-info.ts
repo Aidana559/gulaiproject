@@ -10,7 +10,11 @@ export type AuthorInfo = {
   died?: string;
   birthPlace?: string;
   photo?: string;
+  /** Primary source page (prefer Wikipedia when available). */
   url?: string;
+  wikipediaUrl?: string;
+  wikidataUrl?: string;
+  openLibraryUrl?: string;
   source: "wikipedia" | "wikidata" | "openlibrary" | "manual";
 };
 
@@ -26,7 +30,7 @@ type Entry = {
 };
 
 const FILE = "authors.json";
-const ALGO_VERSION = 4;
+const ALGO_VERSION = 6;
 const TTL_MS = { ok: 30 * 86_400_000, none: 7 * 86_400_000, error: 10 * 60_000 };
 const UA = "Kitapta/1.0 (student book exchange; contact: admin@kitapta.local)";
 
@@ -104,14 +108,23 @@ export function searchVariants(raw: string): string[] {
   return Array.from(new Set(out.map((x) => x.trim()).filter(Boolean)));
 }
 
-async function getJson<T>(url: string): Promise<T> {
-  const res = await fetch(url, {
-    cache: "no-store",
-    headers: { "User-Agent": UA, Accept: "application/json" },
-    signal: AbortSignal.timeout(6000),
-  });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return (await res.json()) as T;
+async function getJson<T>(url: string, retries = 1): Promise<T> {
+  let lastErr: unknown;
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const res = await fetch(url, {
+        cache: "no-store",
+        headers: { "User-Agent": UA, Accept: "application/json" },
+        signal: AbortSignal.timeout(8000),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return (await res.json()) as T;
+    } catch (e) {
+      lastErr = e;
+      if (attempt < retries) await new Promise((r) => setTimeout(r, 400 * (attempt + 1)));
+    }
+  }
+  throw lastErr instanceof Error ? lastErr : new Error(String(lastErr));
 }
 
 const MONTHS = [
@@ -150,11 +163,19 @@ async function candidatesFromWikiSearch(name: string): Promise<Candidate[]> {
   const found: Candidate[] = [];
   let sawError = false;
 
+  // Prefer literary context in search (helps disambiguate e.g. Kevin Anderson writer vs tennis player)
+  const literaryHints = ["писатель", "writer", "author", "романист"];
+  const baseVariants = searchVariants(name);
+  const variants = [
+    ...baseVariants,
+    ...baseVariants.flatMap((v) => literaryHints.map((h) => `${v} ${h}`)),
+  ];
+
   for (const lang of ["ru", "en", "kk"]) {
-    for (const q of searchVariants(name)) {
+    for (const q of variants) {
       try {
         const sr = await getJson<{ query?: { search?: { title: string }[] } }>(
-          `https://${lang}.wikipedia.org/w/api.php?action=query&list=search&format=json&srnamespace=0&srlimit=6&srsearch=${encodeURIComponent(q)}`,
+          `https://${lang}.wikipedia.org/w/api.php?action=query&list=search&format=json&srnamespace=0&srlimit=8&srsearch=${encodeURIComponent(q)}`,
         );
         for (const hit of sr.query?.search ?? []) {
           if (!titleMatches(hit.title, parsed)) continue;
@@ -167,7 +188,8 @@ async function candidatesFromWikiSearch(name: string): Promise<Candidate[]> {
       } catch {
         sawError = true;
       }
-      if (found.length) return found;
+      // Collect several candidates; ranking happens later in fetchFromWikipedia
+      if (found.length >= 5) return found;
     }
   }
   if (!found.length && sawError) throw new Error("wiki search failed");
@@ -194,17 +216,48 @@ async function fetchFromWikipedia(name: string): Promise<AuthorInfo | null> {
   );
 
   const isHuman = (e?: WdEntity) => !!e?.claims?.P31?.some((x) => x.mainsnak?.datavalue?.value?.id === "Q5");
+
+  // Prefer writers / literary people over athletes, politicians, etc.
+  // Occupations: writer, novelist, poet, playwright, journalist, author, science fiction writer…
+  const WRITER_OCCUPATIONS = new Set([
+    "Q36180", "Q6625963", "Q49757", "Q214917", "Q1930187", "Q1607826",
+    "Q482980", "Q4853732", "Q15949613", "Q18844224", "Q1028181",
+  ]);
+  const occupationIds = (e: WdEntity) =>
+    (e.claims?.P106 ?? [])
+      .map((c) => c.mainsnak?.datavalue?.value?.id)
+      .filter(Boolean) as string[];
+  const isWriter = (e: WdEntity) => occupationIds(e).some((id) => WRITER_OCCUPATIONS.has(id));
+  const descLooksLiterary = (e: WdEntity) => {
+    const d = (e.descriptions?.ru?.value ?? e.descriptions?.en?.value ?? e.descriptions?.kk?.value ?? "").toLowerCase();
+    return /писател|writer|novelist|author|поэт|романист|фантаст|журналист|литератор|playwright|poet/.test(d);
+  };
+  const scoreEntity = (e?: WdEntity): number => {
+    if (!e || !isHuman(e)) return -100;
+    let s = 0;
+    if (e.sitelinks?.ruwiki || e.sitelinks?.enwiki) s += 10;
+    if (isWriter(e)) s += 50;
+    if (descLooksLiterary(e)) s += 30;
+    // Penalize clear non-literary occupations when no writer signal
+    const occ = occupationIds(e);
+    if (occ.some((id) => ["Q10833314", "Q937857", "Q82955", "Q82955"].includes(id)) && !isWriter(e) && !descLooksLiterary(e)) {
+      s -= 40; // tennis player, athlete, politician…
+    }
+    return s;
+  };
+
   let entity: WdEntity | undefined;
+  let bestScore = -Infinity;
   for (const c of candidates) {
     const e = ents.entities?.[c.id];
-    if (e && isHuman(e) && (e.sitelinks?.ruwiki || e.sitelinks?.enwiki)) {
+    const sc = scoreEntity(e);
+    if (sc > bestScore) {
+      bestScore = sc;
       entity = e;
-      break;
     }
   }
-  const wikiless = !entity;
-  if (!entity) entity = candidates.map((c) => ents.entities?.[c.id]).find((e) => isHuman(e));
-  if (!entity) return null;
+  const wikiless = !!(entity && !entity.sitelinks?.ruwiki && !entity.sitelinks?.enwiki);
+  if (!entity || bestScore < 0) return null;
   const claim = (p: string) => entity!.claims?.[p]?.[0]?.mainsnak?.datavalue?.value;
   const born = formatWikidataTime(claim("P569"));
   const died = formatWikidataTime(claim("P570"));
@@ -233,6 +286,7 @@ async function fetchFromWikipedia(name: string): Promise<AuthorInfo | null> {
         ? `https://commons.wikimedia.org/wiki/Special:FilePath/${encodeURIComponent(file)}?width=400`
         : undefined;
     if (!description && !born && !died && !birthPlace && !photo) return null;
+    const wdUrl = `https://www.wikidata.org/wiki/${entity.id}`;
     return {
       name: label,
       description,
@@ -240,7 +294,8 @@ async function fetchFromWikipedia(name: string): Promise<AuthorInfo | null> {
       died,
       birthPlace,
       photo,
-      url: `https://www.wikidata.org/wiki/${entity.id}`,
+      url: wdUrl,
+      wikidataUrl: wdUrl,
       source: "wikidata",
     };
   }
@@ -256,6 +311,11 @@ async function fetchFromWikipedia(name: string): Promise<AuthorInfo | null> {
   }>(`https://${lang}.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title.replace(/ /g, "_"))}`);
   if (sum.type === "disambiguation") return null;
 
+  const wikiTitle = title.replace(/ /g, "_");
+  const wikipediaUrl =
+    sum.content_urls?.desktop?.page ??
+    `https://${lang}.wikipedia.org/wiki/${encodeURIComponent(wikiTitle)}`;
+  const wikidataUrl = `https://www.wikidata.org/wiki/${entity.id}`;
   return {
     name: title.replace(/ \(.*\)$/, ""),
     description: sum.description,
@@ -263,8 +323,13 @@ async function fetchFromWikipedia(name: string): Promise<AuthorInfo | null> {
     born,
     died,
     birthPlace,
-    photo: typeof claim("P18") === "string" ? `https://commons.wikimedia.org/wiki/Special:FilePath/${encodeURIComponent(claim("P18"))}?width=400` : sum.thumbnail?.source,
-    url: sum.content_urls?.desktop?.page ?? `https://${lang}.wikipedia.org/wiki/${encodeURIComponent(title)}`,
+    photo:
+      typeof claim("P18") === "string"
+        ? `https://commons.wikimedia.org/wiki/Special:FilePath/${encodeURIComponent(claim("P18"))}?width=400`
+        : sum.thumbnail?.source,
+    url: wikipediaUrl,
+    wikipediaUrl,
+    wikidataUrl,
     source: "wikipedia",
   };
 }
@@ -274,11 +339,16 @@ async function candidatesFromWikidataFuzzy(name: string): Promise<Candidate[]> {
   const parsed = parseAuthorName(name);
   const found: Candidate[] = [];
   let sawError = false;
+  const literaryHints = ["писатель", "writer", "author"];
+  const variants = [
+    ...searchVariants(name),
+    ...searchVariants(name).flatMap((v) => literaryHints.map((h) => `${v} ${h}`)),
+  ];
   for (const lang of ["ru", "en", "kk"]) {
-    for (const q of searchVariants(name)) {
+    for (const q of variants) {
       try {
         const s = await getJson<{ search?: { id: string; label?: string; match?: { text?: string } }[] }>(
-          `${WD}?action=wbsearchentities&format=json&type=item&limit=7&language=${lang}&uselang=${lang}&search=${encodeURIComponent(q)}`,
+          `${WD}?action=wbsearchentities&format=json&type=item&limit=8&language=${lang}&uselang=${lang}&search=${encodeURIComponent(q)}`,
         );
         for (const c of s.search ?? []) {
           const text = c.match?.text ?? c.label ?? "";
@@ -287,7 +357,7 @@ async function candidatesFromWikidataFuzzy(name: string): Promise<Candidate[]> {
       } catch {
         sawError = true;
       }
-      if (found.length) return found;
+      if (found.length >= 5) return found;
     }
   }
   if (!found.length && sawError) throw new Error("wikidata search failed");
@@ -325,6 +395,7 @@ async function fetchFromOpenLibrary(name: string): Promise<AuthorInfo | null> {
       const died = a.death_date ?? doc.death_date;
       if (!bio && !born && !died) continue;
       const photoId = a.photos?.find((x) => x > 0);
+      const olUrl = `https://openlibrary.org/authors/${doc.key}`;
       return {
         name: doc.name,
         description: doc.top_work ? `Автор книги «${doc.top_work}»` : undefined,
@@ -332,7 +403,8 @@ async function fetchFromOpenLibrary(name: string): Promise<AuthorInfo | null> {
         born,
         died,
         photo: photoId ? `https://covers.openlibrary.org/a/id/${photoId}-M.jpg` : undefined,
-        url: `https://openlibrary.org/authors/${doc.key}`,
+        url: olUrl,
+        openLibraryUrl: olUrl,
         source: "openlibrary",
       };
     } catch {
@@ -352,9 +424,20 @@ async function fetchAuthorInfo(name: string): Promise<AuthorInfo | null> {
     if (w) {
       try {
         const o = await fetchFromOpenLibrary(name);
-        if (o?.extract) return { ...w, extract: o.extract, source: "openlibrary", url: o.url, photo: w.photo ?? o.photo };
+        if (o?.extract) {
+          return {
+            ...w,
+            extract: o.extract,
+            source: "openlibrary",
+            url: w.url ?? o.url,
+            photo: w.photo ?? o.photo,
+            openLibraryUrl: o.openLibraryUrl ?? o.url,
+            wikipediaUrl: w.wikipediaUrl,
+            wikidataUrl: w.wikidataUrl,
+          };
+        }
       } catch {
-        
+        /* ignore openlibrary failure when we already have wiki data */
       }
       return w;
     }
@@ -380,7 +463,18 @@ export async function getAuthorInfo(name: string, force = false): Promise<Author
 
   const merge = (info?: AuthorInfo | null, manual = hit?.manual): AuthorInfo | null => manual && Object.values(manual).some(Boolean) ? { ...info, name: info?.name ?? name, ...Object.fromEntries(Object.entries(manual).filter(([,v]) => !!v)), source: "manual" } : info ?? null;
   const fresh = hit && Date.now() - new Date(hit.fetchedAt).getTime() < TTL_MS[hit.status];
-  const stale = hit && (hit.v ?? 1) < ALGO_VERSION && (hit.status !== "ok" || !hit.info?.photo || !hit.info?.extract);
+  // Re-fetch when algorithm advanced and record lacks photo/extract or the new multi-link fields.
+  const missingLinks =
+    hit?.status === "ok" &&
+    !!hit.info &&
+    !hit.info.wikipediaUrl &&
+    !hit.info.wikidataUrl &&
+    !hit.info.openLibraryUrl &&
+    !hit.info.url;
+  const stale =
+    hit &&
+    (hit.v ?? 1) < ALGO_VERSION &&
+    (hit.status !== "ok" || !hit.info?.photo || !hit.info?.extract || missingLinks);
   if (!force && fresh && !stale) return merge(hit.info);
   if (!force && hit?.manual?.extract) return merge(hit.info);
 

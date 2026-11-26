@@ -34,7 +34,15 @@ export default async function AuthorPage({ params }: { params: Promise<{ name: s
       {/* Имя автора, под ним справка из Википедии, ниже — его книги.
           Если в поле несколько авторов («А, Б, В») — справка про каждого отдельно. */}
       {people.length <= 1 ? (
-        <Suspense fallback={<AuthorHeadingOnly name={author} total={total} />}>
+        <Suspense
+          fallback={
+            <div className="mt-4">
+              <AuthorHeadingOnly name={author} total={total} />
+              <div className="mt-4 h-40 animate-pulse rounded-2xl bg-stone-100" aria-hidden />
+              <p className="mt-3 text-sm text-stone-400">Загружаем сведения об авторе…</p>
+            </div>
+          }
+        >
           <AuthorProfile author={author} total={total} books={books} />
         </Suspense>
       ) : (
@@ -42,7 +50,16 @@ export default async function AuthorPage({ params }: { params: Promise<{ name: s
           <AuthorHeadingOnly name={author} total={total} />
           <div className="mt-6 grid gap-5 lg:grid-cols-2">
             {people.map((p) => (
-              <Suspense key={p} fallback={<div className="h-32 animate-pulse rounded-2xl bg-stone-100" />}>
+              <Suspense
+                key={p}
+                fallback={
+                  <div className="rounded-2xl bg-white p-5 ring-1 ring-stone-200">
+                    <div className="h-8 w-2/3 animate-pulse rounded bg-stone-100" />
+                    <div className="mt-3 h-24 animate-pulse rounded bg-stone-100" />
+                    <p className="mt-3 text-sm text-stone-400">Загружаем сведения…</p>
+                  </div>
+                }
+              >
                 <AuthorProfile author={p} member books={books} />
               </Suspense>
             ))}
