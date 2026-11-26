@@ -13,15 +13,8 @@ import { isMutedNow, muteLabel } from "@/lib/mute";
 import type { Category } from "@/data/books";
 import { isCategory } from "@/lib/categories";
 import { getTaxonomy } from "@/lib/taxonomy-store";
-import { catalogIsEmpty, ensureCatalog } from "@/lib/catalog-loader";
 
 export async function GET(req: Request) {
-  // Каталог догружается из Google Books В ФОНЕ: запрос его не ждёт.
-  // Ждём (не дольше 8 с) только при самом первом запуске, когда каталог ещё пуст.
-  const loading = ensureCatalog();
-  if (await catalogIsEmpty()) await Promise.race([loading, new Promise((r) => setTimeout(r, 8000))]);
-
-  // книги с истёкшим сроком скрытия возвращаются в каталог (и автору уходит уведомление)
   await sweepExpiredHides().catch(() => 0);
 
   const sp = new URL(req.url).searchParams;

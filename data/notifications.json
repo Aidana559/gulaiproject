@@ -247,5 +247,28 @@
     "href": "/transactions",
     "read": false,
     "createdAt": "2026-11-24T12:20:47.459Z"
+  },
+  {
+    "id": "c163cf90-11a6-4f5f-82df-95d139cb8405",
+    "userId": "5a5ca32f-3441-46c5-864c-8e85858e2674",
+    "type": "moderation",
+    "text": "Книга одобрена модератором: «The Routledge Introduction to the American Ghost Story». Выполнил: Модератор Gulbanu.",
+    "href": "/book/2069/info",
+    "key": "mod:2c78eacf-d33f-40ac-957f-bf3fc4aa03e8",
+    "moderation": {
+      "id": "2c78eacf-d33f-40ac-957f-bf3fc4aa03e8",
+      "bookId": "2069",
+      "bookTitle": "The Routledge Introduction to the American Ghost Story",
+      "authorId": "5a5ca32f-3441-46c5-864c-8e85858e2674",
+      "authorName": "Хуан",
+      "action": "approved",
+      "actorId": "79d7d016-d9b4-4268-ac07-5d7443632a45",
+      "actorName": "Gulbanu",
+      "actorRole": "moderator",
+      "stateAfter": "published",
+      "createdAt": "2026-11-26T18:35:13.914Z"
+    },
+    "read": false,
+    "createdAt": "2026-11-26T18:35:13.940Z"
   }
 ]

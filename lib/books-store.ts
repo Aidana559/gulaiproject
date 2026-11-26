@@ -2,10 +2,11 @@ import { promises as fs } from "fs";
 import path from "path";
 import type { Book, Status } from "@/data/books";
 import { categoryLabels, categoryLabelsSingular, normalizeCategory, normalizeGenreList, parseCategory, sameGenre, type Category } from "./categories";
-import { readJson, readJsonShared, writeJson, uid, withLock } from "./db";
+import { readJson, uid, withLock } from "./db";
 import { MAX_GENRES, bookState } from "./moderation-shared";
 import { genresOf } from "./genres";
 import { getBookStates } from "./bookings";
+import { readSupabaseBooks, saveSupabaseBook, incrementSupabaseViews } from "./supabase-books";
 import { getTaxonomy } from "./taxonomy-store";
 const RU = new Intl.Collator("ru", {
   sensitivity: "base",
@@ -44,8 +45,6 @@ export type ServerBook = Book & {
   deletedBy?: { id: string; name: string; role: string };
 };
 
-const USER_FILE = "user-books.json";
-const CATALOG_FILE = "catalog-books.json"; // каталог, загруженный из Google Books (см. lib/catalog-loader.ts)
 const UPLOAD_DIR = path.join(process.cwd(), "public", "uploads");
 
 const GRADIENTS = [
@@ -58,10 +57,6 @@ const GRADIENTS = [
   "from-cyan-500 to-teal-700",
   "from-violet-500 to-indigo-700",
 ];
-
-async function readCatalog(): Promise<ServerBook[]> {
-  return readJsonShared<ServerBook[]>(CATALOG_FILE, []);
-}
 
 export { genresOf };
 
@@ -95,36 +90,13 @@ export function isPendingReview(
     !b.reviewed;
 }
 
-async function readUserBooks(): Promise<ServerBook[]> {
-  return readJson<ServerBook[]>(USER_FILE, []);
-}
-
-async function writeUserBooks(list: ServerBook[]) {
-  await writeJson(USER_FILE, list);
-}
-
 export async function getAllBooks(
   opts: { includeHidden?: boolean; includeDeleted?: boolean } = {},
 ): Promise<ServerBook[]> {
-  const [user, catalog] = await Promise.all([
-    readJsonShared<ServerBook[]>(USER_FILE, []),
-    readCatalog(),
-    getTaxonomy(),
-  ]).then(([u, c]) => [u, c] as const);
-  const staticMapped: ServerBook[] = catalog.map((b) => ({
-    ...b,
-    ownerId: undefined,
-    views: b.views ?? 0,
-    createdAt: b.createdAt ?? "2026-01-01T00:00:00.000Z",
-  }));
-
-
-  const byId = new Map<string, ServerBook>();
-  for (const b of staticMapped) byId.set(String(b.id), b);
-  for (const b of user) byId.set(String(b.id), { ...b }); 
-
+  await getTaxonomy();
+  const books = await readSupabaseBooks();
   const now = Date.now();
-  return Array.from(byId.values()).map(canonBook).filter(
+  return books.map(canonBook).filter(
     (b) =>
       (opts.includeDeleted || !b.deleted) && (opts.includeHidden || !isHiddenNow(b, now)),
   );
@@ -191,7 +163,7 @@ export async function listBooks(query: ListQuery): Promise<ListResult> {
     list = list.filter(
       (b) =>
         (b.ownerId != null && String(b.ownerId) === String(oid)) ||
-        (!!oname && b.owner === oname),
+        (b.ownerId == null && !!oname && b.owner === oname),
     );
   }
   if (query.state && query.state !== "all") {
@@ -300,7 +272,6 @@ async function maxReferencedBookNumber(): Promise<number> {
 }
 
 async function createBookUnlocked(input: CreateBookInput): Promise<ServerBook> {
-  const user = await readUserBooks();
   const all = await getAllBooks({ includeHidden: true, includeDeleted: true });
   const referenced = await maxReferencedBookNumber();
   const maxNum = all.reduce((m, b) => {
@@ -337,9 +308,7 @@ async function createBookUnlocked(input: CreateBookInput): Promise<ServerBook> {
     reviewed: false,
   };
 
-  user.unshift(book);
-  await writeUserBooks(user);
-  return book;
+  return saveSupabaseBook(book, true);
 }
 
 function withGenres(current: ServerBook, patch: Partial<ServerBook>): Partial<ServerBook> {
@@ -366,83 +335,20 @@ async function patchBookUnlocked(
   id: string,
   patch: Partial<ServerBook>,
 ): Promise<ServerBook | undefined> {
-  const user = await readUserBooks();
-  const idx = user.findIndex((b) => String(b.id) === String(id));
-
-  if (idx >= 0) {
-    user[idx] = { ...user[idx], ...withGenres(user[idx], patch), id: user[idx].id, updatedAt: new Date().toISOString() };
-    await writeUserBooks(user);
-    return user[idx];
-  }
-
-
-  const base = (await readCatalog()).find((b) => String(b.id) === String(id));
+  const base = (await readSupabaseBooks()).find((b) => String(b.id) === String(id));
   if (!base) return undefined;
-  const merged: ServerBook = {
-    ...base,
-    views: base.views ?? 0,
-    createdAt: base.createdAt ?? "2026-01-01T00:00:00.000Z",
-    ...withGenres(base, patch),
-    id: base.id,
-    updatedAt: new Date().toISOString(),
-  };
-  user.unshift(merged);
-  await writeUserBooks(user);
-  return merged;
+  const changes = withGenres(base, patch);
+  if (changes.author === base.author) delete changes.author;
+  return saveSupabaseBook({ ...changes, id: Number(base.id), updatedAt: new Date().toISOString() }, false);
 }
 
 export async function softDeleteBook(id: string) {
   return patchBook(id, { deleted: true });
 }
 
-const VIEWS_FLUSH_MS = 5000;
-const pendingViews = new Map<string, number>();
-let viewsTimer: ReturnType<typeof setTimeout> | null = null;
-
-async function flushViews() {
-  if (pendingViews.size === 0) return;
-  const batch = new Map(pendingViews);
-  pendingViews.clear();
-  try {
-    await withLock("user-books", async () => {
-      const user = await readUserBooks();
-      const catalog = await readCatalog();
-      let changed = false;
-      for (const [id, n] of batch) {
-        const idx = user.findIndex((b) => String(b.id) === id);
-        if (idx >= 0) {
-          user[idx] = { ...user[idx], views: (user[idx].views ?? 0) + n };
-          changed = true;
-          continue;
-        }
-        const base = catalog.find((b) => String(b.id) === id);
-        if (!base) continue;
-        user.unshift({
-          ...base,
-          views: (base.views ?? 0) + n,
-          createdAt: base.createdAt ?? "2026-01-01T00:00:00.000Z",
-        });
-        changed = true;
-      }
-      if (changed) await writeUserBooks(user);
-    });
-  } catch {
-    for (const [id, n] of batch) pendingViews.set(id, (pendingViews.get(id) ?? 0) + n);
-  }
-}
-
 export async function incrementViews(id: string) {
-  const key = String(id);
-  pendingViews.set(key, (pendingViews.get(key) ?? 0) + 1);
-  if (!viewsTimer) {
-    viewsTimer = setTimeout(() => {
-      viewsTimer = null;
-      void flushViews();
-    }, VIEWS_FLUSH_MS);
-    viewsTimer.unref?.();
-  }
+  await incrementSupabaseViews(id);
 }
-
 
 export async function saveCoverFile(file: File): Promise<string> {
   const allowed = ["image/jpeg", "image/png", "image/webp"];

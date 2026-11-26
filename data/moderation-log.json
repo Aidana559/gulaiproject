@@ -542,5 +542,18 @@
     "actorRole": "moderator",
     "stateAfter": "published",
     "createdAt": "2026-11-24T12:13:16.695Z"
+  },
+  {
+    "id": "2c78eacf-d33f-40ac-957f-bf3fc4aa03e8",
+    "bookId": "2069",
+    "bookTitle": "The Routledge Introduction to the American Ghost Story",
+    "authorId": "5a5ca32f-3441-46c5-864c-8e85858e2674",
+    "authorName": "Хуан",
+    "action": "approved",
+    "actorId": "79d7d016-d9b4-4268-ac07-5d7443632a45",
+    "actorName": "Gulbanu",
+    "actorRole": "moderator",
+    "stateAfter": "published",
+    "createdAt": "2026-11-26T18:35:13.914Z"
   }
 ]
