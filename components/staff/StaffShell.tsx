@@ -34,6 +34,7 @@ const MENUS: Record<StaffRole, { title: string; base: string; items: MenuItem[] 
       { slug: "books", label: "Объявления", Icon: FiBook },
       { slug: "log", label: "Журнал действий", Icon: FiClock },
       { slug: "categories", label: "Категории", Icon: FiGrid },
+      { slug: "authors", label: "Авторы", Icon: FiUsers },
       { slug: "genres", label: "Жанры", Icon: FiTag },
     ],
   },
@@ -82,7 +83,6 @@ export default function StaffShell({
         <nav aria-label={menu.title} className="staff-nav">
           {menu.items.map(({ slug, label, Icon }) => {
             const href = slug ? `${menu.base}/${slug}` : menu.base;
-            // «Обзор» активен только на самой странице, остальные — и на вложенных
             const active = slug
               ? pathname === href || pathname.startsWith(`${href}/`)
               : pathname === href;

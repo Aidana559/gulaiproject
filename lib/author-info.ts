@@ -1,66 +1,65 @@
 import { readJson, withLock, writeJson } from "./db";
 
-/**
- * Краткая справка об авторе из Википедии и Викиданных (бесплатно, без ключа).
- * Результат кэшируется в data/authors.json, чтобы не ходить в сеть при каждом открытии страницы.
- * Если у записи есть поле `manual`, оно главнее автоматических данных (ручная правка файла/админом).
- */
+
 
 export type AuthorInfo = {
   name: string;
-  description?: string; // «Русский поэт, прозаик…»
-  extract?: string; // текст статьи (краткий)
+  description?: string;
+  extract?: string;
   born?: string;
   died?: string;
   birthPlace?: string;
   photo?: string;
-  url?: string; // страница в Википедии
+  url?: string;
   source: "wikipedia" | "wikidata" | "openlibrary" | "manual";
 };
 
 type Entry = {
   key: string;
-  /** версия алгоритма поиска: старые «не найдено» перепроверяются новым, более умным поиском */
+  
   v?: number;
   status: "ok" | "none" | "error";
   fetchedAt: string;
   info?: AuthorInfo;
   manual?: Partial<AuthorInfo>;
+  aliases?: string[];
 };
 
 const FILE = "authors.json";
-const ALGO_VERSION = 3;
+const ALGO_VERSION = 4;
 const TTL_MS = { ok: 30 * 86_400_000, none: 7 * 86_400_000, error: 10 * 60_000 };
 const UA = "Kitapta/1.0 (student book exchange; contact: admin@kitapta.local)";
 
 export const authorKey = (name: string) =>
   name.trim().toLowerCase().replace(/ё/g, "е").replace(/\s+/g, " ");
 
-/** Несколько авторов в одном поле («А, Б, В») → отдельные имена. «Оруэлл, Джордж» остаётся одним автором. */
+
 export function splitAuthors(name: string): string[] {
   const parts = name
     .split(/\s*(?:[,;&]|\s+и\s+|\s+and\s+)\s*/i)
     .map((x) => x.trim())
     .filter((x) => x.length > 1);
-  if (parts.length === 2 && parts.every((x) => !/\s/.test(x))) return [name.trim()]; // «Фамилия, Имя»
+  if (parts.length === 2 && parts.every((x) => !/\s/.test(x))) return [name.trim()];
   return parts.length ? parts : [name.trim()];
 }
 
 export const isSingleAuthor = (name: string) => splitAuthors(name).length === 1 && name.trim().length > 1;
 
+const translit: Record<string, string> = { shch:"щ", sch:"щ", zh:"ж", kh:"х", ts:"ц", ch:"ч", sh:"ш", ya:"я", yu:"ю", yo:"ё", ye:"е", a:"а", b:"б", v:"в", g:"г", d:"д", e:"е", z:"з", i:"и", y:"й", k:"к", l:"л", m:"м", n:"н", o:"о", p:"п", r:"р", s:"с", t:"т", u:"у", f:"ф", h:"х", c:"к", "'":"ь" };
+const cyr = (s: string) => s.toLowerCase().replace(/[’ʼ]/g, "'").replace(/shch|sch|zh|kh|ts|ch|sh|ya|yu|yo|ye|[a-z']/g, x => translit[x] ?? x);
 const norm = (s: string) => s.toLowerCase().replace(/ё/g, "е").replace(/[()]/g, " ").replace(/\s+/g, " ").trim();
 const isInitial = (t: string) => /^\p{L}\.?$/u.test(t);
 
 export type ParsedName = {
   surname: string;
-  /** полные имена/отчества, без инициалов */
+  
   given: string[];
-  /** первая буква имени (из полного имени или инициала) */
+  
   firstLetter: string;
   hasInitials: boolean;
 };
 
-/** «Д.В. Сивухин», «Лобкова Н.И.», «Джером Дэвид Сэлинджер», «Оруэлл, Джордж» → фамилия + имена. */
+
 export function parseAuthorName(raw: string): ParsedName {
   let t = raw.replace(/([\p{L}])\.(?=\p{L})/gu, "$1. ").replace(/,/g, " ");
   const tokens = t.split(/\s+/).filter(Boolean);
@@ -70,7 +69,6 @@ export function parseAuthorName(raw: string): ParsedName {
   let surname: string;
   let given: string[];
   if (initials.length && words.length) {
-    // «Лобкова Н.И.» / «Д.В. Сивухин»: фамилия — единственное полное слово (или последнее)
     surname = words[words.length - 1];
     given = words.slice(0, -1);
   } else if (comma && words.length >= 2) {
@@ -84,25 +82,25 @@ export function parseAuthorName(raw: string): ParsedName {
   return { surname: norm(surname), given: given.map(norm), firstLetter, hasInitials: initials.length > 0 };
 }
 
-/** Подходит ли заголовок статьи Википедии под имя автора (фамилия + начало имени; отчество/инициалы допускаются). */
+
 export function titleMatches(title: string, p: ParsedName): boolean {
   const t = norm(title.replace(/\s*\(.*\)\s*$/, "")).replace(/,/g, " ");
   const tt = t.split(" ").filter(Boolean);
-  if (!p.surname || !tt.includes(p.surname)) return false;
-  const rest = tt.filter((x) => x !== p.surname);
+  if (!p.surname || !tt.some(x => x === p.surname || cyr(x) === cyr(p.surname))) return false;
+  const rest = tt.filter((x) => cyr(x) !== cyr(p.surname));
   if (!p.firstLetter) return true;
   if (!rest.length) return false;
-  // имя автора из каталога может быть написано как «Федор», «Джером», «Ф.» — сверяем начало
   const g = p.given[0];
-  return rest.some((x) => (g && g.length >= 3 ? x.slice(0, 3) === g.slice(0, 3) : x.startsWith(p.firstLetter)));
+  return rest.some((x) => (g && g.length >= 3 ? cyr(x).slice(0, 3) === cyr(g).slice(0, 3) : cyr(x).startsWith(cyr(p.firstLetter))));
 }
 
-/** Варианты запроса: как есть; «имя фамилия» без отчества; «фамилия + инициалы». */
+
 export function searchVariants(raw: string): string[] {
   const p = parseAuthorName(raw);
   const out = [raw.replace(/,/g, " ").replace(/\s+/g, " ").trim()];
   if (p.given[0]) out.push(`${p.given[0]} ${p.surname}`);
   if (p.hasInitials || !p.given[0]) out.push(`${p.surname} ${p.firstLetter ? p.firstLetter.toUpperCase() + "." : ""}`.trim());
+  if (/^[a-z\s.,’'ʼ-]+$/i.test(raw)) out.push(cyr(raw));
   return Array.from(new Set(out.map((x) => x.trim()).filter(Boolean)));
 }
 
@@ -121,7 +119,7 @@ const MONTHS = [
   "июля", "августа", "сентября", "октября", "ноября", "декабря",
 ];
 
-/** "+1814-10-03T00:00:00Z", precision 11 → "3 октября 1814" */
+
 function formatWikidataTime(v?: { time: string; precision: number }): string | undefined {
   if (!v) return undefined;
   const m = /^([+-])(\d{1,})-(\d\d)-(\d\d)/.exec(v.time);
@@ -146,7 +144,7 @@ const WD = "https://www.wikidata.org/w/api.php";
 
 type Candidate = { id: string };
 
-/** Поиск по Википедии (ru, en, kk) с проверкой, что статья именно об этом авторе. Возвращает id Викиданных. */
+
 async function candidatesFromWikiSearch(name: string): Promise<Candidate[]> {
   const parsed = parseAuthorName(name);
   const found: Candidate[] = [];
@@ -178,8 +176,6 @@ async function candidatesFromWikiSearch(name: string): Promise<Candidate[]> {
 
 async function fetchFromWikipedia(name: string): Promise<AuthorInfo | null> {
   const wanted = authorKey(name);
-
-  // 1. точное совпадение в Викиданных: сначала по-русски, затем по-английски
   let candidates: Candidate[] = [];
   for (const lang of ["ru", "en"]) {
     const s = await getJson<{ search?: { id: string; match?: { text?: string } }[] }>(
@@ -188,9 +184,7 @@ async function fetchFromWikipedia(name: string): Promise<AuthorInfo | null> {
     candidates = (s.search ?? []).filter((c) => authorKey(c.match?.text ?? "") === wanted);
     if (candidates.length) break;
   }
-  // 2. не нашли — ищем по Википедии с учётом инициалов, отчеств, «Фамилия, Имя», ё/е и т. д.
   if (!candidates.length) candidates = await candidatesFromWikiSearch(name);
-  // 3. статьи нет — ищем человека в одних только Викиданных (описание, даты, фото)
   if (!candidates.length) candidates = await candidatesFromWikidataFuzzy(name);
   if (!candidates.length) return null;
 
@@ -200,7 +194,6 @@ async function fetchFromWikipedia(name: string): Promise<AuthorInfo | null> {
   );
 
   const isHuman = (e?: WdEntity) => !!e?.claims?.P31?.some((x) => x.mainsnak?.datavalue?.value?.id === "Q5");
-  // первый кандидат — человек (P31 = Q5) со статьёй в Википедии; иначе человек из Викиданных без статьи
   let entity: WdEntity | undefined;
   for (const c of candidates) {
     const e = ents.entities?.[c.id];
@@ -212,8 +205,6 @@ async function fetchFromWikipedia(name: string): Promise<AuthorInfo | null> {
   const wikiless = !entity;
   if (!entity) entity = candidates.map((c) => ents.entities?.[c.id]).find((e) => isHuman(e));
   if (!entity) return null;
-
-  // даты, место рождения, фото
   const claim = (p: string) => entity!.claims?.[p]?.[0]?.mainsnak?.datavalue?.value;
   const born = formatWikidataTime(claim("P569"));
   const died = formatWikidataTime(claim("P570"));
@@ -228,12 +219,11 @@ async function fetchFromWikipedia(name: string): Promise<AuthorInfo | null> {
       const l = p.entities?.[placeId]?.labels;
       birthPlace = l?.ru?.value ?? l?.en?.value;
     } catch {
-      /* место рождения — необязательная деталь */
+      
     }
   }
 
   if (wikiless) {
-    // Статьи в Википедии нет — берём то, что есть в Викиданных
     const d = entity.descriptions;
     const description = d?.ru?.value ?? d?.kk?.value ?? d?.en?.value;
     const label = entity.labels?.ru?.value ?? entity.labels?.kk?.value ?? entity.labels?.en?.value ?? name;
@@ -242,7 +232,7 @@ async function fetchFromWikipedia(name: string): Promise<AuthorInfo | null> {
       typeof file === "string"
         ? `https://commons.wikimedia.org/wiki/Special:FilePath/${encodeURIComponent(file)}?width=400`
         : undefined;
-    if (!description && !born && !died && !birthPlace) return null;
+    if (!description && !born && !died && !birthPlace && !photo) return null;
     return {
       name: label,
       description,
@@ -257,8 +247,6 @@ async function fetchFromWikipedia(name: string): Promise<AuthorInfo | null> {
 
   const lang = entity.sitelinks?.ruwiki ? "ru" : "en";
   const title = (entity.sitelinks?.ruwiki ?? entity.sitelinks?.enwiki)!.title;
-
-  // краткая статья
   const sum = await getJson<{
     description?: string;
     extract?: string;
@@ -275,13 +263,13 @@ async function fetchFromWikipedia(name: string): Promise<AuthorInfo | null> {
     born,
     died,
     birthPlace,
-    photo: sum.thumbnail?.source,
+    photo: typeof claim("P18") === "string" ? `https://commons.wikimedia.org/wiki/Special:FilePath/${encodeURIComponent(claim("P18"))}?width=400` : sum.thumbnail?.source,
     url: sum.content_urls?.desktop?.page ?? `https://${lang}.wikipedia.org/wiki/${encodeURIComponent(title)}`,
     source: "wikipedia",
   };
 }
 
-/** Нестрогий поиск человека в Викиданных: имя из каталога сверяется по фамилии и началу имени. */
+
 async function candidatesFromWikidataFuzzy(name: string): Promise<Candidate[]> {
   const parsed = parseAuthorName(name);
   const found: Candidate[] = [];
@@ -306,7 +294,7 @@ async function candidatesFromWikidataFuzzy(name: string): Promise<Candidate[]> {
   return found;
 }
 
-/** Open Library: биография, годы жизни и фото автора (особенно для зарубежных авторов). */
+
 async function fetchFromOpenLibrary(name: string): Promise<AuthorInfo | null> {
   const parsed = parseAuthorName(name);
   let sawError = false;
@@ -327,8 +315,8 @@ async function fetchFromOpenLibrary(name: string): Promise<AuthorInfo | null> {
 
       let bio = typeof a.bio === "string" ? a.bio : (a.bio?.value ?? "");
       bio = bio
-        .split(/\n-{3,}/)[0] // после «----------» идут служебные ссылки
-        .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1") // markdown-ссылки → текст
+        .split(/\n-{3,}/)[0]
+        .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
         .replace(/\s+/g, " ")
         .trim();
       if (bio.length > 900) bio = bio.slice(0, 900).replace(/[^.!?]*$/, "").trim() || bio.slice(0, 900);
@@ -355,19 +343,18 @@ async function fetchFromOpenLibrary(name: string): Promise<AuthorInfo | null> {
   return null;
 }
 
-/** Источники по очереди: Википедия → Викиданные → Open Library. */
+
 async function fetchAuthorInfo(name: string): Promise<AuthorInfo | null> {
   let failed = false;
   try {
     const w = await fetchFromWikipedia(name);
     if (w && w.source === "wikipedia") return w;
     if (w) {
-      // из Викиданных (без статьи): пробуем дополнить биографией из Open Library
       try {
         const o = await fetchFromOpenLibrary(name);
         if (o?.extract) return { ...w, extract: o.extract, source: "openlibrary", url: o.url, photo: w.photo ?? o.photo };
       } catch {
-        /* оставляем данные Викиданных */
+        
       }
       return w;
     }
@@ -384,25 +371,26 @@ async function fetchAuthorInfo(name: string): Promise<AuthorInfo | null> {
   return null;
 }
 
-export async function getAuthorInfo(name: string): Promise<AuthorInfo | null> {
+export async function getAuthorInfo(name: string, force = false): Promise<AuthorInfo | null> {
   if (name.trim().length < 2) return null;
   const key = authorKey(name);
 
   const all = await readJson<Entry[]>(FILE, []);
   const hit = all.find((e) => e.key === key);
 
-  if (hit?.manual && (hit.manual.extract || hit.manual.description)) {
-    return { name, source: "manual", ...(hit.info ?? {}), ...hit.manual } as AuthorInfo;
-  }
+  const merge = (info?: AuthorInfo | null, manual = hit?.manual): AuthorInfo | null => manual && Object.values(manual).some(Boolean) ? { ...info, name: info?.name ?? name, ...Object.fromEntries(Object.entries(manual).filter(([,v]) => !!v)), source: "manual" } : info ?? null;
   const fresh = hit && Date.now() - new Date(hit.fetchedAt).getTime() < TTL_MS[hit.status];
-  // «не найдено», записанное старым алгоритмом, перепроверяем новым
-  const stale = hit && hit.status !== "ok" && (hit.v ?? 1) < ALGO_VERSION;
-  if (hit && fresh && !stale) return hit.status === "ok" ? (hit.info ?? null) : null;
+  const stale = hit && (hit.v ?? 1) < ALGO_VERSION && (hit.status !== "ok" || !hit.info?.photo || !hit.info?.extract);
+  if (!force && fresh && !stale) return merge(hit.info);
+  if (!force && hit?.manual?.extract) return merge(hit.info);
 
   let status: Entry["status"] = "none";
   let info: AuthorInfo | null = null;
   try {
-    info = await fetchAuthorInfo(name);
+    for (const variant of [...(hit?.aliases ?? []), name]) {
+      try { info = await fetchAuthorInfo(variant); } catch { continue; }
+      if (info) break;
+    }
     status = info ? "ok" : "none";
   } catch {
     status = "error";
@@ -416,11 +404,23 @@ export async function getAuthorInfo(name: string): Promise<AuthorInfo | null> {
       v: ALGO_VERSION,
       status,
       fetchedAt: new Date().toISOString(),
-      info: info ?? undefined,
+      info: info ?? prev?.info,
       manual: prev?.manual,
+      aliases: prev?.aliases,
     };
     await writeJson(FILE, [...cur.filter((e) => e.key !== key), entry]);
   });
 
-  return info;
+  return merge(info ?? hit?.info);
+}
+
+export async function listAuthorRecords() { return readJson<Entry[]>(FILE, []); }
+export async function saveAuthorRecord(name: string, manual: Partial<AuthorInfo>, aliases: string[]) {
+  await withLock("authors", async () => {
+    const all = await listAuthorRecords();
+    const key = authorKey(name);
+    const previous = all.find(e => e.key === key);
+    const entry: Entry = { key, status: "none", fetchedAt: "", ...previous, manual: Object.fromEntries(Object.entries({ ...previous?.manual, ...manual }).filter(([,v]) => !!v)), aliases };
+    await writeJson(FILE, [...all.filter(e => e.key !== key), entry]);
+  });
 }

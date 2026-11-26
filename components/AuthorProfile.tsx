@@ -12,7 +12,7 @@ function Heading({ name, total }: { name: string; total: number }) {
   );
 }
 
-/** Заголовок страницы автора, пока справка ещё грузится. */
+
 export function AuthorHeadingOnly({ name, total }: { name: string; total: number }) {
   return (
     <div className="mt-4">
@@ -21,7 +21,7 @@ export function AuthorHeadingOnly({ name, total }: { name: string; total: number
   );
 }
 
-/** Если ни в одном открытом источнике автора нет — справка строится из данных самого каталога. */
+
 function catalogSummary(books: BookLite[]): { description: string; extract: string } | null {
   if (!books.length) return null;
   const titles = books.slice(0, 5).map((b) => `«${b.title}»`);
@@ -49,18 +49,15 @@ function Credit({ info }: { info: AuthorInfo }) {
   return (
     <p className="mt-4 text-xs text-stone-400">
       {info.source === "wikipedia" && (
-        <>Текст — {link(info.url, "Википедия")}, CC BY-SA. Данные — Викиданные. Фото — Wikimedia Commons.</>
+        <>Текст — {link(info.url, "Википедия")}, CC BY-SA. Данные — Викиданные. {info.photo && "Фото — Wikimedia Commons."}</>
       )}
-      {info.source === "wikidata" && <>Данные — {link(info.url, "Викиданные")}. Фото — Wikimedia Commons.</>}
+      {info.source === "wikidata" && <>Данные — {link(info.url, "Викиданные")}. {info.photo && "Фото — Wikimedia Commons."}</>}
       {info.source === "openlibrary" && <>Данные — {link(info.url, "Open Library")}.</>}
     </p>
   );
 }
 
-/**
- * Шапка страницы автора: имя, а под ним справка — Википедия → Викиданные → Open Library,
- * а если автора нет ни в одном источнике, то сводка по его книгам из каталога.
- */
+
 export default async function AuthorProfile({
   author,
   total,
@@ -70,11 +67,11 @@ export default async function AuthorProfile({
   author: string;
   total?: number;
   books?: BookLite[];
-  /** true — один из нескольких соавторов: имя выводится как h2, без счётчика книг */
+  
   member?: boolean;
 }) {
   const info = await getAuthorInfo(author);
-  const hasInfo = !!info && !!(info.extract || info.description || info.born || info.birthPlace);
+  const hasInfo = !!info && !!(info.extract || info.description || info.born || info.birthPlace || info.photo || info.died);
 
   const title = member ? (
     <h2 className="text-2xl font-bold text-stone-900">{author}</h2>
@@ -88,6 +85,7 @@ export default async function AuthorProfile({
     return (
       <section aria-label={`Автор: ${author}`} className={wrap}>
         {title}
+        <p className="mt-2 text-sm text-stone-500">Биографическая информация пока недоступна.</p>
         {c && (
           <>
             <p className="mt-3 text-lg text-stone-600">{c.description}</p>
@@ -103,15 +101,15 @@ export default async function AuthorProfile({
   return (
     <section aria-label={`Справка об авторе: ${author}`} className={wrap}>
       <div className="flex flex-col gap-6 sm:flex-row sm:items-start">
-        {info.photo && (
-          // eslint-disable-next-line @next/next/no-img-element
+        {info.photo ? (
+
           <img
             src={info.photo}
             alt={info.name}
             referrerPolicy="no-referrer"
             className="h-56 w-44 shrink-0 rounded-2xl object-cover shadow-sm ring-1 ring-black/5"
           />
-        )}
+        ) : <div className="flex h-56 w-44 shrink-0 items-center justify-center rounded-2xl bg-stone-200 text-5xl text-stone-500">{author.charAt(0).toUpperCase()}</div>}
 
         <div className="min-w-0 max-w-3xl">
           {title}
@@ -137,6 +135,7 @@ export default async function AuthorProfile({
           )}
 
           {info.extract && <p className="mt-4 leading-relaxed text-stone-700">{info.extract}</p>}
+          {!info.extract && <p className="mt-3 text-sm text-stone-500">Биографическая информация пока недоступна.</p>}
           <Credit info={info} />
         </div>
       </div>

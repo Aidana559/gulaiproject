@@ -16,21 +16,6 @@
     }
   },
   {
-    "key": "кэнтаро миура",
-    "status": "ok",
-    "fetchedAt": "2026-11-10T11:25:15.357Z",
-    "info": {
-      "name": "Миура, Кэнтаро",
-      "description": "японский мангака",
-      "extract": "Кэнтаро Миура (яп. 三浦 建太郎 Миура Кэнтаро:, 11 июля 1966[…], Тиба — 6 мая 2021[…], Япония) — японский мангака, самым известным произведением которого является популярная сэйнэн-манга «Берсерк».",
-      "born": "11 июля 1966",
-      "died": "6 мая 2021",
-      "birthPlace": "Тиба",
-      "url": "https://ru.wikipedia.org/wiki/%D0%9C%D0%B8%D1%83%D1%80%D0%B0%2C_%D0%9A%D1%8D%D0%BD%D1%82%D0%B0%D1%80%D0%BE",
-      "source": "wikipedia"
-    }
-  },
-  {
     "key": "оксана растопчина",
     "status": "none",
     "fetchedAt": "2026-11-10T11:36:56.142Z"
@@ -235,20 +220,6 @@
     "fetchedAt": "2026-11-26T04:10:01.587Z"
   },
   {
-    "key": "viktor telʹpugov",
-    "v": 3,
-    "status": "ok",
-    "fetchedAt": "2026-11-26T04:10:14.797Z",
-    "info": {
-      "name": "Viktor Petrovič Tel'pugov",
-      "description": "(1917-1999)",
-      "born": "1917",
-      "died": "1999",
-      "url": "https://www.wikidata.org/wiki/Q112415696",
-      "source": "wikidata"
-    }
-  },
-  {
     "key": "джейн остин",
     "v": 3,
     "status": "ok",
@@ -278,6 +249,112 @@
       "birthPlace": "Айти",
       "photo": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f5/K%C5%8Dhei_Horikoshi_sign.svg/langru-330px-K%C5%8Dhei_Horikoshi_sign.svg.png?utm_source=ru.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
       "url": "https://ru.wikipedia.org/wiki/%D0%A5%D0%BE%D1%80%D0%B8%D0%BA%D0%BE%D1%81%D0%B8%2C_%D0%9A%D0%BE%D1%85%D1%8D%D0%B9",
+      "source": "wikipedia"
+    }
+  },
+  {
+    "key": "а. а. карасев",
+    "v": 4,
+    "status": "ok",
+    "fetchedAt": "2026-11-26T04:13:15.504Z",
+    "info": {
+      "name": "Карасёв, Александр Владимирович",
+      "extract": "Алекса́ндр Влади́мирович Карасёв — русский писатель, юрист, педагог, публицист, автор книг «Чеченские рассказы», «Парк Победы».",
+      "born": "1971",
+      "birthPlace": "Краснодар",
+      "photo": "https://commons.wikimedia.org/wiki/Special:FilePath/Alexander%20Karasyov%202009.jpg?width=400",
+      "url": "https://ru.wikipedia.org/wiki/%D0%9A%D0%B0%D1%80%D0%B0%D1%81%D1%91%D0%B2%2C_%D0%90%D0%BB%D0%B5%D0%BA%D1%81%D0%B0%D0%BD%D0%B4%D1%80_%D0%92%D0%BB%D0%B0%D0%B4%D0%B8%D0%BC%D0%B8%D1%80%D0%BE%D0%B2%D0%B8%D1%87",
+      "source": "wikipedia"
+    }
+  },
+  {
+    "key": "акихито цукуси",
+    "v": 4,
+    "status": "ok",
+    "fetchedAt": "2026-11-26T04:13:19.551Z",
+    "info": {
+      "name": "Akihito Tsukushi",
+      "description": "Japanese manga artist (born 1979)",
+      "extract": "Shigeya Suzuki, more commonly known under his pseudonym Akihito Tsukushi, is a Japanese illustrator, manga artist, and designer from Sagamihara, Kanagawa. Suzuki also goes by the name Ichimi Tokusa.",
+      "born": "5 мая 1979",
+      "birthPlace": "Сагамихара",
+      "url": "https://en.wikipedia.org/wiki/Akihito_Tsukushi",
+      "source": "wikipedia"
+    }
+  },
+  {
+    "key": "масаси кисимото",
+    "v": 4,
+    "status": "ok",
+    "fetchedAt": "2026-11-26T04:14:03.990Z",
+    "info": {
+      "name": "Кисимото, Масаси",
+      "description": "японский мангака",
+      "extract": "Маса́си Кисимо́то (яп. 岸本 斉史 Кисимото Масаси, род. 8 ноября 1974, Наги, Япония) — японский мангака, автор манги «Наруто» и «Боруто».",
+      "born": "8 ноября 1974",
+      "birthPlace": "Наги",
+      "url": "https://ru.wikipedia.org/wiki/%D0%9A%D0%B8%D1%81%D0%B8%D0%BC%D0%BE%D1%82%D0%BE%2C_%D0%9C%D0%B0%D1%81%D0%B0%D1%81%D0%B8",
+      "source": "wikipedia"
+    }
+  },
+  {
+    "key": "роберт лейтон",
+    "v": 4,
+    "status": "ok",
+    "fetchedAt": "2026-11-26T04:14:14.098Z",
+    "info": {
+      "name": "Robert Leighton",
+      "description": "British film editor",
+      "extract": "Robert Leighton is a British film and television editor with more than 30 feature film credits since 1980. He has edited nearly all of the films by film director Rob Reiner, commencing with This Is Spinal Tap in 1984. He has also edited three films with Christopher Guest. His work includes hit comedies and mockumentaries such as This Is Spinal Tap, Best in Show and When Harry Met Sally... as well as classic dramas such as Stand by Me and the Stephen King thriller, Misery, which garnered actress Kathy Bates a \"Best Actress\" Oscar. He was nominated for the Academy Award for Best Film Editing for the feature film, A Few Good Men (1992).",
+      "born": "2000",
+      "birthPlace": "Лондон",
+      "url": "https://en.wikipedia.org/wiki/Robert_Leighton_(film_editor)",
+      "source": "wikipedia"
+    }
+  },
+  {
+    "key": "мэтью сэндс",
+    "v": 4,
+    "status": "ok",
+    "fetchedAt": "2026-11-26T04:14:20.535Z",
+    "info": {
+      "name": "Сэндс, Мэтью",
+      "extract": "Мэтью Сэндс — американский физик и педагог, специалист в области физики ускорителей, наиболее известен как соавтор Феймановских лекций по физике.",
+      "born": "20 октября 1919",
+      "died": "13 сентября 2014",
+      "birthPlace": "Оксфорд",
+      "photo": "https://commons.wikimedia.org/wiki/Special:FilePath/Matthew%20L.%20Sands%20Los%20Alamos%20badge%20photo.png?width=400",
+      "url": "https://ru.wikipedia.org/wiki/%D0%A1%D1%8D%D0%BD%D0%B4%D1%81%2C_%D0%9C%D1%8D%D1%82%D1%8C%D1%8E",
+      "source": "wikipedia"
+    }
+  },
+  {
+    "key": "viktor telʹpugov",
+    "v": 4,
+    "status": "ok",
+    "fetchedAt": "2026-11-26T04:15:38.030Z",
+    "info": {
+      "name": "Viktor Petrovič Tel'pugov",
+      "description": "(1917-1999)",
+      "born": "1917",
+      "died": "1999",
+      "url": "https://www.wikidata.org/wiki/Q112415696",
+      "source": "wikidata"
+    }
+  },
+  {
+    "key": "кэнтаро миура",
+    "v": 4,
+    "status": "ok",
+    "fetchedAt": "2026-11-26T04:15:48.348Z",
+    "info": {
+      "name": "Миура, Кэнтаро",
+      "description": "японский мангака",
+      "extract": "Кэнтаро Миура (яп. 三浦 建太郎 Миура Кэнтаро:, 11 июля 1966[…], Тиба — 6 мая 2021[…], Япония) — японский мангака, самым известным произведением которого является популярная сэйнэн-манга «Берсерк».",
+      "born": "11 июля 1966",
+      "died": "6 мая 2021",
+      "birthPlace": "Тиба",
+      "url": "https://ru.wikipedia.org/wiki/%D0%9C%D0%B8%D1%83%D1%80%D0%B0%2C_%D0%9A%D1%8D%D0%BD%D1%82%D0%B0%D1%80%D0%BE",
       "source": "wikipedia"
     }
   }
