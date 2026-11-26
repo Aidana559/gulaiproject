@@ -1,4 +1,6 @@
-import { readJson, readJsonShared, withLock, writeJson, uid } from "./db";
+import { supabase } from "./supabase-server";
+import { readSupabaseBooks } from "./supabase-books";
+import { withLock, uid } from "./db";
 import {
   CANONICAL_GENRES,
   categoryPoster,
@@ -14,10 +16,6 @@ import {
 export type GenreDef = { id: string; name: string };
 export type Taxonomy = { categories: CategoryDef[]; genres: GenreDef[] };
 export type TaxonomyUsage = { categories: Record<string, number>; genres: Record<string, number> };
-
-const FILE = "taxonomy.json";
-const USER_FILE = "user-books.json";
-const CATALOG_FILE = "catalog-books.json";
 
 export const CATEGORY_LABEL_MAX = 40;
 export const GENRE_MAX = 60;
@@ -51,20 +49,21 @@ function sanitize(raw: Partial<Taxonomy> | null | undefined): Taxonomy {
 
 
 export async function getTaxonomy(): Promise<Taxonomy> {
-  const raw = await readJsonShared<Partial<Taxonomy> | null>(FILE, null);
-  const t = sanitize(raw);
+  const [cats, genres] = await Promise.all([supabase.from("categories").select("*"), supabase.from("genres").select("id,name")]);
+  if (cats.error || genres.error) throw new Error(cats.error?.message ?? genres.error?.message);
+  const t = sanitize({ categories: cats.data ?? [], genres: (genres.data ?? []).sort((a, b) => a.name.localeCompare(b.name, "ru")) });
   setCategoryRegistry(t.categories);
   setGenreRegistry(t.genres.map((g) => g.name));
   return t;
 }
 
-async function save(t: Taxonomy) {
-  await writeJson(FILE, t);
-  setCategoryRegistry(t.categories);
-  setGenreRegistry(t.genres.map((g) => g.name));
+async function mutate(action: string, id: string, values: Record<string, unknown> = {}): Promise<number> {
+  const { data, error } = await supabase.rpc("kitapta_taxonomy_mutate", { p_action: action, p_id: id, p_values: values });
+  if (error) fail(error.message);
+  return Number(data ?? 0);
 }
 
-const collator = new Intl.Collator("ru");
+
 
 
 const cleanLabel = (v: unknown, max: number) =>
@@ -101,14 +100,9 @@ function uniqueKey(label: string, taken: Set<string>): string {
 
 
 async function allBooksForCount(): Promise<BookLike[]> {
-  const [user, catalog] = await Promise.all([
-    readJsonShared<BookLike[]>(USER_FILE, []),
-    readJsonShared<BookLike[]>(CATALOG_FILE, []),
-  ]);
-  const byId = new Map<string, BookLike>();
-  for (const b of catalog) byId.set(String(b.id), b);
-  for (const b of user) byId.set(String(b.id), b);
-  return Array.from(byId.values()).filter((b) => !b.deleted);
+  return (await readSupabaseBooks())
+  .filter((b) => !b.deleted)
+  .map((b): BookLike => ({ ...b }));
 }
 
 const bookGenres = (b: BookLike): string[] => {
@@ -139,29 +133,6 @@ export async function getUsage(): Promise<TaxonomyUsage> {
 }
 
 
-async function rewriteBooks(fn: (b: BookLike) => BookLike | null): Promise<number> {
-  let total = 0;
-  for (const file of [USER_FILE, CATALOG_FILE]) {
-    await withLock(file === USER_FILE ? "user-books" : "catalog-books", async () => {
-      const list = await readJson<BookLike[]>(file, []);
-      let changed = 0;
-      const next = list.map((b) => {
-        const r = fn(b);
-        if (r) {
-          changed++;
-          return r;
-        }
-        return b;
-      });
-      if (changed) {
-        await writeJson(file, next);
-        total += changed;
-      }
-    });
-  }
-  return total;
-}
-
 export class TaxonomyError extends Error {}
 function fail(m: string): never {
   throw new TaxonomyError(m);
@@ -187,15 +158,13 @@ export function addCategory(labelRaw: unknown, singularRaw?: unknown, iconRaw?: 
     if (label.length < 2) fail("Название категории — не короче 2 символов");
     if (t.categories.some((c) => c.label.toLowerCase() === label.toLowerCase() || c.singular.toLowerCase() === singular.toLowerCase()))
       fail("Такая категория уже есть");
-    const books = await Promise.all([readJsonShared<BookLike[]>(USER_FILE, []), readJsonShared<BookLike[]>(CATALOG_FILE, [])]);
-    const taken = new Set([...DEFAULT_CATEGORIES.map((c) => c.key), ...t.categories.map((c) => c.key), ...books.flat().map((b) => String(b.category ?? ""))]);
+    const taken = new Set([...DEFAULT_CATEGORIES.map((c) => c.key), ...t.categories.map((c) => c.key)]);
     const key = uniqueKey(label, taken);
     const icon = typeof iconRaw === "string" && iconRaw.trim() ? iconRaw.trim() : undefined;
     const poster = validatePoster(posterRaw);
     const entry: CategoryDef = { key, label, singular, ...(icon ? { icon } : {}), ...(poster ? { poster } : {}) };
-    const next = { ...t, categories: [...t.categories, entry] };
-    await save(next);
-    return next;
+    await mutate("add_category", key, { ...entry, icon: icon ?? null, poster: poster ?? null });
+    return getTaxonomy();
   });
 }
 
@@ -221,9 +190,8 @@ export function updateCategory(key: string, labelRaw: unknown, singularRaw?: unk
           : cur.icon;
     const poster = posterRaw === undefined ? cur.poster : validatePoster(posterRaw);
     const entry: CategoryDef = { ...cur, key, label, singular, icon, poster };
-    const next = { ...t, categories: t.categories.map((c) => (c.key === key ? entry : c)) };
-    await save(next);
-    return next;
+    await mutate("update_category", key, { ...entry, icon: icon ?? null, poster: poster ?? null });
+    return getTaxonomy();
   });
 }
 
@@ -233,12 +201,8 @@ export function deleteCategory(key: string, _moveTo?: string): Promise<{ taxonom
     const t = await getTaxonomy();
     if (!t.categories.some((c) => c.key === key)) fail("Категория не найдена");
     if (t.categories.length <= 1) fail("Нельзя удалить последнюю категорию");
-    const books = await Promise.all([readJsonShared<BookLike[]>(USER_FILE, []), readJsonShared<BookLike[]>(CATALOG_FILE, [])]);
-    if (books.flat().some(b => parseCategory(b.category) === key)) fail("Категория связана с книгами и не может быть удалена");
-    const moved = 0;
-    const next = { ...t, categories: t.categories.filter((c) => c.key !== key) };
-    await save(next);
-    return { taxonomy: next, moved };
+    const moved = await mutate("delete_category", key, { moveTo: _moveTo ?? null });
+    return { taxonomy: await getTaxonomy(), moved };
   });
 }
 
@@ -261,29 +225,11 @@ export function addGenre(raw: unknown): Promise<Taxonomy> {
   return withLock("taxonomy", async () => {
     const t = await getTaxonomy();
     const name = checkGenreName(t, raw);
-    const next = { ...t, genres: [...t.genres, { id: uid(t.genres), name }].sort((a, b) => collator.compare(a.name, b.name)) };
-    await save(next);
-    return next;
+    await mutate("add_genre", uid(t.genres), { name });
+    return getTaxonomy();
   });
 }
 
-
-function rewriteGenreInBooks(from: string, to: string | null) {
-  const fk = genreKey(from);
-  return rewriteBooks((b) => {
-    const list = bookGenres(b);
-    if (!list.some((g) => genreKey(g) === fk)) return null;
-    const out: string[] = [];
-    const seen = new Set<string>();
-    for (const g of list) {
-      const v = genreKey(g) === fk ? to : g;
-      if (!v || seen.has(genreKey(v))) continue;
-      seen.add(genreKey(v));
-      out.push(v);
-    }
-    return { ...b, genres: out, genre: out[0] ?? "—" };
-  });
-}
 
 export function updateGenre(id: string, raw: unknown): Promise<{ taxonomy: Taxonomy; updated: number }> {
   return withLock("taxonomy", async () => {
@@ -291,14 +237,8 @@ export function updateGenre(id: string, raw: unknown): Promise<{ taxonomy: Taxon
     const cur = t.genres.find((g) => g.id === id);
     if (!cur) fail("Жанр не найден");
     const name = checkGenreName(t, raw, id);
-    let updated = 0;
-    if (name !== cur!.name) updated = await rewriteGenreInBooks(cur!.name, name);
-    const next = {
-      ...t,
-      genres: t.genres.map((g) => (g.id === id ? { id, name } : g)).sort((a, b) => collator.compare(a.name, b.name)),
-    };
-    await save(next);
-    return { taxonomy: next, updated };
+    const updated = await mutate("update_genre", id, { name });
+    return { taxonomy: await getTaxonomy(), updated };
   });
 }
 
@@ -308,9 +248,7 @@ export function deleteGenre(id: string): Promise<{ taxonomy: Taxonomy; updated: 
     const t = await getTaxonomy();
     const cur = t.genres.find((g) => g.id === id);
     if (!cur) fail("Жанр не найден");
-    const updated = await rewriteGenreInBooks(cur!.name, null);
-    const next = { ...t, genres: t.genres.filter((g) => g.id !== id) };
-    await save(next);
-    return { taxonomy: next, updated };
+    const updated = await mutate("delete_genre", id);
+    return { taxonomy: await getTaxonomy(), updated };
   });
 }
