@@ -3,13 +3,18 @@
 import UserLink from "@/components/UserLink";
 import { useCallback, useEffect, useState } from "react";
 import { isMutedNow, muteLabel } from "@/lib/mute";
+import SortableTh from "./SortableTh";
+import UserListToolbar from "./UserListToolbar";
 import { useToast } from "./useToast";
+import { useUserListView } from "./useUserListView";
+import { ROLE_LABEL, type StatusFilter, type UserSortField } from "@/lib/user-sort";
 
 type UserRow = {
   id: string;
   name: string;
   email: string;
   role: string;
+  createdAt?: string;
   muted?: boolean;
   mutedUntil?: string | null;
   muteReason?: string;
@@ -22,6 +27,25 @@ const TERMS = [
   { label: "30 дней", days: 30 },
   { label: "Навсегда", days: 0 },
 ];
+
+// В панели модератора статус — это только mute (блокировка здесь не отображается).
+const STATUS_OPTIONS: { key: StatusFilter; label: string }[] = [
+  { key: "all", label: "Все" },
+  { key: "muted", label: "С mute" },
+  { key: "active", label: "Без mute" },
+];
+
+const SORT_FIELD_LIST: UserSortField[] = ["name", "email", "createdAt", "role", "status"];
+
+const rowBtn =
+  "rounded-full px-2.5 py-1 text-xs font-medium text-stone-500 transition hover:bg-stone-100 hover:text-stone-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600 disabled:pointer-events-none disabled:opacity-40";
+
+const isMutedActive = (u: { muted?: boolean; mutedUntil?: string | null }) => isMutedNow(u);
+
+const formatDate = (iso?: string) => {
+  const d = iso ? new Date(iso) : null;
+  return d && Number.isFinite(d.getTime()) ? d.toLocaleDateString("ru-RU") : "—";
+};
 
 const REASONS = [
   "Спам в объявлениях",
@@ -39,6 +63,8 @@ export default function MutePanel() {
   const [custom, setCustom] = useState("");
   const [busy, setBusy] = useState(false);
   const { toast, toastNode } = useToast();
+  // Поиск, фильтры и сортировка — только отображение; users и данные на сервере не меняются.
+  const view = useUserListView(users, { isMuted: isMutedActive, showBlocked: false });
 
   const load = useCallback(async () => {
     try {
@@ -88,45 +114,61 @@ export default function MutePanel() {
 
   return (
     <>
-      <div className="mt-6 overflow-x-auto rounded-2xl bg-white ring-1 ring-stone-200">
-        <table className="w-full min-w-[560px] text-left text-sm">
-          <thead className="border-b bg-stone-50 text-xs uppercase text-stone-500">
+      <UserListToolbar
+        view={view}
+        idPrefix="mod-users"
+        searchPlaceholder="Поиск по имени, email, роли"
+        statusOptions={STATUS_OPTIONS}
+        sortFields={SORT_FIELD_LIST}
+        total={users.length}
+        loaded={loaded}
+      />
+
+      <div className="mt-2 overflow-x-auto">
+        <table className="w-full min-w-[680px] text-left text-sm">
+          <thead className="border-b border-stone-200 text-xs text-stone-500">
             <tr>
-              <th className="px-4 py-3">Имя</th>
-              <th className="px-4 py-3">Email</th>
-              <th className="px-4 py-3">Роль</th>
-              <th className="px-4 py-3">Mute</th>
-              <th className="px-4 py-3"></th>
+              <SortableTh field="name" label="Имя" sort={view.sort} onToggle={view.toggleSort} />
+              <SortableTh field="email" label="Email" sort={view.sort} onToggle={view.toggleSort} />
+              <SortableTh field="createdAt" label="Регистрация" sort={view.sort} onToggle={view.toggleSort} />
+              <SortableTh field="role" label="Роль" sort={view.sort} onToggle={view.toggleSort} />
+              <SortableTh field="status" label="Статус" sort={view.sort} onToggle={view.toggleSort} />
+              <th className="px-3 py-2.5" />
             </tr>
           </thead>
           <tbody className="divide-y divide-stone-100">
-            {users.map((u) => {
+            {view.rows.map((u) => {
               const muted = isMutedNow(u);
               return (
-                <tr key={u.id} className={muted ? "bg-amber-50/50" : ""}>
-                  <td className="px-4 py-3 font-medium"><UserLink userId={u.id}>{u.name}</UserLink></td>
-                  <td className="px-4 py-3 text-stone-600">{u.email}</td>
-                  <td className="px-4 py-3">{u.role}</td>
-                  <td className="px-4 py-3">
+                <tr key={u.id} className="transition hover:bg-stone-50/70">
+                  <td className="px-3 py-3 font-medium text-stone-900"><UserLink userId={u.id}>{u.name}</UserLink></td>
+                  <td className="px-3 py-3 text-stone-600">{u.email}</td>
+                  <td className="whitespace-nowrap px-3 py-3 text-stone-500">{formatDate(u.createdAt)}</td>
+                  <td className="px-3 py-3 text-stone-700">{ROLE_LABEL[u.role as keyof typeof ROLE_LABEL] ?? u.role}</td>
+                  <td className="px-3 py-3">
                     {muted ? (
                       <div>
-                        <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-800">
-                          mute · {muteLabel(u)}
+                        <span className="inline-flex items-center gap-2 text-sm text-amber-700">
+                          <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+                          Mute · {muteLabel(u)}
                         </span>
                         {u.muteReason && (
-                          <p className="mt-1 text-xs text-stone-500">{u.muteReason}</p>
+                          <p className="mt-0.5 pl-3.5 text-xs text-stone-500">{u.muteReason}</p>
                         )}
                       </div>
                     ) : (
-                      <span className="text-xs text-stone-400">—</span>
+                      <span className="inline-flex items-center gap-2 text-sm text-stone-600">
+                        <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                        Активен
+                      </span>
                     )}
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-3 py-3 text-right">
                     {u.role === "user" &&
                       (muted ? (
                         <button
                           type="button"
-                          className="mq-btn"
+                          className={rowBtn}
                           disabled={busy}
                           onClick={() => send({ id: u.id, muted: false }, "Mute снят")}
                         >
@@ -135,7 +177,7 @@ export default function MutePanel() {
                       ) : (
                         <button
                           type="button"
-                          className="mq-btn mq-btn-danger"
+                          className={`${rowBtn} hover:!bg-rose-50 hover:!text-rose-700`}
                           disabled={busy}
                           onClick={() => setTarget(u)}
                         >
@@ -146,10 +188,19 @@ export default function MutePanel() {
                 </tr>
               );
             })}
-            {loaded && users.length === 0 && (
+            {loaded && view.rows.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-4 py-10 text-center text-stone-500">
-                  Пользователей нет
+                <td colSpan={6} className="px-4 py-12 text-center text-stone-500">
+                  {users.length === 0 ? (
+                    "Пользователей нет"
+                  ) : (
+                    <>
+                      По вашему запросу никого не найдено.{" "}
+                      <button type="button" onClick={view.resetAll} className="font-medium text-indigo-700 underline underline-offset-4">
+                        Сбросить всё
+                      </button>
+                    </>
+                  )}
                 </td>
               </tr>
             )}
