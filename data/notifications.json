@@ -270,5 +270,53 @@
     },
     "read": false,
     "createdAt": "2026-11-26T18:35:13.940Z"
+  },
+  {
+    "id": "e09aee00-e4a5-4c9c-9a7b-f92fa021f5a0",
+    "userId": "5a5ca32f-3441-46c5-864c-8e85858e2674",
+    "type": "moderation",
+    "text": "Книга скрыта: «Апокалипсис: Олар Қайда Барды?». Выполнил: Модератор Gulbanu. Причина: Неверная категория или жанр.",
+    "href": "/book/2068/info",
+    "key": "mod:910a8992-dd83-43db-84e8-ea3fbd95986e",
+    "moderation": {
+      "id": "910a8992-dd83-43db-84e8-ea3fbd95986e",
+      "bookId": "2068",
+      "bookTitle": "Апокалипсис: Олар Қайда Барды?",
+      "authorId": "5a5ca32f-3441-46c5-864c-8e85858e2674",
+      "authorName": "Хуан",
+      "action": "hidden",
+      "actorId": "79d7d016-d9b4-4268-ac07-5d7443632a45",
+      "actorName": "Gulbanu",
+      "actorRole": "moderator",
+      "reason": "Неверная категория или жанр",
+      "until": null,
+      "stateAfter": "hidden",
+      "createdAt": "2026-11-26T18:52:05.806Z"
+    },
+    "read": false,
+    "createdAt": "2026-11-26T18:52:05.830Z"
+  },
+  {
+    "id": "79b62e98-4d24-403a-9776-80ffc8e12fc8",
+    "userId": "5a5ca32f-3441-46c5-864c-8e85858e2674",
+    "type": "moderation",
+    "text": "Книга снова опубликована: «Апокалипсис: Олар Қайда Барды?». Выполнил: Модератор Gulbanu.",
+    "href": "/book/2068/info",
+    "key": "mod:e92088c0-b996-48f3-b9cc-3b291d0f9117",
+    "moderation": {
+      "id": "e92088c0-b996-48f3-b9cc-3b291d0f9117",
+      "bookId": "2068",
+      "bookTitle": "Апокалипсис: Олар Қайда Барды?",
+      "authorId": "5a5ca32f-3441-46c5-864c-8e85858e2674",
+      "authorName": "Хуан",
+      "action": "published",
+      "actorId": "79d7d016-d9b4-4268-ac07-5d7443632a45",
+      "actorName": "Gulbanu",
+      "actorRole": "moderator",
+      "stateAfter": "published",
+      "createdAt": "2026-11-26T18:52:26.282Z"
+    },
+    "read": false,
+    "createdAt": "2026-11-26T18:52:26.307Z"
   }
 ]

@@ -555,5 +555,59 @@
     "actorRole": "moderator",
     "stateAfter": "published",
     "createdAt": "2026-11-26T18:35:13.914Z"
+  },
+  {
+    "id": "6abb8c59-b135-4d65-a313-b9e384d62d08",
+    "bookId": "2069",
+    "bookTitle": "The Routledge Introduction to the American Ghost Story",
+    "authorId": "5a5ca32f-3441-46c5-864c-8e85858e2674",
+    "authorName": "Хуан",
+    "action": "hidden_by_owner",
+    "actorId": "5a5ca32f-3441-46c5-864c-8e85858e2674",
+    "actorName": "Хуан",
+    "actorRole": "user",
+    "stateAfter": "published",
+    "createdAt": "2026-11-26T18:50:31.974Z"
+  },
+  {
+    "id": "648452da-09c3-43e3-aa7d-a1a062dbfad4",
+    "bookId": "2069",
+    "bookTitle": "The Routledge Introduction to the American Ghost Story",
+    "authorId": "5a5ca32f-3441-46c5-864c-8e85858e2674",
+    "authorName": "Хуан",
+    "action": "shown_by_owner",
+    "actorId": "5a5ca32f-3441-46c5-864c-8e85858e2674",
+    "actorName": "Хуан",
+    "actorRole": "user",
+    "stateAfter": "published",
+    "createdAt": "2026-11-26T18:50:38.736Z"
+  },
+  {
+    "id": "910a8992-dd83-43db-84e8-ea3fbd95986e",
+    "bookId": "2068",
+    "bookTitle": "Апокалипсис: Олар Қайда Барды?",
+    "authorId": "5a5ca32f-3441-46c5-864c-8e85858e2674",
+    "authorName": "Хуан",
+    "action": "hidden",
+    "actorId": "79d7d016-d9b4-4268-ac07-5d7443632a45",
+    "actorName": "Gulbanu",
+    "actorRole": "moderator",
+    "reason": "Неверная категория или жанр",
+    "until": null,
+    "stateAfter": "hidden",
+    "createdAt": "2026-11-26T18:52:05.806Z"
+  },
+  {
+    "id": "e92088c0-b996-48f3-b9cc-3b291d0f9117",
+    "bookId": "2068",
+    "bookTitle": "Апокалипсис: Олар Қайда Барды?",
+    "authorId": "5a5ca32f-3441-46c5-864c-8e85858e2674",
+    "authorName": "Хуан",
+    "action": "published",
+    "actorId": "79d7d016-d9b4-4268-ac07-5d7443632a45",
+    "actorName": "Gulbanu",
+    "actorRole": "moderator",
+    "stateAfter": "published",
+    "createdAt": "2026-11-26T18:52:26.282Z"
   }
 ]
