@@ -298,11 +298,19 @@ async function appendBooks(cat: Category, items: { c: Candidate; genres: string[
   if (items.length === 0) return;
   await withLock("catalog-file", async () => {
     const list = await readJson<CatalogBook[]>(CATALOG_FILE, []);
-    const used = new Set(list.map((b) => Number(b.id)));
-    let next = Math.max(FIRST_ID - 1, ...list.map((b) => Number(b.id) || 0)) + 1;
+    const users = await readJson<{ id: number | string }[]>(USER_FILE, []);
+    const used = new Set([...list, ...users].map((b) => Number(b.id)));
+    for (const file of [BOOKINGS_FILE, "transactions.json", "demo-tx-state.json", "moderation-log.json", "reports.json", "reviews.json"]) {
+      const rows = await readJson<{ bookId?: unknown; targetType?: string; targetId?: unknown }[]>(file, []);
+      for (const row of rows) {
+        if (row.bookId != null) used.add(Number(row.bookId));
+        if (row.targetType === "book") used.add(Number(row.targetId));
+      }
+    }
+    let next = Math.max(FIRST_ID - 1, ...Array.from(used).filter(Number.isFinite)) + 1;
     const now = new Date().toISOString();
     for (const { c, genres } of items) {
-      const free = ID_POOLS[cat].find((n) => !used.has(n));
+      const free = (ID_POOLS[cat] ?? []).find((n) => !used.has(n));
       const id = free ?? next++;
       used.add(id);
       list.push({

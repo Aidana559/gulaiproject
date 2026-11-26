@@ -25,17 +25,12 @@ export type ServerBook = Book & {
   views?: number;
   createdAt?: string;
   hidden?: boolean;
-  /**
-   * Книгу скрыл сам автор. Это ВИДИМОСТЬ, она не связана со статусом модерации:
-   * hidden/reviewed (решения модерации) автор менять не может.
-   */
   ownerHidden?: boolean;
   ownerHiddenAt?: string;
   deleted?: boolean;
   updatedAt?: string;
   reviewed?: boolean;
   moderationNote?: string;
-  /** до какого момента книга скрыта администрацией; пусто — бессрочно */
   hiddenUntil?: string | null;
   hiddenReason?: string;
   hiddenAt?: string;
@@ -60,7 +55,6 @@ const GRADIENTS = [
   "from-violet-500 to-indigo-700",
 ];
 
-/** Каталог только для чтения (общий экземпляр из кэша, не менять!). */
 async function readCatalog(): Promise<ServerBook[]> {
   return readJsonShared<ServerBook[]>(CATALOG_FILE, []);
 }
@@ -75,20 +69,10 @@ function canonBook(b: ServerBook): ServerBook {
   return { ...b, category, genres, genre: genres[0] ?? "—" };
 }
 
-/**
- * Приводит список жанров к чистому виду: без пустых, «—» и повторов (без учёта регистра),
- * не больше MAX_GENRES. Книга ↔ жанры — связь «многие ко многим»: у книги список жанров,
- * одна и та же запись жанра может быть у любого числа книг.
- */
 export function normalizeGenres(input: unknown): string[] {
-  // единый формат названий (lib/categories.ts): синонимы и регистр сводятся к одному жанру
   return normalizeGenreList(input, MAX_GENRES);
 }
 
-/**
- * Скрыта ли книга из каталога сейчас: скрытие автором (ownerHidden) или скрытие модерацией
- * (учитывается срок временного скрытия — по истечении книга снова видна).
- */
 export function isHiddenNow(
   b: { hidden?: boolean; hiddenUntil?: string | null; ownerHidden?: boolean },
   now = Date.now(),
@@ -99,18 +83,12 @@ export function isHiddenNow(
   return new Date(b.hiddenUntil).getTime() > now;
 }
 
-/**
- * Объявление пользователя ещё не одобрено модератором — в публичном каталоге и для брони
- * не должно быть видно. Книги каталога (без ownerId) всегда «опубликованы».
- */
-export function isPendingReview(b: {
-  ownerId?: string | number | null;
-  reviewed?: boolean;
-  deleted?: boolean;
-}): boolean {
-  if (b.deleted) return false;
-  if (b.ownerId == null || b.ownerId === "") return false;
-  return !b.reviewed;
+export function isPendingReview(
+  b: Pick<ServerBook, "ownerId" | "reviewed">
+): boolean {
+  return b.ownerId != null &&
+    Boolean(String(b.ownerId)) &&
+    !b.reviewed;
 }
 
 async function readUserBooks(): Promise<ServerBook[]> {
@@ -124,8 +102,6 @@ async function writeUserBooks(list: ServerBook[]) {
 export async function getAllBooks(
   opts: { includeHidden?: boolean; includeDeleted?: boolean } = {},
 ): Promise<ServerBook[]> {
-  // оба файла читаются параллельно и из кэша; ниже данные только фильтруются (копии объектов создаются через spread)
-  // getTaxonomy заодно обновляет реестр категорий и жанров (из data/taxonomy.json), по которому приводятся данные книг
   const [user, catalog] = await Promise.all([
     readJsonShared<ServerBook[]>(USER_FILE, []),
     readCatalog(),
@@ -141,16 +117,12 @@ export async function getAllBooks(
 
   const byId = new Map<string, ServerBook>();
   for (const b of staticMapped) byId.set(String(b.id), b);
-  for (const b of user) byId.set(String(b.id), { ...b }); // копия: объект из кэша менять нельзя
+  for (const b of user) byId.set(String(b.id), { ...b }); 
 
   const now = Date.now();
-  // Категория и жанры приводятся к единому формату только при чтении: файлы с данными не переписываются,
-  // поэтому категории уже опубликованных объявлений не теряются, а повторы и разные написания сводятся в одно.
-  // includeHidden=false — публичный каталог: без скрытых и без ещё не одобренных объявлений.
   return Array.from(byId.values()).map(canonBook).filter(
     (b) =>
-      (opts.includeDeleted || !b.deleted) &&
-      (opts.includeHidden || (!isHiddenNow(b, now) && !isPendingReview(b))),
+      (opts.includeDeleted || !b.deleted) && (opts.includeHidden || !isHiddenNow(b, now)),
   );
 }
 
@@ -162,21 +134,18 @@ export async function getBook(
   const book = all.find((b) => String(b.id) === String(id));
   if (!book) return undefined;
   if (book.deleted && !opts.includeDeleted) return undefined;
-  if (!opts.includeHidden && (isHiddenNow(book) || isPendingReview(book))) return undefined;
+  if (isHiddenNow(book) && !opts.includeHidden) return undefined;
   return withLiveStatus([book], await getBookStates())[0];
 }
 
 export type ListQuery = {
   q?: string;
   category?: string;
-  /** один жанр или несколько: книга должна относиться ко ВСЕМ выбранным жанрам */
   genre?: string | string[];
   author?: string;
   year?: number;
   status?: string;
-  /** фильтр по состоянию модерации (для панелей администрации и «Моих объявлений») */
   state?: "published" | "pending" | "hidden" | "deleted" | "all";
-  /** только книги этого владельца (id или имя) */
   owner?: { id: string; name?: string };
   sort?: "title" | "new" | "popular";
   page?: number;
@@ -187,19 +156,12 @@ export type ListQuery = {
 
 export type ListResult = {
   books: ServerBook[];
-  /** жанры, которые есть у книг по текущим фильтрам (кроме самого жанра) */
   genres: string[];
   total: number;
   page: number;
   limit: number;
   pages: number;
 };
-
-/**
- * Реальный статус книги берётся из броней (data/bookings.json), а не из поля book.status:
- * активная бронь → «Забронирована», выдана/просрочена → «Отдана», иначе «Доступна».
- * Так фильтр каталога, карточки и бейджи всегда совпадают с транзакциями.
- */
 function withLiveStatus<T extends { id: number | string; status: Status }>(
   list: T[],
   states: Record<string, "reserved" | "given">,
@@ -210,8 +172,6 @@ function withLiveStatus<T extends { id: number | string; status: Status }>(
   });
 }
 
-// Один экземпляр на процесс: localeCompare("ru") без него создаёт новый коллатор при каждом сравнении
-const RU = new Intl.Collator("ru");
 
 export async function listBooks(query: ListQuery): Promise<ListResult> {
   let list = withLiveStatus(
@@ -237,8 +197,6 @@ export async function listBooks(query: ListQuery): Promise<ListResult> {
 
   const q = (query.q ?? "").trim().toLowerCase();
   if (q) {
-    // поиск по названию, автору и по любому из жанров книги
-    // …и по названию категории («манга», «учебник», «методички»)
     const qk = q.replace(/ё/g, "е");
     list = list.filter(
       (b) =>
@@ -251,7 +209,6 @@ export async function listBooks(query: ListQuery): Promise<ListResult> {
   }
   if (query.category && query.category !== "all") {
     const wantCat = parseCategory(query.category);
-    // неизвестная категория в запросе — пустая выдача, а не «все книги»
     list = wantCat ? list.filter((b) => b.category === wantCat) : [];
   }
   if (query.author) {
@@ -265,14 +222,12 @@ export async function listBooks(query: ListQuery): Promise<ListResult> {
     list = list.filter((b) => b.status === query.status);
   }
 
-  // жанры для фильтра: по книгам выбранной категории/поиска, до применения самого жанра
   const genreFacet = Array.from(new Set(list.flatMap((b) => genresOf(b)))).sort(RU.compare);
 
   const wantedGenres = (Array.isArray(query.genre) ? query.genre : [query.genre ?? ""])
     .map((g) => g.trim())
     .filter((g) => g && g !== "all");
   if (wantedGenres.length) {
-    // книга попадает в выдачу, если у неё есть каждый из выбранных жанров
     list = list.filter((b) => {
       const have = genresOf(b);
       return wantedGenres.every((w) => have.some((g) => sameGenre(g, w)));
@@ -307,7 +262,6 @@ export type CreateBookInput = {
   title: string;
   author: string;
   category: Category;
-  /** устаревший одиночный жанр — используется, если genres не передан */
   genre?: string;
   genres?: string[];
   year?: number;
@@ -322,14 +276,9 @@ export type CreateBookInput = {
 };
 
 export function createBook(input: CreateBookInput): Promise<ServerBook> {
-  return withLock("user-books", () => createBookUnlocked(input));
+  return withLock("catalog-file", () => withLock("user-books", () => createBookUnlocked(input)));
 }
 
-/**
- * Самый большой номер книги, на который ссылаются другие файлы (брони, журнал модерации, жалобы, отзывы).
- * Даже если сама книга пропала из user-books.json, её номер нельзя выдавать новой книге: иначе старые брони,
- * записи журнала и переписки «прилипнут» к чужой книге. Файлы только читаются.
- */
 async function maxReferencedBookNumber(): Promise<number> {
   let max = 0;
   const bump = (v: unknown) => {
@@ -337,7 +286,7 @@ async function maxReferencedBookNumber(): Promise<number> {
     if (Number.isFinite(n) && n > max) max = n;
   };
   type Ref = { bookId?: unknown; targetType?: string; targetId?: unknown };
-  for (const file of ["bookings.json", "moderation-log.json", "reports.json", "reviews.json"]) {
+  for (const file of ["bookings.json", "moderation-log.json", "reports.json", "reviews.json", "transactions.json", "demo-tx-state.json"]) {
     for (const r of await readJson<Ref[]>(file, [])) {
       bump(r.bookId);
       if (r.targetType === "book") bump(r.targetId);
@@ -348,7 +297,6 @@ async function maxReferencedBookNumber(): Promise<number> {
 
 async function createBookUnlocked(input: CreateBookInput): Promise<ServerBook> {
   const user = await readUserBooks();
-  // удалённые тоже учитываем, чтобы id никогда не повторялся
   const all = await getAllBooks({ includeHidden: true, includeDeleted: true });
   const referenced = await maxReferencedBookNumber();
   const maxNum = all.reduce((m, b) => {
@@ -356,39 +304,13 @@ async function createBookUnlocked(input: CreateBookInput): Promise<ServerBook> {
     return Number.isFinite(n) ? Math.max(m, n) : m;
   }, Math.max(1000, referenced));
   const id = maxNum + 1;
-
-  const title = input.title.trim();
-  const author = input.author.trim();
-  if (title.length < 2) throw new Error("Укажите название (не короче 2 символов)");
-  if (title.length > 200) throw new Error("Название слишком длинное (макс. 200 символов)");
-  if (author.length < 2) throw new Error("Укажите автора (не короче 2 символов)");
-  if (author.length > 200) throw new Error("Имя автора слишком длинное (макс. 200 символов)");
-  const description = (input.description ?? "").trim();
-  if (description.length > 5000) throw new Error("Описание слишком длинное (макс. 5000 символов)");
-
-  // Дубликат: у того же владельца уже есть неудалённое объявление с тем же названием и автором
-  const tKey = title.toLowerCase().replace(/ё/g, "е");
-  const aKey = author.toLowerCase().replace(/ё/g, "е");
-  const dup = all.find(
-    (b) =>
-      !b.deleted &&
-      String(b.ownerId) === String(input.ownerId) &&
-      (b.title ?? "").trim().toLowerCase().replace(/ё/g, "е") === tKey &&
-      (b.author ?? "").trim().toLowerCase().replace(/ё/g, "е") === aKey,
-  );
-  if (dup) {
-    throw new Error(
-      `У вас уже есть объявление «${dup.title}» (id ${dup.id}). Отредактируйте существующее или удалите его.`,
-    );
-  }
-
   const genres = normalizeGenres(input.genres ?? input.genre);
   const now = new Date().toISOString();
 
   const book: ServerBook = {
     id,
-    title,
-    author,
+    title: input.title.trim(),
+    author: input.author.trim(),
     category: input.category,
     genre: genres[0] ?? "—",
     genres,
@@ -396,7 +318,7 @@ async function createBookUnlocked(input: CreateBookInput): Promise<ServerBook> {
     pages: input.pages || 0,
     city: (input.city ?? "").trim() || "—",
     campus: (input.campus ?? "").trim() || undefined,
-    description,
+    description: (input.description ?? "").trim() || "",
     condition: input.condition ?? "used",
     status: "available" as Status,
     owner: input.ownerName,
@@ -416,7 +338,6 @@ async function createBookUnlocked(input: CreateBookInput): Promise<ServerBook> {
   return book;
 }
 
-/** Если сменили основной жанр — список жанров подстраиваем, не теряя остальные */
 function withGenres(current: ServerBook, patch: Partial<ServerBook>): Partial<ServerBook> {
   if (Array.isArray(patch.genres)) {
     const list = normalizeGenres(patch.genres);
@@ -434,7 +355,6 @@ export function patchBook(
   id: string,
   patch: Partial<ServerBook>,
 ): Promise<ServerBook | undefined> {
-  // файловое хранилище не атомарно: сериализуем чтение-изменение-запись
   return withLock("user-books", () => patchBookUnlocked(id, patch));
 }
 
@@ -446,7 +366,7 @@ async function patchBookUnlocked(
   const idx = user.findIndex((b) => String(b.id) === String(id));
 
   if (idx >= 0) {
-    user[idx] = { ...user[idx], ...withGenres(user[idx], patch), updatedAt: new Date().toISOString() };
+    user[idx] = { ...user[idx], ...withGenres(user[idx], patch), id: user[idx].id, updatedAt: new Date().toISOString() };
     await writeUserBooks(user);
     return user[idx];
   }
@@ -459,6 +379,7 @@ async function patchBookUnlocked(
     views: base.views ?? 0,
     createdAt: base.createdAt ?? "2026-01-01T00:00:00.000Z",
     ...withGenres(base, patch),
+    id: base.id,
     updatedAt: new Date().toISOString(),
   };
   user.unshift(merged);
@@ -470,9 +391,6 @@ export async function softDeleteBook(id: string) {
   return patchBook(id, { deleted: true });
 }
 
-// Счётчик просмотров копится в памяти и записывается пачкой раз в VIEWS_FLUSH_MS.
-// Раньше каждый просмотр книги перезаписывал весь user-books.json (запись + fsync + rename на каждый GET).
-// Если процесс остановится, потеряются просмотры максимум за последние несколько секунд.
 const VIEWS_FLUSH_MS = 5000;
 const pendingViews = new Map<string, number>();
 let viewsTimer: ReturnType<typeof setTimeout> | null = null;
@@ -505,13 +423,11 @@ async function flushViews() {
       if (changed) await writeUserBooks(user);
     });
   } catch {
-    // не получилось записать — возвращаем счётчики, попробуем в следующий раз
     for (const [id, n] of batch) pendingViews.set(id, (pendingViews.get(id) ?? 0) + n);
   }
 }
 
 export async function incrementViews(id: string) {
-  // счётчик просмотров не считается правкой книги — updatedAt не трогаем
   const key = String(id);
   pendingViews.set(key, (pendingViews.get(key) ?? 0) + 1);
   if (!viewsTimer) {

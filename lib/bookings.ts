@@ -1,8 +1,7 @@
-import { randomUUID } from "node:crypto";
 import { books as staticBooks } from "@/data/books";
 import demoTx from "@/data/transactions.json";
 import { notify, resolveUserId } from "@/lib/notifications";
-import { readJsonShared, withLock, writeJson } from "@/lib/db";
+import { readJsonShared, withLock, writeJson, uid } from "@/lib/db";
 
 export type BookingStatus =
   | "reserved"
@@ -314,7 +313,7 @@ export async function createBooking(input: {
     const all = await readAll();
     const today = day();
     const booking: Booking = {
-      id: randomUUID(),
+      id: uid(all),
       userId: input.userId,
       userName: input.userName,
       bookId: Number(input.bookId),

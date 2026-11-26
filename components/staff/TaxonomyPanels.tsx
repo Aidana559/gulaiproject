@@ -11,7 +11,7 @@ import CategoryIcon, {
 import { Button } from "@/components/Button";
 import { inputClass } from "@/components/FormField";
 import { useTaxonomy } from "@/components/TaxonomyProvider";
-import { genreKey, type CategoryDef } from "@/lib/categories";
+import { categoryPoster, genreKey, type CategoryDef } from "@/lib/categories";
 import { useToast } from "./useToast";
 
 type Usage = { categories: Record<string, number>; genres: Record<string, number> };
@@ -31,7 +31,6 @@ function plural(n: number) {
   return "книг";
 }
 
-/** Запрос к /api/taxonomy: ошибка сервера показывается уведомлением, при успехе возвращается ответ. */
 async function call(method: string, body?: unknown, query = ""): Promise<{ ok: boolean; json: Record<string, unknown> }> {
   try {
     const res = await fetch(`/api/taxonomy${query}`, {
@@ -46,7 +45,6 @@ async function call(method: string, body?: unknown, query = ""): Promise<{ ok: b
   }
 }
 
-/** Количество книг по категориям/жанрам (только для администратора). */
 function useUsage(version: unknown) {
   const [usage, setUsage] = useState<Usage>({ categories: {}, genres: {} });
   const load = useCallback(async () => {
@@ -55,7 +53,6 @@ function useUsage(version: unknown) {
       const json = res.ok ? await res.json() : null;
       if (json?.usage) setUsage(json.usage);
     } catch {
-      /* без счётчиков панель всё равно работает */
     }
   }, []);
   useEffect(() => {
@@ -128,255 +125,79 @@ function Toolbar({
 }
 
 function IconPicker({ value, onChange }: { value: string; onChange: (key: string) => void }) {
-  return (
-    <fieldset className="mt-3 min-w-0">
-      <legend className="mb-2 text-xs font-medium text-stone-600">Иконка категории</legend>
-      <div className="flex flex-wrap gap-2">
-        {CATEGORY_ICON_CATALOG.map(({ key, label, Icon }) => (
-          <button key={key} type="button" aria-pressed={value === key} aria-label={label} title={label}
-            onClick={() => onChange(key)}
-            className={`inline-flex h-10 w-10 items-center justify-center rounded-lg border transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 ${value === key ? "border-indigo-500 bg-indigo-50 text-indigo-700 ring-1 ring-indigo-500" : "border-stone-200 bg-white text-stone-600 hover:border-stone-400"}`}>
-            <Icon className={ICON_SIZE_SM} aria-hidden />
-          </button>
-        ))}
-      </div>
-    </fieldset>
-  );
+  return <label className="block space-y-1 text-sm">Иконка категории
+    <div className="flex items-center gap-2"><CategoryIcon category="" icon={value} className="h-6 w-6" />
+    <select className={`${selectCls} flex-1`} value={value} onChange={e => onChange(e.target.value)}>
+      {CATEGORY_ICON_CATALOG.map(({key,label}) => <option key={key} value={key}>{label}</option>)}
+    </select></div></label>;
 }
 
-// ======================= КАТЕГОРИИ =======================
-
 export function CategoriesPanel() {
-  const { categories, refresh } = useTaxonomy();
+  const { categories, refresh, loaded } = useTaxonomy();
   const { usage, reload } = useUsage(categories);
   const { toast, toastNode } = useToast();
-
-  const [label, setLabel] = useState("");
-  const [singular, setSingular] = useState("");
-  const [icon, setIcon] = useState(FALLBACK_CATEGORY_ICON_KEY);
-  const [editKey, setEditKey] = useState<string | null>(null);
-  const [editLabel, setEditLabel] = useState("");
-  const [editSingular, setEditSingular] = useState("");
-  const [editIcon, setEditIcon] = useState(FALLBACK_CATEGORY_ICON_KEY);
+  const [form, setForm] = useState<{key?: string; label: string; singular: string; icon: string; poster?: string; preview?: string} | null>(null);
   const [del, setDel] = useState<CategoryDef | null>(null);
-  const [moveTo, setMoveTo] = useState("");
   const [busy, setBusy] = useState(false);
-
+  const [reading, setReading] = useState(false);
   const [search, setSearch] = useState("");
   const [usageFilter, setUsageFilter] = useState<UsageFilter>("all");
   const [sort, setSort] = useState<SortKey>("name");
-
-  const count = (k: string) => usage.categories[k] ?? 0;
-
-  const visible = useMemo(() => {
-    const q = norm(search.trim());
-    const list = categories.filter(
-      (c) =>
-        (!q || norm(`${c.label} ${c.singular}`).includes(q)) &&
-        (usageFilter === "all" || (usageFilter === "used" ? count(c.key) > 0 : count(c.key) === 0)),
-    );
-    return [...list].sort((a, b) =>
-      sort === "count_desc"
-        ? count(b.key) - count(a.key)
-        : sort === "count_asc"
-          ? count(a.key) - count(b.key)
-          : a.label.localeCompare(b.label, "ru"),
-    );
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [categories, usage, search, usageFilter, sort]);
-
-  async function after(ok: boolean, json: Record<string, unknown>, msg: string) {
-    if (!ok) {
-      toast(String(json.error ?? "Ошибка"));
-      return false;
-    }
-    toast(msg);
-    await refresh();
-    await reload();
-    return true;
+  const count = (key: string) => usage.categories[key] ?? 0;
+  const visible = categories.filter(c => (!search.trim() || norm(`${c.label} ${c.singular}`).includes(norm(search.trim()))) && (usageFilter === "all" || (usageFilter === "used" ? count(c.key)>0 : count(c.key)===0))).sort((a,b) => sort === "count_desc" ? count(b.key)-count(a.key) : sort === "count_asc" ? count(a.key)-count(b.key) : a.label.localeCompare(b.label,"ru"));
+  const change = (patch: Partial<NonNullable<typeof form>>) => setForm(f => f ? {...f,...patch} : f);
+  async function choosePoster(file?: File) {
+    if (!file) return;
+    if (!['image/jpeg','image/png','image/webp'].includes(file.type) || file.size > 1000000) { toast("Выберите JPG, PNG или WebP до 1 МБ"); return; }
+    setReading(true);
+    try {
+      const url = await new Promise<string>((resolve,reject) => { const r = new FileReader(); r.onload = () => resolve(String(r.result)); r.onerror = reject; r.readAsDataURL(file); });
+      change({poster:url,preview:url});
+    } catch { toast("Не удалось прочитать изображение"); } finally { setReading(false); }
   }
-
-  async function add() {
-    if (!label.trim()) return;
+  async function saveForm() {
+    if (!form || busy || reading || !form.label.trim()) return;
     setBusy(true);
-    const r = await call("POST", { kind: "category", label, singular, icon });
-    if (await after(r.ok, r.json, "Категория добавлена")) {
-      setLabel("");
-      setSingular("");
-      setIcon(FALLBACK_CATEGORY_ICON_KEY);
-    }
+    const {preview, ...payload} = form;
+    const r = await call(form.key ? "PATCH" : "POST", {kind:"category", ...payload});
+    if (r.ok) { setForm(null); await refresh(); await reload(); toast("Категория сохранена"); }
+    else toast(String(r.json.error ?? "Ошибка"));
     setBusy(false);
   }
-
-  async function saveEdit() {
-    if (!editKey) return;
+  async function remove() {
+    if (!del || busy) return;
     setBusy(true);
-    const r = await call("PATCH", { kind: "category", key: editKey, label: editLabel, singular: editSingular, icon: editIcon });
-    if (await after(r.ok, r.json, "Категория изменена")) setEditKey(null);
+    const r = await call("DELETE", undefined, `?kind=category&key=${encodeURIComponent(del.key)}`);
+    if (r.ok) {setDel(null); await refresh(); await reload(); toast("Категория удалена");} else toast(String(r.json.error ?? "Ошибка"));
     setBusy(false);
   }
-
-  async function confirmDelete() {
-    if (!del) return;
-    setBusy(true);
-    const q = `?kind=category&key=${encodeURIComponent(del.key)}${moveTo ? `&moveTo=${encodeURIComponent(moveTo)}` : ""}`;
-    const r = await call("DELETE", undefined, q);
-    const moved = Number((r.json as { moved?: number }).moved ?? 0);
-    if (await after(r.ok, r.json, moved ? `Категория удалена, перенесено книг: ${moved}` : "Категория удалена")) setDel(null);
-    setBusy(false);
-  }
-
-  return (
-    <>
-      <section className="mt-6 rounded-2xl bg-white p-6 ring-1 ring-stone-200">
-        <h2 className="text-sm font-bold text-stone-900">Новая категория</h2>
-        <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
-          <input
-            value={label}
-            onChange={(e) => setLabel(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && add()}
-            placeholder="Название (мн. число): Журналы"
-            maxLength={40}
-            className={inputClass}
-            aria-label="Название категории"
-          />
-          <input
-            value={singular}
-            onChange={(e) => setSingular(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && add()}
-            placeholder="В ед. числе: Журнал"
-            maxLength={40}
-            className={inputClass}
-            aria-label="Название в единственном числе"
-          />
-          <Button size="sm" onClick={add} disabled={busy || !label.trim()}>
-            <FiPlus className={ICON_SIZE_SM} aria-hidden /> Добавить
-          </Button>
-        </div>
-        <IconPicker value={icon} onChange={setIcon} />
-        <p className="mt-2 text-xs text-stone-400">
-          Категория сразу появится в меню сайта, фильтре каталога и форме добавления книги.
-        </p>
-      </section>
-
-      <Toolbar
-        search={search}
-        setSearch={setSearch}
-        placeholder="Поиск по категориям"
-        usageFilter={usageFilter}
-        setUsageFilter={setUsageFilter}
-        sort={sort}
-        setSort={setSort}
-        shown={visible.length}
-        total={categories.length}
-      />
-
-      <ul className="mt-3 space-y-2 rounded-2xl bg-white p-4 ring-1 ring-stone-200">
-        {visible.length === 0 && <li className="p-4 text-center text-sm text-stone-400">Ничего не найдено</li>}
-        {visible.map((c) => (
-          <li key={c.key} className="rounded-lg bg-stone-50 px-4 py-2.5 text-sm">
-            {editKey === c.key ? (
-              <div className="space-y-2">
-                <div className="grid gap-2 sm:grid-cols-[1fr_1fr_auto_auto]">
-                  <input value={editLabel} onChange={(e) => setEditLabel(e.target.value)} maxLength={40} className={inputClass} aria-label="Название" />
-                  <input value={editSingular} onChange={(e) => setEditSingular(e.target.value)} maxLength={40} className={inputClass} aria-label="В единственном числе" />
-                  <Button size="sm" onClick={saveEdit} disabled={busy || !editLabel.trim()}>
-                    Сохранить
-                  </Button>
-                  <Button size="sm" variant="outline" onClick={() => setEditKey(null)}>
-                    Отмена
-                  </Button>
-                </div>
-                <IconPicker value={editIcon} onChange={setEditIcon} />
-              </div>
-            ) : (
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="flex min-w-0 items-center gap-2.5">
-                  <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white text-stone-600 ring-1 ring-stone-200">
-                    <CategoryIcon category={c.key} icon={c.icon} className={ICON_SIZE_SM} />
-                  </span>
-                  <div className="min-w-0">
-                    <span className="font-medium text-stone-800">{c.label}</span>
-                    <span className="ml-2 text-xs text-stone-400">
-                      ед. число: {c.singular} · ключ: {c.key}
-                    </span>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className="text-xs text-stone-500">
-                    {count(c.key)} {plural(count(c.key))}
-                  </span>
-                  <button
-                    type="button"
-                    className="inline-flex items-center gap-1 text-xs font-medium text-indigo-600 hover:underline"
-                    title="Изменить категорию"
-                    aria-label={`Изменить категорию ${c.label}`}
-                    onClick={() => (
-                      setEditKey(c.key),
-                      setEditLabel(c.label),
-                      setEditSingular(c.singular),
-                      setEditIcon(resolveCategoryIconKey(c.key, c.icon))
-                    )}
-                  >
-                    <FiEdit2 className={ICON_SIZE_SM} aria-hidden /> Изменить
-                  </button>
-                  <button
-                    type="button"
-                    className="inline-flex items-center gap-1 text-xs font-medium text-rose-600 hover:underline disabled:opacity-40"
-                    disabled={categories.length <= 1}
-                    title="Удалить категорию"
-                    aria-label={`Удалить категорию ${c.label}`}
-                    onClick={() => (setDel(c), setMoveTo(categories.find((x) => x.key !== c.key)?.key ?? ""))}
-                  >
-                    <FiTrash2 className={ICON_SIZE_SM} aria-hidden /> Удалить
-                  </button>
-                </div>
-              </div>
-            )}
-          </li>
-        ))}
-      </ul>
-
-      {del && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setDel(null)}>
-          <div role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()} className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
-            <h2 className="text-lg font-bold text-stone-900">Удалить категорию «{del.label}»?</h2>
-            {count(del.key) > 0 ? (
-              <>
-                <p className="mt-2 text-sm text-stone-600">
-                  В ней {count(del.key)} {plural(count(del.key))}. Книги не удаляются — они переедут в выбранную категорию.
-                </p>
-                <label className="mt-3 block text-sm font-medium text-stone-700">Перенести книги в</label>
-                <select value={moveTo} onChange={(e) => setMoveTo(e.target.value)} className={`${selectCls} mt-1 w-full`}>
-                  {categories
-                    .filter((x) => x.key !== del.key)
-                    .map((x) => (
-                      <option key={x.key} value={x.key}>
-                        {x.label}
-                      </option>
-                    ))}
-                </select>
-              </>
-            ) : (
-              <p className="mt-2 text-sm text-stone-600">В категории нет книг. Её можно удалить без последствий.</p>
-            )}
-            <div className="mt-5 flex justify-end gap-2">
-              <Button variant="outline" size="sm" onClick={() => setDel(null)}>
-                Отмена
-              </Button>
-              <Button variant="danger" size="sm" disabled={busy || (count(del.key) > 0 && !moveTo)} onClick={confirmDelete}>
-                Удалить
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
-      {toastNode}
-    </>
-  );
+  return <>
+    <div className="mt-6 flex flex-wrap items-center justify-between gap-3"><p className="text-sm text-stone-500">Управление типами изданий</p><Button disabled={!loaded || busy} onClick={() => setForm({label:"",singular:"",icon:FALLBACK_CATEGORY_ICON_KEY})}><FiPlus aria-hidden /> Новая категория</Button></div>
+    <Toolbar search={search} setSearch={setSearch} placeholder="Поиск по категориям" usageFilter={usageFilter} setUsageFilter={setUsageFilter} sort={sort} setSort={setSort} shown={visible.length} total={categories.length} />
+    <ul className="mt-3 space-y-2 rounded-2xl bg-white p-4 ring-1 ring-stone-200">
+      {visible.length === 0 && <li className="p-4 text-center text-sm text-stone-400">Ничего не найдено</li>}
+      {visible.map(c => <li key={c.key} className="flex items-center gap-3 rounded-xl bg-stone-50 p-3">
+        <div className="flex h-16 w-14 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-stone-200">{categoryPoster(c) ? <img src={categoryPoster(c)} alt="" className="h-full w-full object-cover" /> : <CategoryIcon category={c.key} icon={c.icon} className="h-7 w-7" />}</div>
+        <div className="min-w-0 flex-1"><div className="flex items-center gap-2 font-medium text-stone-800"><CategoryIcon category={c.key} icon={c.icon} className={ICON_SIZE_SM}/>{c.label}</div><p className="text-xs text-stone-500">{count(c.key)} {plural(count(c.key))}</p></div>
+        <details className="relative"><summary className="cursor-pointer list-none rounded-lg px-3 py-2 text-xl hover:bg-stone-200" aria-label={`Действия: ${c.label}`}>⋯</summary><div className="absolute right-0 z-20 mt-1 w-40 rounded-lg border bg-white p-1 shadow-lg">
+          <button className="block w-full rounded px-3 py-2 text-left text-sm hover:bg-stone-100" onClick={e => {e.currentTarget.closest('details')?.removeAttribute('open'); setForm({key:c.key,label:c.label,singular:c.singular,icon:resolveCategoryIconKey(c.key,c.icon),preview:categoryPoster(c)});}}>Изменить</button>
+          <button disabled={count(c.key)>0 || categories.length<=1} title={count(c.key)>0 ? "Категория содержит книги" : "Удалить"} className="block w-full rounded px-3 py-2 text-left text-sm text-rose-600 hover:bg-stone-100 disabled:opacity-40" onClick={e => {e.currentTarget.closest('details')?.removeAttribute('open');setDel(c);}}>Удалить</button>
+        </div></details>
+      </li>)}
+    </ul>
+    {form && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"><div role="dialog" aria-modal="true" aria-label={form.key ? "Изменить категорию" : "Новая категория"} className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl bg-white p-6 shadow-xl space-y-4">
+      <h2 className="text-lg font-bold">{form.key ? "Изменить категорию" : "Новая категория"}</h2>
+      <label className="block text-sm">Название категории<input className={`${inputClass} mt-1 w-full`} value={form.label} maxLength={40} onChange={e=>change({label:e.target.value})} placeholder="Журналы" /></label>
+      <label className="block text-sm">В единственном числе<input className={`${inputClass} mt-1 w-full`} value={form.singular} maxLength={40} onChange={e=>change({singular:e.target.value})} placeholder="Журнал" /></label>
+      <IconPicker value={form.icon} onChange={icon=>change({icon})}/>
+      <label className="block text-sm">Постер категории{form.preview && <img src={form.preview} alt="Предпросмотр постера" className="my-2 h-32 w-24 rounded-lg object-cover"/>}<input type="file" accept="image/jpeg,image/png,image/webp" disabled={busy || reading} onChange={e=>void choosePoster(e.target.files?.[0])} className="mt-2 block w-full text-xs"/><span className="text-xs text-stone-500">JPG, PNG, WebP до 1 МБ</span></label>
+      <div className="flex justify-end gap-2"><Button variant="outline" disabled={busy || reading} onClick={()=>setForm(null)}>Отмена</Button><Button disabled={busy || reading || !form.label.trim()} onClick={saveForm}>Сохранить</Button></div>
+    </div></div>}
+    {del && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"><div role="dialog" aria-modal="true" aria-label="Удаление категории" className="w-full max-w-md rounded-2xl bg-white p-6"><h2 className="font-bold">Удалить категорию «{del.label}»?</h2><p className="mt-2 text-sm">Удаление возможно только для пустой категории.</p><div className="mt-4 flex justify-end gap-2"><Button variant="outline" disabled={busy} onClick={()=>setDel(null)}>Отмена</Button><Button variant="danger" disabled={busy} onClick={remove}>Удалить</Button></div></div></div>}
+    {toastNode}
+  </>;
 }
 
-// ======================= ЖАНРЫ =======================
 
 export function GenresPanel() {
   const { genres, refresh } = useTaxonomy();
@@ -405,7 +226,6 @@ export function GenresPanel() {
     return [...list].sort((a, b) =>
       sort === "count_desc" ? count(b) - count(a) : sort === "count_asc" ? count(a) - count(b) : a.name.localeCompare(b.name, "ru"),
     );
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [genres, usage, search, usageFilter, sort]);
 
   async function after(ok: boolean, json: Record<string, unknown>, msg: string) {

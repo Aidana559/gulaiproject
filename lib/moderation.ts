@@ -53,7 +53,7 @@ async function record(
 ): Promise<ModerationEntry> {
   const authorId = await resolveUserId({ ownerId: book.ownerId, ownerName: book.owner });
   const entry: ModerationEntry = {
-    id: uid(),
+    id: "",
     bookId: String(book.id),
     bookTitle: book.title,
     authorId,
@@ -70,6 +70,7 @@ async function record(
 
   await withLock(LOCK, async () => {
     const log = await readLog();
+    entry.id = uid(log);
     log.push(entry);
     await writeJson(LOG_FILE, log);
   });

@@ -45,7 +45,7 @@ export async function notify(
       const all = await readJson<Notification[]>(FILE, []);
       if (n.key && all.some((x) => x.userId === userId && x.key === n.key)) return;
       all.push({
-        id: uid(),
+        id: uid(all),
         userId: String(userId),
         type: n.type,
         text: n.text,
@@ -88,7 +88,7 @@ export async function notifyMany(
         if (n.key && have.has(n.key)) continue;
         if (n.key) have.add(n.key);
         all.push({
-          id: uid(),
+          id: uid(all),
           userId: uidStr,
           type: n.type,
           text: n.text,

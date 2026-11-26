@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { uid } from "./db";
 import path from "node:path";
 import { readTextRetry, writeFileAtomic } from "./atomic-file";
 import type { User } from "./auth";
@@ -94,7 +94,7 @@ export function insertUser(input: { name: string; email: string; passwordHash: s
   return mutateUsers((users) => {
     if (users.some((u) => norm(u.email) === email)) throw new EmailTakenError();
     const user: User = {
-      id: randomUUID(),
+      id: uid(users),
       name: input.name.trim(),
       email,
       passwordHash: input.passwordHash,

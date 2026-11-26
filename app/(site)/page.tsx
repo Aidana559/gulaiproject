@@ -3,19 +3,13 @@ import Link from "next/link";
 import { FiArrowRight, FiBookOpen } from "react-icons/fi";
 import CategoryIcon from "@/components/CategoryIcon";
 import UserOnly from "@/components/UserOnly";
+import { categoryPoster } from "@/lib/categories";
 import { getTaxonomy } from "@/lib/taxonomy-store";
 import { getAllBooks } from "@/lib/books-store";
 import { getBookStates } from "@/lib/bookings";
 import BookCard from "@/components/BookCard";
 import { LinkButton } from "@/components/Button";
 
-
-const categoryCovers = new Map([
-  ["book", "/category-covers/book.webp"],
-  ["textbook", "/category-covers/textbook.webp"],
-  ["guide", "/category-covers/guide.webp"],
-  ["manga", "/category-covers/manga.webp"],
-]);
 
 const tones = [
   "from-indigo-700 to-indigo-950",
@@ -43,12 +37,11 @@ async function HomeContent() {
   const [books, states] = await Promise.all([getAllBooks(), getBookStates()]);
   const taxonomy = await getTaxonomy();
   const cats = taxonomy.categories;
-  
+
   const popular = books.filter((b) => !states[String(b.id)]).slice(0, 8);
 
   return (
     <>
-      {/* Hero */}
       <section className="px-3 pt-2 sm:px-6 lg:px-8">
         <div className="hero-bg relative mx-auto max-w-7xl overflow-hidden rounded-[2rem] text-white">
           <div className="grid items-center gap-10 px-6 py-16 sm:px-12 lg:grid-cols-[1.5fr_1fr] lg:py-28">
@@ -95,7 +88,6 @@ async function HomeContent() {
         </div>
       </section>
 
-      {/* Категории */}
       <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
         <h2 className="text-4xl text-stone-900 sm:text-5xl">Категории</h2>
         <div className="mt-8 grid grid-cols-2 gap-4 lg:grid-cols-4">
@@ -105,9 +97,9 @@ async function HomeContent() {
               href={`/catalog?category=${c.key}`}
               className={`group relative flex aspect-[4/5] flex-col justify-end overflow-hidden rounded-3xl bg-gradient-to-br p-5 text-white transition hover:-translate-y-1 hover:shadow-xl ${tones[i % tones.length]}`}
             >
-              {categoryCovers.has(c.key) && (
+              {categoryPoster(c) && (
                 <>
-                  <div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-cover bg-center transition-transform duration-500 motion-safe:group-hover:scale-105" style={{ backgroundImage: `url(${categoryCovers.get(c.key)})` }} />
+                  <div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-cover bg-center transition-transform duration-500 motion-safe:group-hover:scale-105" style={{ backgroundImage: `url(${categoryPoster(c)})` }} />
                   <div aria-hidden="true" className="pointer-events-none absolute inset-0" style={{ background: "linear-gradient(180deg, rgba(29,38,22,.30), rgba(23,30,17,.22) 35%, rgba(17,23,13,.94) 100%)" }} />
                 </>
               )}
@@ -122,7 +114,6 @@ async function HomeContent() {
         </div>
       </section>
 
-      {/* Доступно сейчас */}
       <section className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex items-end justify-between">
           <h2 className="text-4xl text-stone-900 sm:text-5xl">Доступно сейчас</h2>
@@ -135,7 +126,6 @@ async function HomeContent() {
         </div>
       </section>
 
-      {/* Как это работает */}
       <section className="mx-auto mt-24 grid max-w-7xl gap-10 px-4 sm:px-6 lg:grid-cols-[1fr_1.6fr] lg:px-8">
         <h2 className="text-4xl leading-tight text-stone-900 sm:text-5xl">Как это работает</h2>
         <ol className="border-t border-stone-300">
@@ -151,7 +141,6 @@ async function HomeContent() {
         </ol>
       </section>
 
-      {/* Призыв */}
       <section className="mx-auto mt-24 max-w-7xl px-3 sm:px-6 lg:px-8">
         <div className="rounded-[2rem] bg-gradient-to-br from-stone-900 via-stone-800 to-indigo-950 px-6 py-16 text-white sm:px-14">
           <h2 className="max-w-xl text-4xl leading-tight sm:text-5xl">Есть ненужные книги или конспекты?</h2>

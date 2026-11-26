@@ -1,12 +1,7 @@
-// Серверное хранилище категорий и жанров (data/taxonomy.json).
-// Пока файла нет, действуют значения по умолчанию (4 категории и канонический список жанров) —
-// поэтому все уже опубликованные книги продолжают показываться как раньше.
-//
-// Категория хранится в книге ключом (book | textbook | …), поэтому переименование категории меняет только подпись.
-// Жанр хранится в книге названием, поэтому переименование/удаление жанра обновляет и книги.
 import { readJson, readJsonShared, withLock, writeJson, uid } from "./db";
 import {
   CANONICAL_GENRES,
+  categoryPoster,
   DEFAULT_CATEGORIES,
   genreKey,
   normalizeGenreName,
@@ -42,6 +37,7 @@ function sanitize(raw: Partial<Taxonomy> | null | undefined): Taxonomy {
     categories: raw?.categories
       ? cats.map((c) => ({
           key: c.key,
+          ...(categoryPoster(c) ? { poster: categoryPoster(c) } : {}),
           label: c.label,
           singular: c.singular || c.label,
           ...(typeof (c as CategoryDef).icon === "string" && (c as CategoryDef).icon
@@ -53,7 +49,7 @@ function sanitize(raw: Partial<Taxonomy> | null | undefined): Taxonomy {
   };
 }
 
-/** Читает категории и жанры и обновляет реестры в памяти (подписи, синонимы жанров). */
+
 export async function getTaxonomy(): Promise<Taxonomy> {
   const raw = await readJsonShared<Partial<Taxonomy> | null>(FILE, null);
   const t = sanitize(raw);
@@ -70,7 +66,6 @@ async function save(t: Taxonomy) {
 
 const collator = new Intl.Collator("ru");
 
-// ---------------- вспомогательное ----------------
 
 const cleanLabel = (v: unknown, max: number) =>
   String(v ?? "").trim().replace(/\s+/g, " ").slice(0, max);
@@ -99,10 +94,12 @@ function uniqueKey(label: string, taken: Set<string>): string {
   const base = slugify(label);
   if (!taken.has(base)) return base;
   for (let i = 2; i < 1000; i++) if (!taken.has(`${base}-${i}`)) return `${base}-${i}`;
-  return `${base}-${uid().slice(0, 6)}`;
+  let key: string;
+  do { key = `${base}-${uid().slice(0, 6)}`; } while (taken.has(key));
+  return key;
 }
 
-/** Книги из обоих файлов (пользовательские перекрывают каталожные по id), без удалённых — для подсчёта использования. */
+
 async function allBooksForCount(): Promise<BookLike[]> {
   const [user, catalog] = await Promise.all([
     readJsonShared<BookLike[]>(USER_FILE, []),
@@ -127,7 +124,7 @@ const bookGenres = (b: BookLike): string[] => {
   return out;
 };
 
-/** Сколько книг в каждой категории и в каждом жанре. */
+
 export async function getUsage(): Promise<TaxonomyUsage> {
   await getTaxonomy();
   const books = await allBooksForCount();
@@ -141,7 +138,7 @@ export async function getUsage(): Promise<TaxonomyUsage> {
   return { categories, genres };
 }
 
-/** Применяет изменение ко всем книгам в обоих файлах; пишет файл только если что-то поменялось. Возвращает число изменённых книг. */
+
 async function rewriteBooks(fn: (b: BookLike) => BookLike | null): Promise<number> {
   let total = 0;
   for (const file of [USER_FILE, CATALOG_FILE]) {
@@ -170,9 +167,19 @@ function fail(m: string): never {
   throw new TaxonomyError(m);
 }
 
-// ---------------- категории ----------------
 
-export function addCategory(labelRaw: unknown, singularRaw?: unknown, iconRaw?: unknown): Promise<Taxonomy> {
+function validatePoster(raw: unknown): string | undefined {
+  if (raw === undefined || raw === null || raw === "") return undefined;
+  if (typeof raw !== "string" || raw.length > 1500000) fail("Постер слишком большой");
+  const match = /^data:image\/(png|jpeg|webp);base64,([A-Za-z0-9+/]+={0,2})$/.exec(raw);
+  if (!match) fail("Допустимы только PNG, JPEG и WebP");
+  const bytes = Buffer.from(match[2], "base64");
+  const valid = match[1] === "png" ? bytes.subarray(0, 8).equals(Buffer.from([137,80,78,71,13,10,26,10])) : match[1] === "jpeg" ? bytes[0] === 255 && bytes[1] === 216 && bytes[2] === 255 : bytes.toString("ascii",0,4) === "RIFF" && bytes.toString("ascii",8,12) === "WEBP";
+  if (!valid) fail("Некорректное изображение");
+  return raw;
+}
+
+export function addCategory(labelRaw: unknown, singularRaw?: unknown, iconRaw?: unknown, posterRaw?: unknown): Promise<Taxonomy> {
   return withLock("taxonomy", async () => {
     const t = await getTaxonomy();
     const label = capitalize(cleanLabel(labelRaw, CATEGORY_LABEL_MAX));
@@ -180,16 +187,19 @@ export function addCategory(labelRaw: unknown, singularRaw?: unknown, iconRaw?: 
     if (label.length < 2) fail("Название категории — не короче 2 символов");
     if (t.categories.some((c) => c.label.toLowerCase() === label.toLowerCase() || c.singular.toLowerCase() === singular.toLowerCase()))
       fail("Такая категория уже есть");
-    const key = uniqueKey(label, new Set(t.categories.map((c) => c.key)));
+    const books = await Promise.all([readJsonShared<BookLike[]>(USER_FILE, []), readJsonShared<BookLike[]>(CATALOG_FILE, [])]);
+    const taken = new Set([...DEFAULT_CATEGORIES.map((c) => c.key), ...t.categories.map((c) => c.key), ...books.flat().map((b) => String(b.category ?? ""))]);
+    const key = uniqueKey(label, taken);
     const icon = typeof iconRaw === "string" && iconRaw.trim() ? iconRaw.trim() : undefined;
-    const entry: CategoryDef = icon ? { key, label, singular, icon } : { key, label, singular };
+    const poster = validatePoster(posterRaw);
+    const entry: CategoryDef = { key, label, singular, ...(icon ? { icon } : {}), ...(poster ? { poster } : {}) };
     const next = { ...t, categories: [...t.categories, entry] };
     await save(next);
     return next;
   });
 }
 
-export function updateCategory(key: string, labelRaw: unknown, singularRaw?: unknown, iconRaw?: unknown): Promise<Taxonomy> {
+export function updateCategory(key: string, labelRaw: unknown, singularRaw?: unknown, iconRaw?: unknown, posterRaw?: unknown): Promise<Taxonomy> {
   return withLock("taxonomy", async () => {
     const t = await getTaxonomy();
     const cur = t.categories.find((c) => c.key === key);
@@ -209,40 +219,36 @@ export function updateCategory(key: string, labelRaw: unknown, singularRaw?: unk
         : typeof iconRaw === "string"
           ? iconRaw.trim() || undefined
           : cur.icon;
-    const entry: CategoryDef = icon ? { key, label, singular, icon } : { key, label, singular };
+    const poster = posterRaw === undefined ? cur.poster : validatePoster(posterRaw);
+    const entry: CategoryDef = { ...cur, key, label, singular, icon, poster };
     const next = { ...t, categories: t.categories.map((c) => (c.key === key ? entry : c)) };
     await save(next);
     return next;
   });
 }
 
-/** Удаляет категорию. Если в ней есть книги, их нужно перенести в другую (moveTo): книги не пропадают. */
-export function deleteCategory(key: string, moveTo?: string): Promise<{ taxonomy: Taxonomy; moved: number }> {
+
+export function deleteCategory(key: string, _moveTo?: string): Promise<{ taxonomy: Taxonomy; moved: number }> {
   return withLock("taxonomy", async () => {
     const t = await getTaxonomy();
     if (!t.categories.some((c) => c.key === key)) fail("Категория не найдена");
     if (t.categories.length <= 1) fail("Нельзя удалить последнюю категорию");
-    const usage = (await getUsage()).categories[key] ?? 0;
-    let moved = 0;
-    if (usage > 0) {
-      if (!moveTo || moveTo === key || !t.categories.some((c) => c.key === moveTo))
-        fail(`В категории ${usage} книг — выберите, куда их перенести`);
-      moved = await rewriteBooks((b) => (parseCategory(b.category) === key ? { ...b, category: moveTo } : null));
-    }
+    const books = await Promise.all([readJsonShared<BookLike[]>(USER_FILE, []), readJsonShared<BookLike[]>(CATALOG_FILE, [])]);
+    if (books.flat().some(b => parseCategory(b.category) === key)) fail("Категория связана с книгами и не может быть удалена");
+    const moved = 0;
     const next = { ...t, categories: t.categories.filter((c) => c.key !== key) };
     await save(next);
     return { taxonomy: next, moved };
   });
 }
 
-// ---------------- жанры ----------------
 
-/** Проверяет название жанра: не пустое и не совпадает (с учётом синонимов) с другим жанром. */
+
 function checkGenreName(t: Taxonomy, raw: unknown, selfId?: string): string {
   const name = capitalize(cleanLabel(raw, GENRE_MAX));
   if (name.length < 2) fail("Название жанра — не короче 2 символов");
   const k = genreKey(name);
-  const viaAlias = genreKey(normalizeGenreName(name)); // «ужасы» совпадёт с «Хоррор»
+  const viaAlias = genreKey(normalizeGenreName(name));
   for (const g of t.genres) {
     if (g.id === selfId) continue;
     const gk = genreKey(g.name);
@@ -255,13 +261,13 @@ export function addGenre(raw: unknown): Promise<Taxonomy> {
   return withLock("taxonomy", async () => {
     const t = await getTaxonomy();
     const name = checkGenreName(t, raw);
-    const next = { ...t, genres: [...t.genres, { id: uid(), name }].sort((a, b) => collator.compare(a.name, b.name)) };
+    const next = { ...t, genres: [...t.genres, { id: uid(t.genres), name }].sort((a, b) => collator.compare(a.name, b.name)) };
     await save(next);
     return next;
   });
 }
 
-/** Меняет в книгах жанр from → to (to = null: убрать жанр). Сравнение — по текущему реестру, до его обновления. */
+
 function rewriteGenreInBooks(from: string, to: string | null) {
   const fk = genreKey(from);
   return rewriteBooks((b) => {
@@ -296,7 +302,7 @@ export function updateGenre(id: string, raw: unknown): Promise<{ taxonomy: Taxon
   });
 }
 
-/** Удаляет жанр из списка и снимает его с книг (сами книги остаются). */
+
 export function deleteGenre(id: string): Promise<{ taxonomy: Taxonomy; updated: number }> {
   return withLock("taxonomy", async () => {
     const t = await getTaxonomy();

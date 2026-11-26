@@ -153,7 +153,7 @@ export async function POST(req: Request) {
     }
 
     reports.push({
-      id: uid(),
+      id: uid(reports),
       targetType,
       targetId,
       targetLabel,

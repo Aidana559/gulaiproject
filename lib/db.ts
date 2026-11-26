@@ -1,4 +1,5 @@
 import path from "path";
+import { randomUUID } from "node:crypto";
 import { promises as fsp } from "node:fs";
 import { readTextRetry, writeFileAtomic } from "./atomic-file";
 
@@ -54,7 +55,12 @@ export async function writeJson<T>(file: string, data: T) {
   await writeFileAtomic(full, JSON.stringify(data, null, 2));
 }
 
-export const uid = () => crypto.randomUUID();
+export function uid(existing: Iterable<{ id: string | number }> = []): string {
+  const taken = new Set(Array.from(existing, (row) => String(row.id)));
+  let id: string;
+  do { id = randomUUID(); } while (taken.has(id));
+  return id;
+}
 
 const g = globalThis as unknown as { __locks?: Map<string, Promise<unknown>> };
 const locks = (g.__locks ??= new Map<string, Promise<unknown>>());

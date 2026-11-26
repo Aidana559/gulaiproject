@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getBook } from "@/lib/books-store";
-import { readJson, uid, writeJson } from "@/lib/db";
+import { readJson, uid, writeJson, withLock } from "@/lib/db";
 import {
   bad, forbidden, getActor, isOwner, isStaff, unauthorized,
 } from "@/lib/server-auth";
@@ -42,6 +42,7 @@ export async function POST(req: Request) {
     if (!clean) return bad("Напишите текст отзыва");
   }
 
+  return withLock("reviews", async () => {
   const all = await readJson<Review[]>(FILE, []);
   const existing = all.find(
     (x) => x.targetType === targetType && x.targetId === tid && x.authorId === String(actor.id)
@@ -52,23 +53,26 @@ export async function POST(req: Request) {
     existing.createdAt = new Date().toISOString();
   } else {
     all.push({
-      id: uid(), targetType, targetId: tid,
+      id: uid(all), targetType, targetId: tid,
       authorId: String(actor.id), authorName: actor.name,
       rating: r, text: clean, createdAt: new Date().toISOString(),
     });
   }
   await writeJson(FILE, all);
   return NextResponse.json({ ok: true });
+  });
 }
 
 export async function DELETE(req: Request) {
   const actor = await getActor(req);
   if (!actor) return unauthorized();
   const id = new URL(req.url).searchParams.get("id");
+  return withLock("reviews", async () => {
   const all = await readJson<Review[]>(FILE, []);
   const rev = all.find((r) => r.id === id);
   if (!rev) return NextResponse.json({ error: "Не найдено" }, { status: 404 });
   if (rev.authorId !== String(actor.id) && !isStaff(actor)) return forbidden();
   await writeJson(FILE, all.filter((r) => r.id !== id));
   return NextResponse.json({ ok: true });
+  });
 }
