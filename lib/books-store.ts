@@ -7,6 +7,10 @@ import { MAX_GENRES, bookState } from "./moderation-shared";
 import { genresOf } from "./genres";
 import { getBookStates } from "./bookings";
 import { getTaxonomy } from "./taxonomy-store";
+const RU = new Intl.Collator("ru", {
+  sensitivity: "base",
+  numeric: true,
+});
 
 export type Condition = "new" | "used" | "annotated";
 

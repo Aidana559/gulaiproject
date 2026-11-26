@@ -136,6 +136,7 @@ const menuItem = "flex items-center gap-2 w-full rounded-lg px-3 py-2 text-left 
 export default function BooksPanel() {
   const [books, setBooks] = useState<BookRow[]>([]);
   const [loaded, setLoaded] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>("all");
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<Sort>("new");
@@ -146,20 +147,16 @@ export default function BooksPanel() {
   
   
   const load = useCallback(async () => {
+    setLoaded(false);
+    setLoadError(null);
     try {
-      const all: BookRow[] = [];
-      for (let page = 1; page <= 20; page++) {
-        const res = await fetch(`/api/books?all=1&state=all&limit=100&sort=new&page=${page}`, { cache: "no-store" });
-        if (!res.ok) throw new Error("load");
-        const json = await res.json();
-        const list: BookRow[] = Array.isArray(json) ? json : Array.isArray(json?.books) ? json.books : [];
-        all.push(...list);
-        if (Array.isArray(json) || page >= (Number(json?.pages) || 1)) break;
-      }
-      setBooks(all);
-    } catch {
-      
-      setBooks((prev) => prev);
+      const res = await fetch("/api/admin/books", { cache: "no-store" });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json?.error || `Ошибка загрузки (${res.status})`);
+      if (!Array.isArray(json?.books)) throw new Error("Некорректный ответ сервера");
+      setBooks(json.books);
+    } catch (error) {
+      setLoadError(error instanceof Error ? error.message : "Не удалось загрузить объявления");
     } finally {
       setLoaded(true);
     }
@@ -167,7 +164,6 @@ export default function BooksPanel() {
 
   useEffect(() => {
     
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     void load();
   }, [load]);
 
@@ -312,13 +308,13 @@ export default function BooksPanel() {
             onClick={() => setTab(t.key)}
           >
             {t.label}
-            {loaded && <span className={`ml-1.5 text-xs ${tab === t.key ? "text-indigo-100" : "text-stone-400"}`}>{counts[t.key]}</span>}
+            {loaded && !loadError && <span className={`ml-1.5 text-xs ${tab === t.key ? "text-indigo-100" : "text-stone-400"}`}>{counts[t.key]}</span>}
           </button>
         ))}
       </div>
 
       <p className="mt-3 min-h-5 text-sm text-stone-500" role="status" aria-live="polite">
-        {loaded ? (
+        {loaded && !loadError ? (
           <>
             Найдено: <span className="font-semibold text-stone-700">{rows.length}</span>
             {rows.length !== books.length && <> из {books.length}</>}
@@ -329,7 +325,13 @@ export default function BooksPanel() {
       
       <div className="mt-2 min-h-[22rem] [overflow-anchor:none]">
         {!loaded && <p className="rounded-2xl bg-white px-4 py-10 text-center text-sm text-stone-500 ring-1 ring-stone-200">Загрузка…</p>}
-        {loaded && rows.length === 0 && (
+        {loaded && loadError && (
+          <div role="alert" className="rounded-2xl bg-white px-4 py-10 text-center text-sm text-stone-600 ring-1 ring-stone-200">
+            <p>{loadError}</p>
+            <button type="button" onClick={() => void load()} className="mt-3 font-medium text-indigo-700 underline">Повторить загрузку</button>
+          </div>
+        )}
+        {loaded && !loadError && rows.length === 0 && (
           <p className="rounded-2xl bg-white px-4 py-10 text-center text-sm text-stone-500 ring-1 ring-stone-200">
             {books.length === 0 ? (
               "Объявлений нет"
@@ -378,7 +380,13 @@ export default function BooksPanel() {
                       </span>
                     )}
                   </div>
-                  <p className="mt-1 break-words text-sm text-stone-600">{b.author}</p>
+                  <p className="mt-1 break-words text-sm text-stone-600">
+                    {b.author?.trim() ? (
+                      <Link href={`/author/${encodeURIComponent(b.author)}`} className="hover:text-[#59683f] hover:underline focus-visible:underline">
+                        {b.author}
+                      </Link>
+                    ) : b.author}
+                  </p>
                   <p className="mt-0.5 break-words text-xs text-stone-500">
                     {b.owner ? <>Владелец: <UserLink userId={b.ownerId}>{b.owner}</UserLink></> : "Владелец не указан"}
                     {" · "}

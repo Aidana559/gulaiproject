@@ -148,12 +148,6 @@
     }
   },
   {
-    "key": "фиалка султангирова",
-    "v": 3,
-    "status": "none",
-    "fetchedAt": "2026-11-14T14:17:09.291Z"
-  },
-  {
     "key": "н. ш. мифтахова",
     "v": 3,
     "status": "none",
@@ -208,6 +202,82 @@
       "birthPlace": "Москва",
       "photo": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/56/Kiprensky_Pushkin.jpg/330px-Kiprensky_Pushkin.jpg?utm_source=ru.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
       "url": "https://ru.wikipedia.org/wiki/%D0%9F%D1%83%D1%88%D0%BA%D0%B8%D0%BD%2C_%D0%90%D0%BB%D0%B5%D0%BA%D1%81%D0%B0%D0%BD%D0%B4%D1%80_%D0%A1%D0%B5%D1%80%D0%B3%D0%B5%D0%B5%D0%B2%D0%B8%D1%87",
+      "source": "wikipedia"
+    }
+  },
+  {
+    "key": "harald lark",
+    "v": 3,
+    "status": "none",
+    "fetchedAt": "2026-11-26T04:07:03.842Z"
+  },
+  {
+    "key": "disney",
+    "v": 3,
+    "status": "ok",
+    "fetchedAt": "2026-11-26T04:09:54.462Z",
+    "info": {
+      "name": "Дисней, Уолт",
+      "description": "американский художник-мультипликатор, кинорежиссёр, актёр, сценарист и продюсер (1901—1966)",
+      "extract": "Уо́лтер (Уо́лт) Эла́йас Дисне́й, Ди́сни, Ди́зни — американский художник-мультипликатор, кинематографист и антрепренёр, один из основоположников индустрии анимационного кино, кинорежиссёр, актёр, сценарист и продюсер.",
+      "born": "5 декабря 1901",
+      "died": "15 декабря 1966",
+      "birthPlace": "Чикаго",
+      "photo": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/df/Walt_Disney_1946.JPG/330px-Walt_Disney_1946.JPG?utm_source=ru.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "url": "https://ru.wikipedia.org/wiki/%D0%94%D0%B8%D1%81%D0%BD%D0%B5%D0%B9%2C_%D0%A3%D0%BE%D0%BB%D1%82",
+      "source": "wikipedia"
+    }
+  },
+  {
+    "key": "фиалка султангирова",
+    "v": 3,
+    "status": "none",
+    "fetchedAt": "2026-11-26T04:10:01.587Z"
+  },
+  {
+    "key": "viktor telʹpugov",
+    "v": 3,
+    "status": "ok",
+    "fetchedAt": "2026-11-26T04:10:14.797Z",
+    "info": {
+      "name": "Viktor Petrovič Tel'pugov",
+      "description": "(1917-1999)",
+      "born": "1917",
+      "died": "1999",
+      "url": "https://www.wikidata.org/wiki/Q112415696",
+      "source": "wikidata"
+    }
+  },
+  {
+    "key": "джейн остин",
+    "v": 3,
+    "status": "ok",
+    "fetchedAt": "2026-11-26T04:10:45.951Z",
+    "info": {
+      "name": "Остин, Джейн",
+      "description": "английская писательница (1775—1817)",
+      "extract": "Джейн О́стин, распространён также вариант Джейн О́стен — английская писательница, предвестница реализма в британской литературе, сатирик, писала так называемые романы нравов. Её книги являются признанными шедеврами, которые сочетают в себе простоту сюжета, глубокое психологическое проникновение в души героев и ироничный, мягкий, истинно английский юмор.",
+      "born": "16 декабря 1775",
+      "died": "18 июля 1817",
+      "birthPlace": "Стивентон",
+      "photo": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/fd/%D0%94%D0%B6%D0%B5%D0%B9%D0%BD_%D0%9E%D1%81%D1%82%D0%B8%D0%BD.jpg/330px-%D0%94%D0%B6%D0%B5%D0%B9%D0%BD_%D0%9E%D1%81%D1%82%D0%B8%D0%BD.jpg?utm_source=ru.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "url": "https://ru.wikipedia.org/wiki/%D0%9E%D1%81%D1%82%D0%B8%D0%BD%2C_%D0%94%D0%B6%D0%B5%D0%B9%D0%BD",
+      "source": "wikipedia"
+    }
+  },
+  {
+    "key": "кохэй хорикоси",
+    "v": 3,
+    "status": "ok",
+    "fetchedAt": "2026-11-26T04:10:53.231Z",
+    "info": {
+      "name": "Хорикоси, Кохэй",
+      "description": "японский мангака",
+      "extract": "Кохэй Хорикоси — японский мангака, наиболее известный как автор манги «Моя геройская академия».",
+      "born": "20 ноября 1986",
+      "birthPlace": "Айти",
+      "photo": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f5/K%C5%8Dhei_Horikoshi_sign.svg/langru-330px-K%C5%8Dhei_Horikoshi_sign.svg.png?utm_source=ru.wikipedia.org&utm_campaign=api&utm_content=thumbnail",
+      "url": "https://ru.wikipedia.org/wiki/%D0%A5%D0%BE%D1%80%D0%B8%D0%BA%D0%BE%D1%81%D0%B8%2C_%D0%9A%D0%BE%D1%85%D1%8D%D0%B9",
       "source": "wikipedia"
     }
   }

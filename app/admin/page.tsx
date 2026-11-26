@@ -1,200 +1,75 @@
 export const instant = false;
 
 import Link from "next/link";
+import { FiUsers, FiBookOpen, FiFlag, FiCalendar, FiBook, FiClock, FiArrowUpRight, FiCheckCircle, FiChevronRight } from "react-icons/fi";
 import UserLink from "@/components/UserLink";
-import PageTitle from "@/components/staff/PageTitle";
-import { categoryLabels, type Category } from "@/data/books";
+import Avatar from "@/components/Avatar";
 import { getTaxonomy } from "@/lib/taxonomy-store";
-import { getAllBooks, isHiddenNow } from "@/lib/books-store";
+import { getAllBooks, isHiddenNow, isPendingReview } from "@/lib/books-store";
 import { readJson } from "@/lib/db";
 import { TARGET_LABEL } from "@/lib/reports";
 import type { Report } from "@/lib/types";
+import OverviewCharts from "@/components/staff/OverviewCharts";
 
-type U = {
-  id: string;
-  name: string;
-  email?: string;
-  role?: string;
-  createdAt?: string;
-  blocked?: boolean;
-  muted?: boolean;
-};
+type U = { id: string; name: string; email?: string; createdAt?: string; blocked?: boolean; muted?: boolean; avatar?: string; avatarUrl?: string };
 type B = { status?: string; dueDate?: string };
-
-const card = "rounded-2xl bg-white p-5 shadow-sm ring-1 ring-stone-200";
-const fmt = (iso?: string) => (iso ? iso.slice(0, 10).split("-").reverse().join(".") : "—");
+const card = "min-w-0 rounded-2xl border border-[#e3dfd2] bg-[#fffdf7] p-5 shadow-sm";
+const fmt = (iso?: string) => iso ? iso.slice(0, 10).split("-").reverse().join(".") : "—";
 
 export default async function AdminOverviewPage() {
-  const [books, users, bookings, reports] = await Promise.all([
-    getAllBooks({ includeHidden: true }),
-    readJson<U[]>("users.json", []),
-    readJson<B[]>("bookings.json", []),
-    readJson<Report[]>("reports.json", []),
+  const [books, users, bookings, reports, taxonomy] = await Promise.all([
+    getAllBooks({ includeHidden: true }), readJson<U[]>("users.json", []), readJson<B[]>("bookings.json", []), readJson<Report[]>("reports.json", []), getTaxonomy(),
   ]);
-
   const today = new Date().toISOString().slice(0, 10);
-  const openReports = reports.filter(
-    (r) => r.status === "new" || r.status === "in_review" || r.status === "open",
-  );
-  const reserved = bookings.filter((b) => b.status === "reserved").length;
-  const borrowed = bookings.filter((b) => b.status === "borrowed");
-  const overdue = borrowed.filter((b) => (b.dueDate ?? "9999") < today).length;
-  const onHands = borrowed.length - overdue;
-
+  const openReports = reports.filter(r => ["new", "in_review", "open"].includes(r.status));
+  const reserved = bookings.filter(b => b.status === "reserved").length;
+  const borrowed = bookings.filter(b => b.status === "borrowed");
+  const overdue = borrowed.filter(b => (b.dueDate ?? "9999") < today).length;
+  const pending = books.filter(isPendingReview).length;
   const stats = [
-    {
-      label: "Пользователи",
-      value: users.length,
-      sub: `заблокировано: ${users.filter((u) => u.blocked).length} · mute: ${users.filter((u) => u.muted).length}`,
-    },
-    { label: "Объявления", value: books.length, sub: `скрыто: ${books.filter((b) => isHiddenNow(b)).length}` },
-    { label: "Открытые жалобы", value: openReports.length, sub: `всего жалоб: ${reports.length}`, accent: true },
-    { label: "Брони", value: reserved, sub: "ждут выдачи" },
-    { label: "На руках", value: onHands, sub: "книги выданы" },
-    { label: "Просрочено", value: overdue, sub: "не вернули в срок" },
+    { label: "Пользователи", value: users.length, sub: `Заблокировано: ${users.filter(u => u.blocked).length} · mute: ${users.filter(u => u.muted).length}`, Icon: FiUsers, href: "/admin/users" },
+    { label: "Объявления", value: books.length, sub: `Скрыто: ${books.filter(b => isHiddenNow(b)).length}`, Icon: FiBookOpen, href: "/admin/books" },
+    { label: "Открытые жалобы", value: openReports.length, sub: `Всего жалоб: ${reports.length}`, Icon: FiFlag, href: "/admin/reports" },
+    { label: "Бронирования", value: reserved, sub: "Ожидают выдачи", Icon: FiCalendar },
+    { label: "На руках", value: borrowed.length - overdue, sub: "Выданы, срок не истёк", Icon: FiBook },
+    { label: "Просрочено", value: overdue, sub: "Не вернули в срок", Icon: FiClock },
   ];
-
-  const days = Array.from({ length: 7 }, (_, i) => {
+  const days = Array.from({ length: 90 }, (_, i) => {
     const d = new Date();
-    d.setUTCDate(d.getUTCDate() - (6 - i));
-    return d.toISOString().slice(0, 10);
+    d.setUTCDate(d.getUTCDate() - (89 - i));
+    const day = d.toISOString().slice(0, 10);
+    return { day, users: users.filter(u => u.createdAt?.slice(0, 10) === day).length, books: books.filter(b => b.createdAt?.slice(0, 10) === day).length };
   });
-  const perDay = days.map((d) => ({
-    day: d,
-    label: d.slice(8, 10) + "." + d.slice(5, 7),
-    users: users.filter((u) => u.createdAt?.slice(0, 10) === d).length,
-    books: books.filter((b) => b.createdAt?.slice(0, 10) === d).length,
-  }));
-  const maxDay = Math.max(1, ...perDay.flatMap((d) => [d.users, d.books]));
-
-  await getTaxonomy();
-  const cats = (Object.keys(categoryLabels) as Category[]).map((c) => ({
-    label: categoryLabels[c],
-    count: books.filter((b) => b.category === c).length,
-  }));
-  const maxCat = Math.max(1, ...cats.map((c) => c.count));
-
-  const newUsers = [...users]
-    .sort((a, b) => (b.createdAt ?? "").localeCompare(a.createdAt ?? ""))
-    .slice(0, 5);
-
+  const cats = taxonomy.categories.map(c => ({ label: c.label, count: books.filter(b => b.category === c.key).length }));
+  const other = books.length - cats.reduce((sum, c) => sum + c.count, 0);
+  if (other > 0) cats.push({ label: "Другие", count: other });
+  const newUsers = [...users].sort((a,b) => (b.createdAt ?? "").localeCompare(a.createdAt ?? "")).slice(0,5);
+  const recentReports = [...openReports].sort((a,b) => (b.createdAt ?? "").localeCompare(a.createdAt ?? "")).slice(0,5);
   return (
-    <>
-      <PageTitle title="Обзор" hint="Что сейчас происходит на сайте." />
-
-      <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {stats.map((s) => (
-          <div
-            key={s.label}
-            className={`${card} ${s.accent ? "ring-2 ring-amber-300" : ""}`}
-          >
-            <p className="text-xs text-stone-500">{s.label}</p>
-            <p className={`mt-1 text-3xl font-extrabold ${s.accent ? "text-amber-600" : "text-stone-900"}`}>
-              {s.value}
-            </p>
-            <p className="mt-1 text-xs text-stone-400">{s.sub}</p>
-          </div>
-        ))}
+    <div className="space-y-6">
+      <header className="flex flex-wrap items-end justify-between gap-3">
+        <div><h1 className="text-3xl font-normal text-[#302b23]">Обзор платформы</h1><p className="mt-1 text-sm text-stone-500">Мониторинг активности Kitapta</p></div>
+        <span className="flex items-center gap-2 rounded-xl border border-[#e3dfd2] px-3 py-2 text-xs text-stone-600"><FiCalendar /> {fmt(today)}</span>
+      </header>
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        {stats.map(({label,value,sub,Icon,href},i) => {
+          const content = <><div className="flex items-center justify-between gap-2"><span className="text-sm">{label}</span><Icon className="size-5 shrink-0" /></div><p className={`mt-3 text-3xl font-bold tabular-nums ${i === 2 && value > 0 || i === 5 && value > 0 ? "text-amber-700" : ""}`}>{value}</p><div className="mt-2 flex items-center justify-between gap-2 text-xs opacity-80"><span>{sub}</span>{href && <FiArrowUpRight />}</div></>;
+          const cls = `${card} ${i === 0 ? "!bg-[#505d3d] !text-white" : "text-[#403e32]"}`;
+          return href ? <Link key={label} href={href} className={`${cls} transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline focus-visible:outline-2`}>{content}</Link> : <div key={label} className={cls}>{content}</div>;
+        })}
       </div>
-
-      <div className="mt-6 grid gap-4 lg:grid-cols-2">
+      <OverviewCharts days={days} categories={cats} />
+      <div className="grid gap-4 xl:grid-cols-2">
         <section className={card}>
-          <h2 className="text-sm font-bold text-stone-900">Новое за 7 дней</h2>
-          <div className="mt-2 flex items-center gap-4 text-xs text-stone-500">
-            <span className="flex items-center gap-1.5">
-              <i className="inline-block size-2 rounded-full bg-indigo-500" /> Пользователи
-            </span>
-            <span className="flex items-center gap-1.5">
-              <i className="inline-block size-2 rounded-full bg-teal-400" /> Объявления
-            </span>
-          </div>
-          <div className="mt-4 flex h-32 items-end justify-between gap-2">
-            {perDay.map((d) => (
-              <div key={d.day} className="flex flex-1 flex-col items-center gap-1">
-                <div className="flex h-24 items-end gap-1">
-                  {[
-                    { v: d.users, c: "bg-indigo-500" },
-                    { v: d.books, c: "bg-teal-400" },
-                  ].map((bar, i) => (
-                    <div key={i} className="flex flex-col items-center justify-end">
-                      {bar.v > 0 && <span className="text-[10px] text-stone-500">{bar.v}</span>}
-                      <div
-                        className={`w-3 rounded-t ${bar.c}`}
-                        style={{ height: `${Math.max(2, (bar.v / maxDay) * 80)}px` }}
-                      />
-                    </div>
-                  ))}
-                </div>
-                <span className="text-[10px] text-stone-400">{d.label}</span>
-              </div>
-            ))}
-          </div>
+          <div className="flex items-center justify-between gap-2"><h2 className="text-lg">Требует внимания</h2><Link href="/admin/reports" className="text-xs text-[#596740] hover:underline">Все жалобы →</Link></div>
+          <div className="mt-4 grid grid-cols-2 gap-2 text-sm"><div className="rounded-xl bg-[#f3eee0] p-3"><p className="text-xs text-stone-600">Просрочено</p><strong className="text-xl">{overdue}</strong></div><Link href="/admin/books" className="rounded-xl bg-[#f3eee0] p-3 hover:underline"><p className="text-xs text-stone-600">На проверке</p><strong className="text-xl">{pending}</strong></Link></div>
+          {recentReports.length ? <ul className="mt-3 divide-y divide-[#e8e3d7]">{recentReports.map(r => <li key={r.id}><Link href="/admin/reports" className="flex items-center gap-3 py-3 hover:underline"><span className="rounded-lg bg-amber-100 p-2 text-amber-800"><FiFlag /></span><span className="min-w-0 flex-1"><span className="block break-words text-sm">{r.comment || r.reason}</span><span className="block text-xs text-stone-500">{TARGET_LABEL[r.targetType] ?? r.targetType} · {fmt(r.createdAt)}</span></span><FiChevronRight className="shrink-0" /></Link></li>)}</ul> : <p className="mt-5 flex items-center gap-2 text-sm text-[#596740]"><FiCheckCircle /> Открытых жалоб нет</p>}
         </section>
-
         <section className={card}>
-          <h2 className="text-sm font-bold text-stone-900">Объявления по категориям</h2>
-          <ul className="mt-4 space-y-3">
-            {cats.map((c) => (
-              <li key={c.label}>
-                <div className="flex justify-between text-xs text-stone-600">
-                  <span>{c.label}</span>
-                  <b className="text-stone-900">{c.count}</b>
-                </div>
-                <div className="mt-1 h-1.5 rounded-full bg-stone-100">
-                  <div
-                    className="h-1.5 rounded-full bg-indigo-500"
-                    style={{ width: `${(c.count / maxCat) * 100}%` }}
-                  />
-                </div>
-              </li>
-            ))}
-          </ul>
-        </section>
-
-        <section className={card}>
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-bold text-stone-900">Открытые жалобы</h2>
-            <Link href="/admin/reports" className="text-xs font-medium text-indigo-600 hover:underline">
-              Все →
-            </Link>
-          </div>
-          {openReports.length === 0 ? (
-            <p className="mt-4 text-sm text-stone-400">Открытых жалоб нет.</p>
-          ) : (
-            <ul className="mt-4 space-y-3">
-              {openReports.slice(0, 5).map((r) => (
-                <li key={r.id}>
-                  <p className="text-sm text-stone-900">{r.comment || r.reason}</p>
-                  <p className="text-xs text-stone-400">
-                    {TARGET_LABEL[r.targetType] ?? r.targetType} · {fmt(r.createdAt)}
-                  </p>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
-
-        <section className={card}>
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-bold text-stone-900">Новые пользователи</h2>
-            <Link href="/admin/users" className="text-xs font-medium text-indigo-600 hover:underline">
-              Все →
-            </Link>
-          </div>
-          <ul className="mt-4 space-y-3">
-            {newUsers.map((u) => (
-              <li key={u.id}>
-                <p className="text-sm font-medium text-stone-900">
-                  <UserLink userId={u.id}>{u.name}</UserLink>
-                </p>
-                <p className="text-xs text-stone-400">
-                  {u.email} · {fmt(u.createdAt)}
-                </p>
-              </li>
-            ))}
-          </ul>
+          <div className="flex items-center justify-between gap-2"><h2 className="text-lg">Новые пользователи</h2><Link href="/admin/users" className="text-xs text-[#596740] hover:underline">Все пользователи →</Link></div>
+          {newUsers.length ? <ul className="mt-3 divide-y divide-[#e8e3d7]">{newUsers.map(u => <li key={u.id} className="flex items-center gap-3 py-3"><UserLink userId={u.id}><Avatar name={u.name} src={u.avatarUrl || u.avatar} className="size-9 text-sm" /></UserLink><div className="min-w-0 flex-1"><UserLink userId={u.id} className="text-sm font-medium">{u.name}</UserLink><p className="truncate text-xs text-stone-500">{u.email}</p></div><span className="shrink-0 text-xs text-stone-500">{fmt(u.createdAt)}</span></li>)}</ul> : <p className="mt-4 text-sm text-stone-500">Пользователей пока нет.</p>}
         </section>
       </div>
-    </>
+    </div>
   );
 }
