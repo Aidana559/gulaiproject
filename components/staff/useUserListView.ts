@@ -6,6 +6,9 @@ import {
   DEFAULT_SORT,
   SORT_FIELDS,
   buildUserView,
+  countActiveFilters,
+  toDateInput,
+  type MuteTermFilter,
   type RoleFilter,
   type SortDir,
   type SortState,
@@ -15,21 +18,32 @@ import {
   type UserSortField,
 } from "@/lib/user-sort";
 
-
+/**
+ * Состояние «вида» списка пользователей: поиск, фильтры и сортировка —
+ * три независимых состояния. Меняется только порядок/набор отображаемых строк
+ * (useMemo над копией), исходный массив users и данные на сервере не затрагиваются.
+ */
 export function useUserListView<T extends SortableUser>(users: T[], ctx: UserListContext) {
   const [query, setQuery] = useState("");
   const [role, setRole] = useState<RoleFilter>(DEFAULT_FILTERS.role);
   const [status, setStatus] = useState<StatusFilter>(DEFAULT_FILTERS.status);
+  const [muteTerm, setMuteTerm] = useState<MuteTermFilter>(DEFAULT_FILTERS.muteTerm);
+  const [dateFrom, setDateFrom] = useState(DEFAULT_FILTERS.dateFrom);
+  const [dateTo, setDateTo] = useState(DEFAULT_FILTERS.dateTo);
   const [sort, setSort] = useState<SortState>(DEFAULT_SORT);
 
   const { isMuted, showBlocked } = ctx;
   const rows = useMemo(
     () =>
-      buildUserView(users, { query, filters: { role, status }, sort }, { isMuted, showBlocked }),
-    [users, query, role, status, sort, isMuted, showBlocked],
+      buildUserView(
+        users,
+        { query, filters: { role, status, muteTerm, dateFrom, dateTo }, sort },
+        { isMuted, showBlocked },
+      ),
+    [users, query, role, status, muteTerm, dateFrom, dateTo, sort, isMuted, showBlocked],
   );
 
-  
+  /** Выбор поля в блоке сортировки: направление по умолчанию для поля. null — сброс. */
   const setSortField = useCallback((field: UserSortField | null) => {
     setSort(field ? { field, dir: SORT_FIELDS[field].defaultDir } : DEFAULT_SORT);
   }, []);
@@ -38,7 +52,7 @@ export function useUserListView<T extends SortableUser>(users: T[], ctx: UserLis
     setSort((s) => (s.field ? { ...s, dir } : s));
   }, []);
 
-  
+  /** Клик по заголовку столбца: новое поле — направление по умолчанию, то же поле — переключение. */
   const toggleSort = useCallback((field: UserSortField) => {
     setSort((s) =>
       s.field === field
@@ -48,18 +62,31 @@ export function useUserListView<T extends SortableUser>(users: T[], ctx: UserLis
   }, []);
 
   const resetSort = useCallback(() => setSort(DEFAULT_SORT), []);
+  /** «Сбросить фильтры»: поиск и все фильтры. Сортировка не затрагивается. */
   const resetFilters = useCallback(() => {
-    setRole(DEFAULT_FILTERS.role);
-    setStatus(DEFAULT_FILTERS.status);
-  }, []);
-  const resetAll = useCallback(() => {
     setQuery("");
     setRole(DEFAULT_FILTERS.role);
     setStatus(DEFAULT_FILTERS.status);
-    setSort(DEFAULT_SORT);
+    setMuteTerm(DEFAULT_FILTERS.muteTerm);
+    setDateFrom(DEFAULT_FILTERS.dateFrom);
+    setDateTo(DEFAULT_FILTERS.dateTo);
   }, []);
 
-  const filtersActive = role !== "all" || status !== "all";
+  /** Быстрый выбор периода регистрации: «последние N дней» (включая сегодня). */
+  const setDateLastDays = useCallback((days: number) => {
+    const from = new Date();
+    from.setDate(from.getDate() - (days - 1));
+    setDateFrom(toDateInput(from));
+    setDateTo("");
+  }, []);
+  const resetAll = useCallback(() => {
+    resetFilters();
+    setSort(DEFAULT_SORT);
+  }, [resetFilters]);
+
+  const activeFilterCount = countActiveFilters({ role, status, muteTerm, dateFrom, dateTo });
+  // Фильтры в смысле кнопки «Сбросить»: поиск или хотя бы один фильтр.
+  const filtersActive = activeFilterCount > 0 || query.trim() !== "";
 
   return {
     rows,
@@ -69,6 +96,14 @@ export function useUserListView<T extends SortableUser>(users: T[], ctx: UserLis
     setRole,
     status,
     setStatus,
+    muteTerm,
+    setMuteTerm,
+    dateFrom,
+    setDateFrom,
+    dateTo,
+    setDateTo,
+    setDateLastDays,
+    activeFilterCount,
     sort,
     setSortField,
     setSortDir,
@@ -78,8 +113,8 @@ export function useUserListView<T extends SortableUser>(users: T[], ctx: UserLis
     resetAll,
     filtersActive,
     sortActive: sort.field !== null,
-    anyActive: query.trim() !== "" || filtersActive || sort.field !== null,
-    hasFilterOrSearch: query.trim() !== "" || filtersActive,
+    anyActive: filtersActive || sort.field !== null,
+    hasFilterOrSearch: filtersActive,
   };
 }
 

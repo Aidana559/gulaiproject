@@ -22,7 +22,7 @@ type UserRow = {
   createdAt?: string;
 };
 
-
+// Для таблицы админа «mute» — это флаг muted (как и в бейдже статуса ниже).
 const isMutedFlag = (u: { muted?: boolean }) => !!u.muted;
 
 const STATUS_OPTIONS: { key: StatusFilter; label: string }[] = [
@@ -72,7 +72,7 @@ export default function AdminUsersPage() {
     loadUsers();
   }, [loadUsers]);
 
-  
+  // Поиск, фильтры и сортировка — только отображение; users и данные на сервере не меняются.
   const view = useUserListView(users, { isMuted: isMutedFlag, showBlocked: true });
   const filtered = view.rows;
 
@@ -128,7 +128,7 @@ export default function AdminUsersPage() {
       <UserListToolbar
         view={view}
         idPrefix="admin-users"
-        searchPlaceholder="Поиск по имени, email, роли"
+        searchPlaceholder="Поиск по имени, email или ID"
         statusOptions={STATUS_OPTIONS}
         sortFields={SORT_FIELD_LIST}
         total={users.length}
@@ -160,6 +160,9 @@ export default function AdminUsersPage() {
                   <td className="px-3 py-3 font-medium text-stone-900">
                     <UserLink userId={u.id}>{u.name}</UserLink>
                     {self && <span className="ml-2 text-xs font-normal text-stone-400">вы</span>}
+                    <p className="mt-0.5 font-mono text-[11px] font-normal text-stone-400" title={u.id}>
+                      ID {String(u.id).slice(0, 8)}
+                    </p>
                   </td>
                   <td className="px-3 py-3 text-stone-600">{u.email}</td>
                   <td className="whitespace-nowrap px-3 py-3 text-stone-500">{formatDate(u.createdAt)}</td>
@@ -238,9 +241,9 @@ export default function AdminUsersPage() {
                     "Пользователей нет"
                   ) : (
                     <>
-                      По вашему запросу никого не найдено.{" "}
-                      <button type="button" onClick={view.resetAll} className="font-medium text-indigo-700 underline underline-offset-4">
-                        Сбросить всё
+                      По выбранным параметрам пользователи не найдены.{" "}
+                      <button type="button" onClick={view.resetFilters} className="font-medium text-indigo-700 underline underline-offset-4">
+                        Сбросить фильтры
                       </button>
                     </>
                   )}

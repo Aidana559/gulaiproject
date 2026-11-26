@@ -1,3 +1,6 @@
+// Чистая логика сортировки / фильтрации / поиска пользователей для панелей
+// администратора и модератора. Ничего не пишет в данные: все функции
+// возвращают НОВЫЙ массив, исходный список (и JSON на сервере) не меняется.
 
 export type UserRole = "admin" | "moderator" | "user";
 export type UserStatus = "active" | "muted" | "blocked";
@@ -19,10 +22,47 @@ export type SortState = { field: UserSortField | null; dir: SortDir };
 
 export type RoleFilter = "all" | UserRole;
 export type StatusFilter = "all" | UserStatus;
-export type UserFilters = { role: RoleFilter; status: StatusFilter };
+export type MuteTermFilter = "all" | "temporary" | "permanent";
+export type UserFilters = {
+  role: RoleFilter;
+  status: StatusFilter;
+  /** Срок mute: только для пользователей в mute (есть mutedUntil — временный, нет — бессрочный). */
+  muteTerm: MuteTermFilter;
+  /** Дата регистрации «с» / «по» включительно, формат YYYY-MM-DD (локальные сутки). */
+  dateFrom: string;
+  dateTo: string;
+};
 
 export const DEFAULT_SORT: SortState = { field: null, dir: "asc" };
-export const DEFAULT_FILTERS: UserFilters = { role: "all", status: "all" };
+export const DEFAULT_FILTERS: UserFilters = {
+  role: "all",
+  status: "all",
+  muteTerm: "all",
+  dateFrom: "",
+  dateTo: "",
+};
+
+export const MUTE_TERM_FILTERS: { key: MuteTermFilter; label: string }[] = [
+  { key: "all", label: "Любой" },
+  { key: "temporary", label: "Временный" },
+  { key: "permanent", label: "Бессрочный" },
+];
+
+/** Сколько отдельных фильтров сейчас включено (поиск не считается). */
+export function countActiveFilters(f: UserFilters): number {
+  return (
+    (f.role !== "all" ? 1 : 0) +
+    (f.status !== "all" ? 1 : 0) +
+    (f.muteTerm !== "all" ? 1 : 0) +
+    (f.dateFrom || f.dateTo ? 1 : 0)
+  );
+}
+
+/** YYYY-MM-DD в локальном часовом поясе. */
+export function toDateInput(d: Date): string {
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
 
 export const ROLE_LABEL: Record<UserRole, string> = {
   admin: "Администратор",
@@ -37,7 +77,7 @@ export const ROLE_FILTERS: { key: RoleFilter; label: string }[] = [
   { key: "user", label: "Пользователи" },
 ];
 
-
+/** Описание полей сортировки: подписи и осмысленные названия направлений. */
 export const SORT_FIELDS: Record<
   UserSortField,
   { label: string; asc: string; desc: string; defaultDir: SortDir }
@@ -71,9 +111,9 @@ export const SORT_FIELDS: Record<
 };
 
 export type UserListContext = {
-  
+  /** Как в конкретной таблице определяется «пользователь в mute». */
   isMuted: (u: SortableUser) => boolean;
-  
+  /** Учитывать ли blocked в статусе (в панели модератора блокировка не показывается). */
   showBlocked: boolean;
 };
 
@@ -83,6 +123,7 @@ export function getUserStatus(u: SortableUser, ctx: UserListContext): UserStatus
   return "active";
 }
 
+/* ---------- нормализация ---------- */
 
 export const normalize = (v: unknown) =>
   String(v ?? "").toLowerCase().replace(/ё/g, "е").replace(/\s+/g, " ").trim();
@@ -92,7 +133,7 @@ const collator = new Intl.Collator("ru", { sensitivity: "base", numeric: true })
 const ROLE_RANK: Record<UserRole, number> = { admin: 0, moderator: 1, user: 2 };
 const STATUS_RANK: Record<UserStatus, number> = { active: 0, muted: 1, blocked: 2 };
 
-
+/* ---------- ключи сортировки (null = «пустое значение») ---------- */
 
 function textKey(v: unknown): string | null {
   const s = String(v ?? "").trim();
@@ -133,7 +174,10 @@ function compareKeys(a: string | number | null, b: string | number | null): numb
   return 0;
 }
 
-
+/**
+ * Сравнение по одному полю. Пустые значения ВСЕГДА в конце списка —
+ * независимо от направления (чтобы при «Я → А» не всплывали пользователи без значения).
+ */
 function compareByField(
   a: SortableUser,
   b: SortableUser,
@@ -152,7 +196,7 @@ function compareByField(
 
 const TIE_BREAKERS: UserSortField[] = ["name", "email"];
 
-
+/** Возвращает отсортированную КОПИЮ списка. При field === null порядок не меняется. */
 export function sortUsers<T extends SortableUser>(
   users: readonly T[],
   sort: SortState,
@@ -164,38 +208,64 @@ export function sortUsers<T extends SortableUser>(
   withIndex.sort((x, y) => {
     const primary = compareByField(x.u, y.u, field, sort.dir, ctx);
     if (primary !== 0) return primary;
-    
+    // одинаковые значения: детерминированный порядок по имени, затем email
     for (const f of TIE_BREAKERS) {
       if (f === field) continue;
       const r = compareByField(x.u, y.u, f, "asc", ctx);
       if (r !== 0) return r;
     }
-    return x.i - y.i; 
+    return x.i - y.i; // и в конце — исходный порядок (стабильность)
   });
   return withIndex.map((x) => x.u);
 }
 
+/* ---------- поиск и фильтры ---------- */
 
-
+/** Поиск по имени, email и ID. Роль ищется отдельным фильтром. */
 export function matchesSearch(u: SortableUser, query: string): boolean {
   const q = normalize(query);
   if (!q) return true;
-  const roleLabel = u.role && u.role in ROLE_LABEL ? ROLE_LABEL[u.role as UserRole] : "";
-  return (
-    normalize(u.name).includes(q) ||
-    normalize(u.email).includes(q) ||
-    normalize(u.role).includes(q) ||
-    normalize(roleLabel).includes(q)
-  );
+  return normalize(u.name).includes(q) || normalize(u.email).includes(q) || normalize(u.id).includes(q);
+}
+
+function dayStart(s: string): number | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+  return m ? new Date(+m[1], +m[2] - 1, +m[3], 0, 0, 0, 0).getTime() : null;
+}
+function dayEnd(s: string): number | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+  return m ? new Date(+m[1], +m[2] - 1, +m[3], 23, 59, 59, 999).getTime() : null;
 }
 
 export function matchesFilters(u: SortableUser, f: UserFilters, ctx: UserListContext): boolean {
   if (f.role !== "all" && u.role !== f.role) return false;
   if (f.status !== "all" && getUserStatus(u, ctx) !== f.status) return false;
+
+  if (f.muteTerm !== "all") {
+    if (!ctx.isMuted(u)) return false;
+    const temporary = !!u.mutedUntil;
+    if (f.muteTerm === "temporary" ? !temporary : temporary) return false;
+  }
+
+  if (f.dateFrom || f.dateTo) {
+    const t = timeKey(u.createdAt);
+    if (t === null) return false; // даты нет — под диапазон не подходит
+    let from = f.dateFrom ? dayStart(f.dateFrom) : null;
+    let to = f.dateTo ? dayEnd(f.dateTo) : null;
+    if (from !== null && to !== null && from > to) {
+      // перепутаны границы — трактуем как диапазон между двумя датами
+      const a = dayStart(f.dateTo)!;
+      const b = dayEnd(f.dateFrom)!;
+      from = a;
+      to = b;
+    }
+    if (from !== null && t < from) return false;
+    if (to !== null && t > to) return false;
+  }
   return true;
 }
 
-
+/** Единый конвейер: поиск → фильтры → сортировка. Исходный массив не изменяется. */
 export function buildUserView<T extends SortableUser>(
   users: readonly T[],
   opts: { query: string; filters: UserFilters; sort: SortState },

@@ -117,7 +117,7 @@ export default function MutePanel() {
       <UserListToolbar
         view={view}
         idPrefix="mod-users"
-        searchPlaceholder="Поиск по имени, email, роли"
+        searchPlaceholder="Поиск по имени, email или ID"
         statusOptions={STATUS_OPTIONS}
         sortFields={SORT_FIELD_LIST}
         total={users.length}
@@ -141,7 +141,12 @@ export default function MutePanel() {
               const muted = isMutedNow(u);
               return (
                 <tr key={u.id} className="transition hover:bg-stone-50/70">
-                  <td className="px-3 py-3 font-medium text-stone-900"><UserLink userId={u.id}>{u.name}</UserLink></td>
+                  <td className="px-3 py-3 font-medium text-stone-900">
+                    <UserLink userId={u.id}>{u.name}</UserLink>
+                    <p className="mt-0.5 font-mono text-[11px] font-normal text-stone-400" title={u.id}>
+                      ID {String(u.id).slice(0, 8)}
+                    </p>
+                  </td>
                   <td className="px-3 py-3 text-stone-600">{u.email}</td>
                   <td className="whitespace-nowrap px-3 py-3 text-stone-500">{formatDate(u.createdAt)}</td>
                   <td className="px-3 py-3 text-stone-700">{ROLE_LABEL[u.role as keyof typeof ROLE_LABEL] ?? u.role}</td>
@@ -195,9 +200,9 @@ export default function MutePanel() {
                     "Пользователей нет"
                   ) : (
                     <>
-                      По вашему запросу никого не найдено.{" "}
-                      <button type="button" onClick={view.resetAll} className="font-medium text-indigo-700 underline underline-offset-4">
-                        Сбросить всё
+                      По выбранным параметрам пользователи не найдены.{" "}
+                      <button type="button" onClick={view.resetFilters} className="font-medium text-indigo-700 underline underline-offset-4">
+                        Сбросить фильтры
                       </button>
                     </>
                   )}
